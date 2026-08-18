@@ -22,7 +22,7 @@ export const NPC_DEFS = [
   {
     id: 'ichiban', name: 'Ichiban', title: 'Wandering Samurai (off duty, always)',
     prov: 'MN', portrait: '🍶', game: 'pachinko',
-    home: { x: 199, y: 35 }, radius: 10,
+    home: { x: 292, y: 52 }, radius: 10,
     pal: { skin: '#f0c8a0', body: '#7a2a2a', legs: '#2a2a3a', hat: 'topknot', hair: '#1a1a22' },
     lines: [
       '*hic* You! Yes, YOU witnessed that! Three jackpots in a row! The machine FEARS me!',
@@ -34,7 +34,7 @@ export const NPC_DEFS = [
   {
     id: 'yongxin', name: 'Yong Xin', title: 'Dragon Warden of the Eastern Peaks',
     prov: 'DG', portrait: '🐉', special: 'dragon', blessing: true,
-    home: { x: 148, y: 140 }, radius: 14, slow: true,
+    home: { x: 228, y: 141 }, radius: 16, slow: true,
     lines: [
       'Few climb this high, traveler. Fewer still are seen by me. Consider what that makes you: fortunate.',
       'Luck is a river. The wise do not dam it, nor drown in it — they learn where it bends.',
@@ -45,7 +45,7 @@ export const NPC_DEFS = [
   {
     id: 'agamemnon', name: 'King Agamemnon', title: 'High King of Tyche & Fortuna (very secure, thanks for asking)',
     prov: 'TF', portrait: '👑', game: 'tali',
-    home: { x: 125, y: 44 }, radius: 8,
+    home: { x: 236, y: 36 }, radius: 8,
     pal: { skin: '#e8b888', body: '#8a2be2', legs: '#5a3a1e', hat: 'crown' },
     lines: [
       'MOBILIZE THE ARMY! ...What? The tavern merely ran out of my favourite olives. Stand down. STAND DOWN I SAID.',
@@ -57,7 +57,7 @@ export const NPC_DEFS = [
   {
     id: 'leonidas', name: 'General Leonidas', title: 'Lord of Upsilonia, Admiral of the Tychean Fleet',
     prov: 'TF', portrait: '⚔️', game: 'chariots',
-    home: { x: 144, y: 13 }, radius: 4,
+    home: { x: 131, y: 21 }, radius: 5,
     pal: { skin: '#e0a878', body: '#a02020', legs: '#7a5a2a', hat: 'helmet', hatColor: '#b8862a' },
     lines: [
       'You crossed at low tide. Clever. I respect clever. I also mine the causeway at high tide. Respect THAT.',
@@ -69,7 +69,7 @@ export const NPC_DEFS = [
   {
     id: 'seamus', name: 'Seamus', title: 'Freelance Leprechaun, Chartered',
     prov: 'FL', portrait: '🍀', game: 'rainbow', blessing: true,
-    home: { x: 44, y: 70 }, radius: 18,
+    home: { x: 90, y: 108 }, radius: 20,
     pal: { skin: '#f0c8a0', body: '#1f7a2f', legs: '#5a3a1e', hat: 'cap', hatColor: '#155a20', hair: '#c05020' },
     lines: [
       "Ah, you'd be after me gold! Get in line — behind the taxman, two banshees, and me ex.",
@@ -79,9 +79,9 @@ export const NPC_DEFS = [
     ],
   },
   {
-    id: 'jb', name: 'J.B.', title: 'Retired Legend, Horshoeville Rodeo',
+    id: 'jb', name: 'J.B.', title: 'Retired Legend, Horseshoeville Rodeo',
     prov: 'HV', portrait: '🤠', game: 'ponies',
-    home: { x: 52, y: 145 }, radius: 9,
+    home: { x: 40, y: 202 }, radius: 8,
     pal: { skin: '#e0a878', body: '#8a5a2a', legs: '#3a5a8a', hat: 'cowboy', hatColor: '#6d4520' },
     lines: [
       "Retired? Sure. But when the crowd starts hollerin' my name, well... a bull's just a big couch that hates you.",
@@ -93,7 +93,7 @@ export const NPC_DEFS = [
   {
     id: 'khrueang', name: 'Khrueang', title: 'Undisputed Champion of Elephantium',
     prov: 'EP', portrait: '🥊', game: 'muaythai',
-    home: { x: 173, y: 182 }, radius: 8,
+    home: { x: 335, y: 182 }, radius: 8,
     pal: { skin: '#c08a58', body: '#c02a2a', legs: '#2a2a2a', hat: null, hair: '#111' },
     lines: [
       '*lights cigarette* Training? I am training. This is a breathing exercise.',
@@ -106,7 +106,7 @@ export const NPC_DEFS = [
   {
     id: 'meri', name: 'Madame Meri', title: 'Fortune Cat of Neko Island',
     prov: 'MN', portrait: '🐱', blessing: true,
-    home: { x: 168, y: 72 }, radius: 5,
+    home: { x: 338, y: 24 }, radius: 5,
     pal: { skin: '#f8e0c8', body: '#d44a8a', legs: '#3a2a3a', hat: 'ears', hatColor: '#f8f8f8' },
     lines: [
       'Mrrrow. The left paw beckons money, the right paw beckons people. I beckon lunch.',
@@ -116,9 +116,9 @@ export const NPC_DEFS = [
     ],
   },
   {
-    id: 'paddy', name: 'Paddy O’Dds', title: 'Cloverpool Bookmaker (licence pending since 1847)',
+    id: 'paddy', name: 'Paddy O’Dds', title: 'Ballyclover Bookmaker (licence pending since 1847)',
     prov: 'FL', portrait: '📓', game: 'roadbowls',
-    home: { x: 48, y: 77 }, radius: 6,
+    home: { x: 112, y: 124 }, radius: 6,
     pal: { skin: '#f0c8a0', body: '#3a3a5a', legs: '#2a2a2a', hat: 'cap', hatColor: '#4a4a2a' },
     lines: [
       "I'll give ye 7-to-2 the bowl clears the corner, and 50-to-1 the parish priest doesn't hear about it.",
@@ -129,7 +129,7 @@ export const NPC_DEFS = [
   {
     id: 'doc', name: 'Doc Ace', title: 'House Dealer, The Grand Saloon',
     prov: 'HV', portrait: '🎩', game: 'fivecard',
-    home: { x: 36, y: 184 }, radius: 5,
+    home: { x: 88, y: 167 }, radius: 5,
     pal: { skin: '#e8c098', body: '#2a2a2a', legs: '#2a2a2a', hat: 'cowboy', hatColor: '#1a1a1a' },
     lines: [
       "Cards don't lie, friend. Card PLAYERS, on the other hand — hoo boy.",
@@ -140,7 +140,7 @@ export const NPC_DEFS = [
   {
     id: 'loong', name: 'Lady Loong', title: 'Keeper of the Hidden Tea House',
     prov: 'DG', portrait: '🍵', game: 'teahouse',
-    home: { x: 148, y: 138 }, radius: 3, slow: true,
+    home: { x: 200, y: 152 }, radius: 3, slow: true,
     pal: { skin: '#f0d0a8', body: '#1f5a4a', legs: '#3a2a2a', hat: 'topknot', hair: '#111' },
     lines: [
       'You found us. The mountain approves of you — or is bored of you. Either way: tea?',
@@ -151,7 +151,7 @@ export const NPC_DEFS = [
   {
     id: 'sao', name: 'Sister Sao', title: 'Bell-Keeper of the Golden Temple',
     prov: 'EP', portrait: '🔔', game: 'spirits', blessing: true,
-    home: { x: 188, y: 149 }, radius: 5, slow: true,
+    home: { x: 236, y: 168 }, radius: 5, slow: true,
     pal: { skin: '#d8a878', body: '#e8901a', legs: '#e8901a', hat: 'hood', hatColor: '#c87a10' },
     lines: [
       'The spirits love a good wager. Why do you think the bells are shaped like cups?',
@@ -162,7 +162,7 @@ export const NPC_DEFS = [
   {
     id: 'hermes', name: 'Hermes Jr.', title: 'Junior Courier of the Goddesses (unpaid internship)',
     prov: 'TF', portrait: '🪽',
-    home: { x: 120, y: 101 }, radius: 12,
+    home: { x: 180, y: 119 }, radius: 12,
     pal: { skin: '#f0c8a0', body: '#e8e8f0', legs: '#c8a858', hat: 'cap', hatColor: '#e8e8f0' },
     lines: [
       'Message for you! ...Actually no, this one is for a Mr. Agamemnon. It is his eleventh apology letter today.',
@@ -364,6 +364,54 @@ export function updateBot(b, world, tide, dt, concealers, emitWorldWin) {
   }
   moveEntity(b, world, tide, dt, null, 0);
   animateEntity(b, dt);
+}
+
+/* ------------------------------------------------------------
+   Citizens — ambient townsfolk. Non-interactive set dressing:
+   they stroll their home city so the streets feel lived-in.
+   ------------------------------------------------------------ */
+const CITIZEN_PALETTES = {
+  TF: [{ body: '#e8e2d4', hat: null }, { body: '#8a6ab0', hat: null }, { body: '#c0a040', hat: 'hood', hatColor: '#e8e2d4' }],
+  FL: [{ body: '#1f7a2f', hat: 'cap', hatColor: '#155a20' }, { body: '#7a5a3a', hat: 'cap', hatColor: '#4a4a2a' }, { body: '#3a5a8a', hat: null }],
+  HV: [{ body: '#8a5a2a', hat: 'cowboy', hatColor: '#6d4520' }, { body: '#5a4a3a', hat: 'cowboy', hatColor: '#3a2a1a' }, { body: '#a03030', hat: 'cowboy', hatColor: '#8a7050' }],
+  DG: [{ body: '#c02a2a', hat: 'topknot' }, { body: '#1f5a4a', hat: 'topknot' }, { body: '#d4a018', hat: null }],
+  EP: [{ body: '#e8901a', hat: 'hood', hatColor: '#c87a10' }, { body: '#4a7a5a', hat: null }, { body: '#8a5a8a', hat: null }],
+  MN: [{ body: '#d44a8a', hat: null }, { body: '#3a3a5a', hat: 'cap', hatColor: '#222' }, { body: '#5eaebc', hat: 'ears', hatColor: '#f8f8f8' }],
+};
+
+export function createCitizens(world) {
+  const rng = mulberry32(CONFIG.WORLD_SEED + 4242);
+  const citizens = [];
+  const skinTones = ['#f0c8a0', '#e0a878', '#c08a58', '#8a5a38'];
+  for (const city of world.cities) {
+    const pals = CITIZEN_PALETTES[city.prov] || CITIZEN_PALETTES.TF;
+    for (let i = 0; i < city.citizens; i++) {
+      const pal = pals[i % pals.length];
+      const ang = rng() * Math.PI * 2, dist = rng() * city.r * 0.7;
+      citizens.push({
+        sprite: makeCharSprite({
+          skin: skinTones[(i + city.x) % skinTones.length],
+          body: pal.body, legs: '#33334a', hat: pal.hat, hatColor: pal.hatColor || '#333',
+        }),
+        x: (city.x + Math.cos(ang) * dist) * 16 + 8,
+        y: (city.y + Math.sin(ang) * dist) * 16 + 8,
+        dir: 0, frame: 0, animT: 0, moveT: rng() * 2, vx: 0, vy: 0,
+        home: city, // leash to the city
+      });
+    }
+  }
+  return citizens;
+}
+
+export function updateCitizen(c, world, tide, dt) {
+  c.moveT -= dt;
+  if (c.moveT <= 0) {
+    c.moveT = 1.5 + roll() * 3;
+    if (roll() < 0.4) { c.vx = 0; c.vy = 0; }
+    else { const a = roll() * Math.PI * 2; c.vx = Math.cos(a) * 20; c.vy = Math.sin(a) * 20; }
+  }
+  moveEntity(c, world, tide, dt, c.home, c.home.r);
+  animateEntity(c, dt);
 }
 
 /* Global fake-win feed. */

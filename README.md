@@ -33,22 +33,27 @@ default branch is included in `.github/workflows/pages.yml`).
 
 ## The world
 
-Six provinces, each with a big landmark hub housing its gambling culture, plus
+A 360×240-tile continent built from the hand-drawn atlas of Luckland: rugged
+ranges (the Dragonspine, the Emerald Divide, the Thunder Steps, the Mist
+Peaks) with narrow winding trails carved through the rock, jagged coastlines,
+four rivers, Heaven Lake, and big styled cities full of ambient townsfolk.
+Six provinces, each with landmark hubs housing its gambling culture, plus
 street games and roaming characters:
 
-| Province | Theme | Landmarks | Street game |
+| Province | Theme | Cities & landmarks | Street game |
 |---|---|---|---|
-| **Tyche & Fortuna (TF)** | Ancient Greece/Rome, north coast | Acropolis, Parthenon, Coliseum, Fort Upsilonia | Tali (knucklebones) |
-| **Four Leaf Republic (FL)** | Celtic highlands, northwest | Edinburgh Castle | Road bowls |
-| **Horshoeville (HV)** | Wild-West plains, southwest | Churchill Downs, The Grand Saloon | High-noon standoffs |
-| **Dragonia (DG)** | Dynastic China, south | Great Palace, Hidden Tea House, Forbidden Valley | Alley mahjong |
-| **Elephantium (EP)** | SE-Asian jungle, southeast | Golden Temple, Muay Thai Arena | Haiko (hi-lo) |
-| **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Magic Mushroom Casino, Sumo Arena, Neko Shrine | Pachinko |
+| **Tyche & Fortuna (TF)** | Ancient Greece/Rome, northern capes | Tyche, Pontium (Panhellenium, Coliseum), Fortuna, Epineion, Fort Upsilonia | Tali (knucklebones) |
+| **Four Leaf Republic (FL)** | Celtic highlands, northwest | Ballyclover (Castle), Rapidstown, Puffin Point | Road bowls |
+| **Horseshoeville (HV)** | Wild-West plains, southwest | Downtown Horseshoeville (Grand Saloon), Horseshoe Downs | High-noon standoffs |
+| **Dragonia (DG)** | Dynastic China, mountainous south | Tiger City (Golden Tiger Hall), Kite City, Flat Palace, Hidden/Shady Temple, Peekaboo Palace | Alley mahjong |
+| **Elephantium (EP)** | SE-Asian jungle, mountainous east | Temple City (Golden Temple), Roaring Elephant Arena, Waterfall Park | Haiko (hi-lo) |
+| **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Downtown/North/East Maneki (Magic Mushroom Casino, Sumo Arena), Neko Town | Pachinko |
 
-**Tides** cycle every 5 minutes. Tidal flats, the Upsilonia causeway, the
-Neko sandbar, the FL↔HV coastal passage and the Hidden Cove in Elephantium are
-only crossable at low tide — and the sea will sweep you ashore when it rises.
-The rare **Tidewrought Locker** chests only spawn in tide-revealed places.
+**Tides** cycle every 5 minutes. Tidal flats, the Upsilonia causeway across
+the Tychean Sea, the Neon Strait sandbar to Neko, the Lung Island causeway,
+Rapids Ford on the Great River, and the cliff-sealed Hidden Cove are only
+crossable at low tide — and the sea will sweep you ashore when it rises. The
+rare **Tidewrought Locker** chests only spawn in tide-revealed places.
 
 **Simulated multiplayer:** dozens of bot players roam the same map, race you to
 freshly spawned chests (they *will* snatch them), celebrate wins, and fill the

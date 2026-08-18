@@ -13,7 +13,7 @@ import { state, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
 import { openGame, openHub } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer } from './concealers.js';
-import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast } from './npcs.js';
+import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
 
 /* ---------------- boot ---------------- */
 const canvas = document.getElementById('game');
@@ -36,6 +36,7 @@ if (hadSave && state.px) { player.x = state.px; player.y = state.py; }
 
 const npcs = createNpcs(world);
 const bots = createBots(world);
+const citizens = createCitizens(world);
 seedConcealers(world);
 
 const floaters = []; // {x, y, text, color, t}
@@ -193,6 +194,7 @@ function emitWorldWin(bot, what, amount) {
 }
 
 let botToastTimer = 4;
+let currentRegion = null;
 
 /* ---------------- welcome ---------------- */
 if (!hadSave) {
@@ -281,6 +283,7 @@ function frame(now) {
   /* --- entities --- */
   for (const n of npcs) updateNpc(n, world, tideLevel, dt);
   for (const b of bots) updateBot(b, world, tideLevel, dt, concealers, emitWorldWin);
+  for (const c of citizens) updateCitizen(c, world, tideLevel, dt);
   updateConcealerSpawns(world, dt);
 
   botToastTimer -= dt;
@@ -299,9 +302,17 @@ function frame(now) {
     UI.setActButton(false);
   }
 
-  /* --- area banner --- */
+  /* --- area banner + named-place callouts --- */
   const { tx: ptx, ty: pty } = playerTilePos();
   UI.renderArea(world.provAt(ptx, pty));
+  let region = null;
+  for (const r of world.regions) {
+    if (Math.hypot(ptx - r.x, pty - r.y) <= r.r) { region = r.name; break; }
+  }
+  if (region !== currentRegion) {
+    currentRegion = region;
+    if (region) UI.toast(`📍 ${UI.escapeHtml(region)}`);
+  }
 
   /* --- render --- */
   waterT += dt;
@@ -349,7 +360,7 @@ function frame(now) {
   }
 
   /* entities, y-sorted */
-  const drawList = [player, ...npcs, ...bots].sort((a, b) => a.y - b.y);
+  const drawList = [player, ...npcs, ...bots, ...citizens].sort((a, b) => a.y - b.y);
   for (const e of drawList) {
     const { sx, sy } = drawSprite(e, camX, camY);
     if (e !== player && e.def) {
@@ -392,7 +403,7 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 /* Debug/testing handle (also handy for tinkering in devtools). */
-window.LUCKLAND = { world, player, state, concealers, npcs, bots };
+window.LUCKLAND = { world, player, state, concealers, npcs, bots, citizens };
 
 /* ---------------- PWA service worker ---------------- */
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {

@@ -260,9 +260,12 @@ export function openMapModal(world, player) {
       else if (t === T.WATER) c = [30, 80, 125];
       else if (t === T.TIDAL) c = [70, 140, 170];
       else if (t === T.MOUNTAIN) c = [110, 106, 116];
+      else if (t === T.PEAK) c = [232, 236, 244];
       else if (t === T.CLIFF) c = [125, 108, 82];
-      else if (t === T.ROAD || t === T.BRIDGE) c = [200, 176, 136];
-      else if (t === T.WALL || t === T.ROOF || t === T.DOOR) c = [160, 72, 56];
+      else if (t === T.ROAD || t === T.BRIDGE || t === T.TRAIL) c = [200, 176, 136];
+      else if (t === T.WALL || t === T.ROOF || t === T.DOOR ||
+               t === T.WALL_MARBLE || t === T.WALL_STONE ||
+               t === T.ROOF_GOLD || t === T.ROOF_SLATE || t === T.ROOF_LEAF) c = [160, 72, 56];
       else {
         const code = world.provAt(x, y);
         const hex = PROV_MAP_COLORS[code] || '#4a8a4a';

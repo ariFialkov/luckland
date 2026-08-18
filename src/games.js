@@ -132,14 +132,14 @@ export const GAME_DEFS = {
     ],
   },
 
-  /* ---------------- Horshoeville ---------------- */
+  /* ---------------- Horseshoeville ---------------- */
   standoff: {
     name: 'High Noon Standoff', ico: '🔫', prov: 'HV',
     desc: 'Steady… steady… DRAW!',
     mech: 'standoff',
   },
   ponies: {
-    name: 'Churchill Downs Derby', ico: '🏇', prov: 'HV',
+    name: 'Horseshoe Downs Derby', ico: '🏇', prov: 'HV',
     desc: 'Five furlongs of flying dust.',
     mech: 'race',
     runners: [
@@ -593,7 +593,7 @@ async function runStandoff(def, provCode) {
     const win = roll() < pWin;
     ui.stage.innerHTML = `<div class="big-sym">${win ? '🤠💥' : '💥😈'}</div>`;
     settle(bet, win ? 2 : 0, ui.stage,
-      win ? 'Fastest hand in Horshoeville! Your rival tips his hat and limps off.'
+      win ? 'Fastest hand in Horseshoeville! Your rival tips his hat and limps off.'
           : 'Out-drawn! You lose your stake — and a little dignity.');
     startBtn.disabled = false;
   });
