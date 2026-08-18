@@ -49,6 +49,11 @@ street games and roaming characters:
 | **Elephantium (EP)** | SE-Asian jungle, mountainous east | Temple City (Golden Temple), Roaring Elephant Arena, Waterfall Park | Haiko (hi-lo) |
 | **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Downtown/North/East Maneki (Magic Mushroom Casino, Sumo Arena), Neko Town | Pachinko |
 
+**Getting around:** shore shallows and small rivers are wadeable at reduced
+speed; deep water is not. The **Paradise Ferry** (fare in `src/config.js`)
+sails between Epineion Docks and Maneki Docks — it's the only way to the
+Maneki-Neko isles.
+
 **Tides** cycle every 5 minutes. Tidal flats, the Upsilonia causeway across
 the Tychean Sea, the Neon Strait sandbar to Neko, the Lung Island causeway,
 Rapids Ford on the Great River, and the cliff-sealed Hidden Cove are only

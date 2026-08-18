@@ -23,7 +23,7 @@ export const T = {
   PLAZA: 13, WALL: 14, ROOF: 15, DOOR: 16, BRIDGE: 17, CLIFF: 18,
   NEON: 19, PIER: 20, FLOWERS: 21, BAMBOO: 22, WETSAND: 23,
   TRAIL: 24, PEAK: 25, WALL_MARBLE: 26, WALL_STONE: 27,
-  ROOF_GOLD: 28, ROOF_SLATE: 29, ROOF_LEAF: 30,
+  ROOF_GOLD: 28, ROOF_SLATE: 29, ROOF_LEAF: 30, SHALLOW: 31,
 };
 
 export const PROV_LIST = ['SEA', 'TF', 'FL', 'HV', 'DG', 'EP', 'MN'];
@@ -157,8 +157,8 @@ export function generateWorld() {
           if (rough > 0.80) t = T.FOREST;
           break;
         case 'EP':
-          // mountainous jungle paradise: dense canopy with winding gaps
-          t = rough > 0.42 ? T.JUNGLE : T.GRASS;
+          // mountainous jungle paradise: canopy clusters with roomy gaps
+          t = rough > 0.55 ? T.JUNGLE : T.GRASS;
           break;
         case 'MN':
           t = e > 0.62 ? T.FOREST : T.GRASS;
@@ -236,7 +236,7 @@ export function generateWorld() {
       if (t === T.WATER || t === T.DEEP || t === T.MOUNTAIN || t === T.PEAK || t === T.CLIFF) continue;
       const code = PROV_LIST[prov[idx(x, y)]];
       const m = fbm(x, y, 11, seed + 30);
-      const th = { DG: 0.71, EP: 0.74, TF: 0.78, FL: 0.79, MN: 0.82, HV: 0.86 }[code] ?? 1;
+      const th = { DG: 0.71, EP: 0.77, TF: 0.78, FL: 0.79, MN: 0.82, HV: 0.86 }[code] ?? 1;
       if (m > th) set(x, y, T.MOUNTAIN);
       else if (m > th - 0.05 && code !== 'HV') set(x, y, T.HILL);
     }
@@ -270,11 +270,10 @@ export function generateWorld() {
   river([[245, 158], [248, 178], [250, 198], [252, 216]], 1);            // Lucky River
   river([[300, 163], [305, 184], [308, 204], [310, 220]], 1);            // Cyan River (ends at Waterfall Park)
 
-  /* Serpent Strait — guarantees Lung Island stands apart from Dragonia */
-  for (let y = 199; y <= 213; y++) for (let x = 168; x <= 216; x++) {
-    const wob = (fbm(x, y, 8, seed + 55) - 0.5) * 5;
-    if (y > 200 + wob && y < 212 + wob && get(x, y) !== T.DEEP) set(x, y, T.WATER);
-  }
+  /* Serpent Strait — a natural channel keeping Lung Island offshore */
+  river([[114, 204], [142, 205], [172, 206], [202, 207], [216, 206]], 3);
+  /* Neon Strait — the channel that keeps Neko its own island */
+  river([[318, 4], [321, 14], [325, 22], [329, 30], [333, 38], [337, 46], [342, 54]], 2);
 
   /* --- beaches --- */
   for (let y = 0; y < H; y++) {
@@ -314,7 +313,7 @@ export function generateWorld() {
     }
   }
   tidalLine(127, 26, 127, 42);     // Upsilonia causeway across the Tychean Sea
-  tidalLine(322, 28, 334, 21);     // Neon Strait sandbar (Maneki <-> Neko)
+  tidalLine(314, 32, 342, 18);     // Neon Strait sandbar (Maneki <-> Neko)
   tidalLine(190, 198, 190, 215);   // Lung Island causeway
   tidalLine(30, 130, 42, 136, 2);  // Rapids Ford across the Great River
 
@@ -327,6 +326,31 @@ export function generateWorld() {
     else set(cove.x + dx, cove.y + dy, T.SAND);
   }
   tidalLine(cove.x - cove.r - 2, cove.y, cove.x - cove.r + 1, cove.y, 1);
+
+  /* --- shore shallows: sea within 2 tiles of land is wadeable ---
+     (after tidal features so flats and causeways keep their gating;
+     wide waters keep a solid deep channel in the middle) --- */
+  {
+    const landish = (t) => t !== T.WATER && t !== T.DEEP && t !== T.TIDAL && t !== T.SHALLOW;
+    for (let y = 0; y < H; y++) {
+      for (let x = 0; x < W; x++) {
+        if (get(x, y) !== T.WATER) continue;
+        let nearLand = false;
+        for (let dy = -2; dy <= 2 && !nearLand; dy++)
+          for (let dx = -2; dx <= 2; dx++)
+            if (landish(get(x + dx, y + dy))) { nearLand = true; break; }
+        if (nearLand) set(x, y, T.SHALLOW);
+      }
+    }
+    // re-deepen the tide-gated straits so wading can't bypass the causeways
+    const deepen = (x0, y0, x1, y1) => {
+      for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+        if (get(x, y) === T.SHALLOW) set(x, y, T.WATER);
+      }
+    };
+    deepen(106, 20, 164, 48);   // Tychean Sea — the Upsilonia causeway is the only way over
+    deepen(306, 0, 352, 56);    // Neon Strait — the sandbar is the only way over
+  }
 
   /* ============================================================
      Cities — big, built-up, styled per province culture.
@@ -615,12 +639,52 @@ export function generateWorld() {
   trail([[178, 108], [182, 99], [188, 97]]);                         // Heaven Lake shore path
   trail([[221, 122], [225, 129], [229, 134]]);                       // Mount Colossus climb
   trail([[206, 136], [202, 143], [200, 148]]);                       // Kite City -> Hidden Temple
-  trail([[236, 138], [230, 143], [226, 146]]);                       // -> Shady Temple
+  trail([[236, 138], [230, 143], [227, 147], [225, 151], [225, 149]]); // -> Shady Temple
+  // hand-carved final approach — the temple sits in a tight mountain pocket,
+  // so this connector is laid without jitter to guarantee a way in
+  for (const [sx2, sy2] of [[231, 143], [232, 143], [231, 144], [231, 145], [230, 145], [230, 146], [230, 147], [229, 147], [229, 148], [229, 149], [228, 149], [228, 150], [227, 150]]) {
+    const t2 = get(sx2, sy2);
+    if (t2 === T.MOUNTAIN || t2 === T.PEAK || t2 === T.HILL) set(sx2, sy2, T.TRAIL);
+  }
   trail([[268, 176], [284, 170], [298, 165]]);                       // Cyan springs trail
   trail([[300, 166], [318, 172], [330, 178], [334, 180]]);           // arena back trail
+  // extra jungle walks so Elephantium stays passable
+  trail([[271, 182], [280, 188], [292, 192], [302, 198], [308, 208]]);   // south canopy walk
+  trail([[318, 186], [326, 176], [334, 166], [340, 156]]);               // east coast trail (toward Hidden Cove)
+  trail([[249, 176], [244, 186], [246, 196], [250, 206]]);               // Lucky River towpath
+  trail([[298, 162], [308, 154], [318, 146], [326, 140]]);               // Mist Peaks crossing
+  trail([[258, 148], [266, 142], [274, 138], [282, 138]]);               // north jungle cut
   trail([[60, 126], [56, 112], [58, 100]]);                          // clover cliff walk
   trail([[64, 184], [52, 176], [48, 176]]);                          // mesa overlook
   trail([[338, 24], [343, 28]]);                                     // Neko shrine steps
+
+  /* ============================================================
+     The Paradise Ferry — the only way to the Maneki-Neko isles.
+     Docks are found by scanning from an approximate point to the
+     actual coastline, then decking a pier out over the water.
+     ============================================================ */
+  function placeDock(ax, ay, dx) {
+    // walk toward the sea until stepping off land; dock = last land tile
+    let x = ax, y = ay;
+    for (let i = 0; i < 30; i++) {
+      const t = get(x + dx, y);
+      if (t === T.WATER || t === T.DEEP || t === T.SHALLOW || t === T.TIDAL) break;
+      x += dx;
+    }
+    set(x, y, T.PLAZA);
+    for (let i = 1; i <= 4; i++) {
+      const t = get(x + dx * i, y);
+      if (t === T.WATER || t === T.DEEP || t === T.SHALLOW || t === T.TIDAL) set(x + dx * i, y, T.PIER);
+    }
+    return { x, y };
+  }
+  const ferryA = placeDock(240, 61, 1);   // Epineion Docks (TF east coast)
+  const ferryB = placeDock(290, 54, -1);  // Maneki Docks (west shore)
+  const ferries = [
+    { name: 'Paradise Ferry', a: { ...ferryA, label: 'Epineion Docks' }, b: { ...ferryB, label: 'Maneki Docks' } },
+  ];
+  carvePath([[238, 57], [ferryA.x - 1, 61]]);   // Epineion -> its docks
+  carvePath([[ferryB.x + 1, 54], [288, 50], [290, 47]]); // Maneki docks -> Downtown
 
   /* Crossluck Pass — the starting trailhead in the heart of the map */
   const START = { x: 180, y: 119 };
@@ -705,7 +769,7 @@ export function generateWorld() {
   ];
 
   return {
-    W, H, tiles, prov, landmarks, events, zones, regions, cities, start: START,
+    W, H, tiles, prov, landmarks, events, zones, regions, cities, ferries, start: START,
     idx, get, inB,
     provAt(x, y) {
       return PROV_LIST[prov[idx(Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y)))]];

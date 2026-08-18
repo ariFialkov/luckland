@@ -89,7 +89,7 @@ export function trySpawnConcealer(world) {
     const x = 4 + Math.floor(roll() * (world.W - 8));
     const y = 4 + Math.floor(roll() * (world.H - 8));
     const t = world.tiles[y * world.W + x];
-    if (isSolidTile(t, 0) || t === T.DOOR || t === T.TIDAL) continue;
+    if (isSolidTile(t, 0) || t === T.DOOR || t === T.TIDAL || t === T.SHALLOW) continue;
     if (concealers.some((c) => Math.hypot(c.x - x, c.y - y) < 4)) continue;
     const provCode = world.provAt(x, y);
     const tidal = inTidalZone(world, x, y);

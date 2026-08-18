@@ -259,6 +259,7 @@ export function openMapModal(world, player) {
       if (t === T.DEEP) c = [16, 40, 70];
       else if (t === T.WATER) c = [30, 80, 125];
       else if (t === T.TIDAL) c = [70, 140, 170];
+      else if (t === T.SHALLOW) c = [88, 174, 190];
       else if (t === T.MOUNTAIN) c = [110, 106, 116];
       else if (t === T.PEAK) c = [232, 236, 244];
       else if (t === T.CLIFF) c = [125, 108, 82];

@@ -30,6 +30,9 @@ export const CONFIG = {
   BOT_WIN_TOAST_MIN_S: 6,       // global "X won Y" feed cadence
   BOT_WIN_TOAST_MAX_S: 15,
 
+  // Paradise Ferry fare (mainland <-> Maneki-Neko).
+  FERRY_PRICE: 40,
+
   // Concealer spawning.
   CONCEALER_MAX_ACTIVE: 46,     // chests alive on the map at once
   CONCEALER_RESPAWN_S: 9,       // avg seconds between respawn attempts

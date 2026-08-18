@@ -12,7 +12,7 @@ import { T } from './world.js';
 import { hash2 } from './rng.js';
 
 export const CELL = 16;
-const ATLAS_ROWS = 31;
+const ATLAS_ROWS = 32;
 
 /* px helper */
 function px(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
@@ -69,6 +69,17 @@ export function buildTileAtlas(seed) {
       for (let i = 0; i < 5; i++) {
         const wx = (hash2(i + 4, v, seed + 5) * CELL) | 0, wy = (hash2(v, i + 2, seed + 6) * CELL) | 0;
         px(ctx, x + ((wx + v * 3) % CELL), y + wy, 3, 1, '#8fd0e8');
+      }
+    }
+    { // SHALLOW: wadeable turquoise water, sandy bed showing through
+      const [x, y] = o(T.SHALLOW);
+      px(ctx, x, y, CELL, CELL, '#58aebe');
+      for (let yy = 0; yy < CELL; yy += 2) for (let xx = 0; xx < CELL; xx += 2) {
+        if (hash2(xx + v * 13, yy, seed + 33) > 0.78) px(ctx, x + xx, y + yy, 2, 2, '#79bfa8');
+      }
+      for (let i = 0; i < 4; i++) {
+        const wx = (hash2(i + 8, v, seed + 34) * CELL) | 0, wy = (hash2(v, i + 5, seed + 35) * CELL) | 0;
+        px(ctx, x + ((wx + v * 4) % CELL), y + wy, 4, 1, '#a8e0ea');
       }
     }
     { const [x, y] = o(T.WETSAND);
@@ -277,40 +288,98 @@ export function makeCharSprite(pal) {
   const cv = document.createElement('canvas');
   cv.width = CHAR_W * 4; cv.height = CHAR_H * 2;
   const ctx = cv.getContext('2d');
+  const armC = shade(body, -25);
+  const bodyD = shade(body, -35);
+  const legHi = shade(legs, 25);
 
+  /* frame 0 = neutral stance (also the idle pose)
+     frame 1 = mid-stride: legs split, arms swung, body bobs up 1px */
   for (let dir = 0; dir < 4; dir++) {
     for (let f = 0; f < 2; f++) {
       const ox = dir * CHAR_W, oy = f * CHAR_H;
+      const side = dir === 1 || dir === 2;
+      const face = dir === 1 ? -1 : 1;           // which way a side profile points
+      const bob = f === 1 ? 1 : 0;               // stride lifts the figure 1px
+      const yb = oy + 2 - bob;                   // top of the head
+      // mirror helper for left-facing: reflect x inside the 16px cell
+      const X = (x, w = 1) => (dir === 1 ? ox + 16 - x - w : ox + x);
+      const P = (x, y, w, h, c) => px(ctx, X(x, w), y, w, h, c);
+
       // shadow
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.fillRect(ox + 4, oy + 16, 8, 2);
-      // legs (alternate per frame)
-      const lo = f === 0 ? 0 : 1;
-      px(ctx, ox + 5, oy + 12 + lo, 2, 4 - lo, legs);
-      px(ctx, ox + 9, oy + 12 + (1 - lo), 2, 3 + lo, legs);
-      // body
-      px(ctx, ox + 4, oy + 7, 8, 6, body);
-      // arms
-      const armC = shade(body, -20);
-      px(ctx, ox + 3, oy + 8 + (f ? 1 : 0), 2, 4, armC);
-      px(ctx, ox + 11, oy + 8 + (f ? 0 : 1), 2, 4, armC);
-      // head
-      px(ctx, ox + 4, oy + 1, 8, 7, skin);
-      // hair / hat
-      if (hat === 'cap')       { px(ctx, ox + 3, oy, 10, 3, hatColor); px(ctx, ox + 3, oy + 2, 12, 1, hatColor); }
-      else if (hat === 'cowboy'){ px(ctx, ox + 2, oy + 2, 12, 1, hatColor); px(ctx, ox + 4, oy, 8, 3, hatColor); }
-      else if (hat === 'helmet'){ px(ctx, ox + 4, oy, 8, 4, hatColor); px(ctx, ox + 7, oy - 0, 2, 2, '#ffd75e'); }
-      else if (hat === 'hood')  { px(ctx, ox + 3, oy, 10, 4, hatColor); px(ctx, ox + 3, oy + 3, 2, 4, hatColor); px(ctx, ox + 11, oy + 3, 2, 4, hatColor); }
-      else if (hat === 'ears')  { px(ctx, ox + 3, oy, 3, 3, hatColor); px(ctx, ox + 10, oy, 3, 3, hatColor); px(ctx, ox + 4, oy + 1, 8, 2, hatColor); }
-      else if (hat === 'crown') { px(ctx, ox + 4, oy, 8, 2, '#ffd75e'); px(ctx, ox + 4, oy - 0, 2, 2, '#ffd75e'); px(ctx, ox + 10, oy, 2, 2, '#ffd75e'); px(ctx, ox + 7, oy, 2, 2, '#ffd75e'); }
-      else if (hat === 'topknot'){ px(ctx, ox + 6, oy, 4, 2, hair); px(ctx, ox + 4, oy + 1, 8, 2, hair); }
-      else { px(ctx, ox + 4, oy, 8, 2, hair); px(ctx, ox + 4, oy + 2, 1, 2, hair); px(ctx, ox + 11, oy + 2, 1, 2, hair); }
-      // face by direction
+
+      /* ---- legs (y 13..16) ---- */
+      if (!side) {
+        if (f === 0) {
+          // standing square
+          px(ctx, ox + 5, oy + 13, 2, 3, legs); px(ctx, ox + 9, oy + 13, 2, 3, legs);
+          px(ctx, ox + 5, oy + 15, 2, 1, legHi); px(ctx, ox + 9, oy + 15, 2, 1, legHi); // boots
+        } else {
+          // stride: left leg planted long, right leg lifted with foot kicked out
+          px(ctx, ox + 4, oy + 12, 2, 4, legs); px(ctx, ox + 4, oy + 15, 2, 1, legHi);
+          px(ctx, ox + 9, oy + 12, 2, 2, legs);
+          px(ctx, ox + 10, oy + 13, 2, 2, legHi); // raised boot
+        }
+      } else {
+        if (f === 0) {
+          // profile standing: legs slightly offset front/back
+          P(6, oy + 13, 2, 3, legs); P(9, oy + 13, 2, 3, legs);
+          P(6, oy + 15, 2, 1, legHi); P(9, oy + 15, 2, 1, legHi);
+        } else {
+          // profile stride: front leg reaching, back leg trailing off the ground
+          P(9, oy + 12, 2, 3, legs); P(10, oy + 14, 2, 2, legHi);   // front leg + boot forward
+          P(4, oy + 12, 2, 2, legs); P(3, oy + 13, 2, 2, legHi);    // back leg kicked up behind
+        }
+      }
+
+      /* ---- torso (below the head, y ~8..13) ---- */
+      if (!side) {
+        px(ctx, ox + 4, yb + 6, 8, 6, body);
+        px(ctx, ox + 4, yb + 11, 8, 1, bodyD);
+        // arms swing opposite each other
+        const s = f === 1 ? 2 : 0;
+        px(ctx, ox + 3, yb + 7 + s, 2, 4, armC);
+        px(ctx, ox + 11, yb + 9 - s, 2, 4, armC);
+      } else {
+        P(5, yb + 6, 6, 6, body);
+        P(5, yb + 11, 6, 1, bodyD);
+        // one visible arm, swinging fore/aft
+        if (f === 0) P(7, yb + 8, 2, 4, armC);
+        else P(9, yb + 8, 3, 3, armC); // reaching forward
+      }
+
+      /* ---- head ---- */
+      if (!side) px(ctx, ox + 4, yb, 8, 7, skin);
+      else P(4, yb, 7, 7, skin);
+
+      /* ---- hair / hat (drawn around yb-1..yb+2) ---- */
+      const hs = side ? face : 0; // hats tip toward the facing direction
+      const HX = (x, w = 1) => ox + x + hs;
+      if (hat === 'cap') { px(ctx, HX(3), yb - 1, 10, 3, hatColor); px(ctx, HX(2 + (face > 0 || !side ? 2 : 0)), yb + 1, 12 - (side ? 2 : 0), 1, hatColor); }
+      else if (hat === 'cowboy') { px(ctx, HX(2), yb + 1, 12, 1, hatColor); px(ctx, HX(4), yb - 1, 8, 3, hatColor); }
+      else if (hat === 'helmet') { px(ctx, HX(4), yb - 1, 8, 4, hatColor); px(ctx, HX(7), yb - 1, 2, 2, '#ffd75e'); }
+      else if (hat === 'hood') { px(ctx, HX(3), yb - 1, 10, 4, hatColor); px(ctx, ox + 3, yb + 2, 2, 4, hatColor); px(ctx, ox + 11, yb + 2, 2, 4, hatColor); }
+      else if (hat === 'ears') { px(ctx, HX(3), yb - 1, 3, 3, hatColor); px(ctx, HX(10), yb - 1, 3, 3, hatColor); px(ctx, HX(4), yb, 8, 2, hatColor); }
+      else if (hat === 'crown') { px(ctx, HX(4), yb, 8, 2, '#ffd75e'); px(ctx, HX(4), yb - 1, 2, 1, '#ffd75e'); px(ctx, HX(10), yb - 1, 2, 1, '#ffd75e'); px(ctx, HX(7), yb - 1, 2, 1, '#ffd75e'); }
+      else if (hat === 'topknot') { px(ctx, HX(6), yb - 1, 4, 2, hair); px(ctx, HX(4), yb, 8, 2, hair); }
+      else {
+        px(ctx, HX(4), yb - 1, 8, 3, hair);
+        if (!side) { px(ctx, ox + 4, yb + 2, 1, 2, hair); px(ctx, ox + 11, yb + 2, 1, 2, hair); }
+        else P(4, yb + 1, 2, 4, hair); // hair sweeps down the back of the head
+      }
+      if (dir === 3) px(ctx, ox + 4, yb + 1, 8, 5, hair); // back of the head is all hair
+
+      /* ---- face ---- */
       ctx.fillStyle = '#26202c';
-      if (dir === 0) { ctx.fillRect(ox + 6, oy + 4, 1, 2); ctx.fillRect(ox + 9, oy + 4, 1, 2); }
-      else if (dir === 1) { ctx.fillRect(ox + 5, oy + 4, 1, 2); }
-      else if (dir === 2) { ctx.fillRect(ox + 10, oy + 4, 1, 2); }
-      // (dir 3 = back of head, no face)
+      if (dir === 0) {
+        ctx.fillRect(ox + 6, yb + 3, 1, 2); ctx.fillRect(ox + 9, yb + 3, 1, 2);
+      } else if (side) {
+        // profile: one eye near the leading edge + a nose pixel
+        ctx.fillRect(X(9), yb + 3, 1, 2);
+        ctx.fillStyle = shade(skin, -30);
+        ctx.fillRect(X(11), yb + 4, 1, 1);
+      }
     }
   }
   return cv;

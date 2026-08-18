@@ -218,7 +218,9 @@ function moveEntity(e, world, tide, dt, home, radius) {
   }
   const nx = e.x + e.vx * dt, ny = e.y + e.vy * dt;
   const tx = Math.floor(nx / 16), ty = Math.floor(ny / 16);
-  if (world.inB(tx, ty) && !isSolidTile(world.tiles[ty * world.W + tx], tide)) {
+  const nt = world.inB(tx, ty) ? world.tiles[ty * world.W + tx] : T.DEEP;
+  // AI folk keep their boots dry — shallows are player-only
+  if (!isSolidTile(nt, tide) && nt !== T.SHALLOW) {
     e.x = nx; e.y = ny;
   } else {
     e.vx = -e.vx; e.vy = -e.vy; e.moveT = Math.min(e.moveT, 0.4);
@@ -230,7 +232,7 @@ function moveEntity(e, world, tide, dt, home, radius) {
 function animateEntity(e, dt) {
   if (e.vx || e.vy) {
     e.animT += dt;
-    if (e.animT > 0.22) { e.animT = 0; e.frame = 1 - e.frame; }
+    if (e.animT > 0.17) { e.animT = 0; e.frame = 1 - e.frame; }
   } else e.frame = 0;
 }
 

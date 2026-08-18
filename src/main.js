@@ -107,7 +107,10 @@ function solidAt(px, py) {
 }
 
 function tryMove(dx, dy, dt) {
-  const step = player.speed * dt;
+  // wading through shallows is slow going
+  const here = world.tiles[Math.floor(player.y / TILE) * world.W + Math.floor(player.x / TILE)];
+  const speedMul = here === T.SHALLOW ? 0.45 : 1;
+  const step = player.speed * speedMul * dt;
   const nx = player.x + dx * step, ny = player.y + dy * step;
   const r = 5; // collision radius
   if (dx && !solidAt(nx + Math.sign(dx) * r, player.y - r + 2) && !solidAt(nx + Math.sign(dx) * r, player.y + r)) player.x = nx;
@@ -166,6 +169,14 @@ function findTarget() {
       return { kind: 'event', obj: ev, label: ev.label, ico: ev.ico };
     }
   }
+  // ferry docks
+  for (const f of world.ferries) {
+    for (const [dock, other] of [[f.a, f.b], [f.b, f.a]]) {
+      if (near(dock.x * TILE + 8, dock.y * TILE + 8, 26)) {
+        return { kind: 'ferry', obj: { f, dock, other }, label: `${f.name} → ${other.label}`, ico: '⛴️' };
+      }
+    }
+  }
   return null;
 }
 
@@ -177,6 +188,37 @@ function doInteract() {
   else if (t.kind === 'npc') talkTo(t.obj, prov);
   else if (t.kind === 'concealer') openConcealer(t.obj, prov, () => {});
   else if (t.kind === 'event') openGame(t.obj.game, prov);
+  else if (t.kind === 'ferry') offerFerry(t.obj);
+}
+
+function offerFerry({ f, other }) {
+  const fare = CONFIG.FERRY_PRICE;
+  UI.showModal(`
+    <h2>⛴️ ${UI.escapeHtml(f.name)}</h2>
+    <div class="subtitle">Crossing the Paradise Sea since forever</div>
+    <div class="dialogue-box">
+      <div class="dialogue-portrait">⛴️</div>
+      <div class="dialogue-text">
+        <div class="dialogue-name">FERRYMAN</div>
+        Next sailing to <b>${UI.escapeHtml(other.label)}</b> leaves the moment you step aboard.
+        Fare's ${fare} 🪙 — the sea takes her cut like everyone else.
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn" id="ferry-go">⛴️ Sail · ${fare} 🪙</button>
+      <button class="btn secondary" id="ferry-stay">Stay ashore</button>
+    </div>
+  `);
+  document.getElementById('ferry-stay').addEventListener('click', UI.closeModal);
+  document.getElementById('ferry-go').addEventListener('click', () => {
+    if (state.balance < fare) { UI.toast('Not enough coins for the fare!'); return; }
+    state.balance -= fare;
+    UI.renderBalance();
+    player.x = other.x * TILE + 8;
+    player.y = other.y * TILE + 8;
+    UI.closeModal();
+    UI.toast(`⛴️ You sail across the Paradise Sea to ${UI.escapeHtml(other.label)}.`);
+  });
 }
 
 // tap-to-interact on mobile: tapping the canvas while a target is highlighted
@@ -222,7 +264,7 @@ UI.renderBalance();
 /* ---------------- render helpers ---------------- */
 function drawTile(t, tx, ty, sx, sy, animFrame) {
   let row = t, col = hash2(tx, ty, 7) * 4 | 0;
-  if (t === T.DEEP || t === T.WATER) col = animFrame;
+  if (t === T.DEEP || t === T.WATER || t === T.SHALLOW) col = animFrame;
   else if (t === T.TIDAL) {
     if (tideLevel > 0.62) { row = T.TIDAL; col = animFrame; }
     else if (tideLevel > 0.38) { row = 23; }
@@ -274,7 +316,7 @@ function frame(now) {
       if (Math.abs(dx) > Math.abs(dy)) player.dir = dx < 0 ? 1 : 2;
       else player.dir = dy < 0 ? 3 : 0;
       player.animT += dt;
-      if (player.animT > 0.18) { player.animT = 0; player.frame = 1 - player.frame; }
+      if (player.animT > 0.14) { player.animT = 0; player.frame = 1 - player.frame; }
     } else player.frame = 0;
   }
   resolveTideStranding();
@@ -343,6 +385,14 @@ function frame(now) {
     drawEmoji(lm.ico, lm.doorX * TILE + 8, lm.y * TILE - 2, camX, camY, 12);
   }
 
+  /* ferry docks */
+  for (const f of world.ferries) {
+    for (const dock of [f.a, f.b]) {
+      if (dock.x < x0 - 2 || dock.x > x1 + 2 || dock.y < y0 - 2 || dock.y > y1 + 2) continue;
+      drawEmoji('⛴️', dock.x * TILE + 8, dock.y * TILE + 4, camX, camY, 12, Math.sin(now / 500) * 1.5);
+    }
+  }
+
   /* street events */
   const bobT = Math.sin(now / 300) * 2;
   for (const ev of world.events) {
@@ -356,6 +406,18 @@ function frame(now) {
     drawEmoji(c.type.ico, c.x * TILE + 8, c.y * TILE + 12, camX, camY, 11, bobT * 0.5);
     if (hash2(c.x, (now / 400) | 0, 3) > 0.5) {
       drawEmoji('✨', c.x * TILE + 13, c.y * TILE + 2, camX, camY, 6, bobT);
+    }
+  }
+
+  /* wading ripple under the player */
+  {
+    const pt = world.tiles[pty * world.W + ptx];
+    if (pt === T.SHALLOW) {
+      ctx.fillStyle = 'rgba(200, 236, 246, 0.45)';
+      const rx = (player.x - camX) * zoom, ry = (player.y + 2 - camY) * zoom;
+      ctx.beginPath();
+      ctx.ellipse(rx, ry, (7 + Math.sin(now / 260)) * zoom / 2, 2.4 * zoom / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 
