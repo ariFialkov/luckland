@@ -194,39 +194,51 @@ export function updateNpc(n, world, tide, dt) {
   const speed = n.def.slow ? 18 : 28;
   if (n.moveT <= 0) {
     n.moveT = 1.2 + roll() * 2.5;
-    if (roll() < 0.35) { n.vx = 0; n.vy = 0; }
-    else {
-      const ang = roll() * Math.PI * 2;
-      n.vx = Math.cos(ang) * speed; n.vy = Math.sin(ang) * speed;
-    }
+    chooseHeading(n, speed, n.def.home, n.def.radius);
   }
-  moveEntity(n, world, tide, dt, n.def.home, n.def.radius);
+  moveEntity(n, world, tide, dt);
   animateEntity(n, dt);
 }
 
-/* Shared walking + collision + leash for NPCs and bots. */
-function moveEntity(e, world, tide, dt, home, radius) {
-  // leash back toward home
+/* Pick a wander direction; drift back toward home when past the leash.
+   The leash only steers at decision time, so a blocked entity can walk
+   AROUND a building instead of grinding against its wall. */
+function chooseHeading(e, speed, home, radiusTiles) {
   if (home) {
     const hx = home.x * 16 + 8, hy = home.y * 16 + 8;
-    const d = Math.hypot(e.x - hx, e.y - hy);
-    if (d > radius * 16) {
-      const sp = Math.hypot(e.vx, e.vy) || 24;
-      e.vx = (hx - e.x) / d * sp;
-      e.vy = (hy - e.y) / d * sp;
+    if (Math.hypot(e.x - hx, e.y - hy) > radiusTiles * 16) {
+      const a = Math.atan2(hy - e.y, hx - e.x) + (roll() - 0.5) * 1.4;
+      e.vx = Math.cos(a) * speed; e.vy = Math.sin(a) * speed;
+      return;
     }
   }
+  if (roll() < 0.35) { e.vx = 0; e.vy = 0; }
+  else {
+    const a = roll() * Math.PI * 2;
+    e.vx = Math.cos(a) * speed; e.vy = Math.sin(a) * speed;
+  }
+}
+
+/* Shared walking + collision. On hitting a solid, bounce off in a fresh
+   random direction (buildings behave like any other solid obstacle). */
+function moveEntity(e, world, tide, dt) {
   const nx = e.x + e.vx * dt, ny = e.y + e.vy * dt;
   const tx = Math.floor(nx / 16), ty = Math.floor(ny / 16);
   const nt = world.inB(tx, ty) ? world.tiles[ty * world.W + tx] : T.DEEP;
+  let blocked = false;
   // AI folk keep their boots dry — shallows are player-only
   if (!isSolidTile(nt, tide) && nt !== T.SHALLOW) {
     e.x = nx; e.y = ny;
   } else {
-    e.vx = -e.vx; e.vy = -e.vy; e.moveT = Math.min(e.moveT, 0.4);
+    blocked = true;
+    const sp = Math.hypot(e.vx, e.vy) || 24;
+    const a = roll() * Math.PI * 2;
+    e.vx = Math.cos(a) * sp; e.vy = Math.sin(a) * sp;
+    e.moveT = 0.35 + roll() * 0.5;
   }
   if (Math.abs(e.vx) > Math.abs(e.vy)) e.dir = e.vx < 0 ? 1 : 2;
   else if (e.vy !== 0) e.dir = e.vy < 0 ? 3 : 0;
+  return blocked;
 }
 
 function animateEntity(e, dt) {
@@ -360,11 +372,11 @@ export function updateBot(b, world, tide, dt, concealers, emitWorldWin) {
     b.moveT -= dt;
     if (b.moveT <= 0) {
       b.moveT = 1 + roll() * 3;
-      if (roll() < 0.3) { b.vx = 0; b.vy = 0; }
-      else { const a = roll() * Math.PI * 2; b.vx = Math.cos(a) * 26; b.vy = Math.sin(a) * 26; }
+      chooseHeading(b, 26, null, 0);
     }
   }
-  moveEntity(b, world, tide, dt, null, 0);
+  const blocked = moveEntity(b, world, tide, dt);
+  if (blocked && b.target && roll() < 0.25) b.target = null; // give up on walled-off chests
   animateEntity(b, dt);
 }
 
@@ -409,10 +421,9 @@ export function updateCitizen(c, world, tide, dt) {
   c.moveT -= dt;
   if (c.moveT <= 0) {
     c.moveT = 1.5 + roll() * 3;
-    if (roll() < 0.4) { c.vx = 0; c.vy = 0; }
-    else { const a = roll() * Math.PI * 2; c.vx = Math.cos(a) * 20; c.vy = Math.sin(a) * 20; }
+    chooseHeading(c, 20, c.home, c.home.r);
   }
-  moveEntity(c, world, tide, dt, c.home, c.home.r);
+  moveEntity(c, world, tide, dt);
   animateEntity(c, dt);
 }
 

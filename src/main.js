@@ -8,7 +8,7 @@
 import { CONFIG } from './config.js';
 import { hash2, roll } from './rng.js';
 import { generateWorld, T, TILE, isSolidTile, PROVINCES } from './world.js';
-import { buildTileAtlas, makeCharSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
+import { buildTileAtlas, makeCharSprite, getBuildingSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
 import { state, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
 import { openGame, openHub } from './games.js';
@@ -182,7 +182,7 @@ function findTarget() {
 
 function doInteract() {
   if (!currentTarget) return;
-  const prov = world.provAt(...Object.values(playerTilePos()));
+  const prov = currentProv;
   const t = currentTarget;
   if (t.kind === 'landmark') openHub(t.obj, prov);
   else if (t.kind === 'npc') talkTo(t.obj, prov);
@@ -236,7 +236,7 @@ function emitWorldWin(bot, what, amount) {
 }
 
 let botToastTimer = 4;
-let currentRegion = null;
+let currentProv = 'TF'; // refreshed each frame; city membership overrides border tiles
 
 /* ---------------- welcome ---------------- */
 if (!hadSave) {
@@ -344,17 +344,27 @@ function frame(now) {
     UI.setActButton(false);
   }
 
-  /* --- area banner + named-place callouts --- */
+  /* --- location HUD: province / city or area / exact spot --- */
   const { tx: ptx, ty: pty } = playerTilePos();
-  UI.renderArea(world.provAt(ptx, pty));
-  let region = null;
+  let locArea = null, locSpot = null, cityProv = null;
+  for (const c of world.cities) {
+    if (Math.hypot(ptx - c.x, pty - c.y) <= c.r + 3) { locArea = c.name; cityProv = c.prov; break; }
+  }
+  for (const lm of world.landmarks) {
+    if (Math.hypot(ptx - lm.doorX, pty - lm.doorY) <= 8) { locSpot = lm.name; break; }
+  }
   for (const r of world.regions) {
-    if (Math.hypot(ptx - r.x, pty - r.y) <= r.r) { region = r.name; break; }
+    if ((r.tier === 2 && locArea) || (r.tier === 3 && locSpot)) continue;
+    if (Math.hypot(ptx - r.x, pty - r.y) <= r.r) {
+      if (r.tier === 2) locArea = r.name;
+      else locSpot = r.name;
+    }
+    if (locArea && locSpot) break;
   }
-  if (region !== currentRegion) {
-    currentRegion = region;
-    if (region) UI.toast(`📍 ${UI.escapeHtml(region)}`);
-  }
+  // being inside a city overrides the raw border tile — Temple City is
+  // Elephantium even where the province line wobbles underneath it
+  currentProv = cityProv || world.provAt(ptx, pty);
+  UI.renderLocation(currentProv, locArea, locSpot);
 
   /* --- render --- */
   waterT += dt;
@@ -378,12 +388,7 @@ function frame(now) {
     }
   }
 
-  /* landmark signs above doors */
   ctx.textBaseline = 'alphabetic';
-  for (const lm of world.landmarks) {
-    if (lm.doorX < x0 - 2 || lm.doorX > x1 + 2 || lm.doorY < y0 - 4 || lm.doorY > y1 + 2) continue;
-    drawEmoji(lm.ico, lm.doorX * TILE + 8, lm.y * TILE - 2, camX, camY, 12);
-  }
 
   /* ferry docks */
   for (const f of world.ferries) {
@@ -421,9 +426,22 @@ function frame(now) {
     }
   }
 
-  /* entities, y-sorted */
-  const drawList = [player, ...npcs, ...bots, ...citizens].sort((a, b) => a.y - b.y);
+  /* entities + buildings, y-sorted so structures occlude properly */
+  const drawList = [player, ...npcs, ...bots, ...citizens];
+  for (const b of world.buildings) {
+    if (b.x > x1 + 1 || b.x + b.w < x0 - 1 || b.y > y1 + 2 || b.y + b.h < y0 - 5) continue;
+    drawList.push({ bld: b, y: (b.y + b.h) * TILE - 0.01 });
+  }
+  drawList.sort((a, b) => a.y - b.y);
   for (const e of drawList) {
+    if (e.bld) {
+      const b = e.bld;
+      const spr = getBuildingSprite(b);
+      const bx = Math.round((b.x * TILE - camX) * zoom);
+      const by = Math.round(((b.y + b.h) * TILE - camY) * zoom) - spr.height * zoom;
+      ctx.drawImage(spr, bx, by, spr.width * zoom, spr.height * zoom);
+      continue;
+    }
     const { sx, sy } = drawSprite(e, camX, camY);
     if (e !== player && e.def) {
       // NPC badge
@@ -442,6 +460,12 @@ function frame(now) {
     if (e.celebrateT > 0) {
       drawEmoji('🎉', e.x, e.y - 22, camX, camY, 10, Math.sin(now / 90) * 2);
     }
+  }
+
+  /* landmark signs above the finished buildings */
+  for (const lm of world.landmarks) {
+    if (lm.doorX < x0 - 2 || lm.doorX > x1 + 2 || lm.doorY < y0 - 5 || lm.doorY > y1 + 2) continue;
+    drawEmoji(lm.ico, lm.doorX * TILE + 8, lm.y * TILE - 12, camX, camY, 12);
   }
 
   /* floaters */

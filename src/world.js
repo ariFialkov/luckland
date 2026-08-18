@@ -24,6 +24,7 @@ export const T = {
   NEON: 19, PIER: 20, FLOWERS: 21, BAMBOO: 22, WETSAND: 23,
   TRAIL: 24, PEAK: 25, WALL_MARBLE: 26, WALL_STONE: 27,
   ROOF_GOLD: 28, ROOF_SLATE: 29, ROOF_LEAF: 30, SHALLOW: 31,
+  FOUNDATION: 32,   // solid ground under a building sprite
 };
 
 export const PROV_LIST = ['SEA', 'TF', 'FL', 'HV', 'DG', 'EP', 'MN'];
@@ -38,20 +39,11 @@ export const PROVINCES = {
   SEA: { name: 'The Open Sea', sub: '', color: '#2a6a9a' },
 };
 
-/* Building material palette per province. */
-const PROV_WALLS = {
-  TF: { wall: T.WALL_MARBLE, roof: T.ROOF },
-  FL: { wall: T.WALL_STONE, roof: T.ROOF_SLATE },
-  HV: { wall: T.WALL, roof: T.ROOF },
-  DG: { wall: T.WALL, roof: T.ROOF_GOLD },
-  EP: { wall: T.WALL, roof: T.ROOF_LEAF },
-  MN: { wall: T.WALL_STONE, roof: T.ROOF_SLATE },
-  SEA: { wall: T.WALL, roof: T.ROOF },
-};
 
 const SOLID = new Set([
   T.DEEP, T.WATER, T.MOUNTAIN, T.PEAK, T.CLIFF, T.FOREST, T.JUNGLE,
   T.WALL, T.ROOF, T.WALL_MARBLE, T.WALL_STONE, T.ROOF_GOLD, T.ROOF_SLATE, T.ROOF_LEAF,
+  T.FOUNDATION,
 ]);
 
 export function isSolidTile(t, tide) {
@@ -377,14 +369,18 @@ export function generateWorld() {
 
   const cityFloor = { highland: T.MEADOW, saloon: T.DUST, mediterranean: T.PLAZA, courtyard: T.PLAZA, jungle: T.GRASS, grid: T.NEON };
 
+  /* Buildings are records rendered as big multi-tile sprites; their
+     footprint tiles become solid FOUNDATION for collision. */
+  const buildings = [];
+
   function clearFlat(cx, cy, r, floor) {
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       const d = Math.hypot(dx, dy);
       if (d > r + (fbm(cx + dx, cy + dy, 5, seed + 70) - 0.5) * 3) continue;
       const t = get(cx + dx, cy + dy);
-      if (t === T.WATER || t === T.DEEP || t === T.TIDAL || t === T.BRIDGE) continue;
-      // flatten mountains/forest into buildable ground; keep an organic edge
-      set(cx + dx, cy + dy, d < r * 0.72 && hash2(cx + dx, cy + dy, seed + 71) > 0.35 ? floor : baseGroundFor(cx + dx, cy + dy));
+      if (t === T.WATER || t === T.DEEP || t === T.TIDAL || t === T.BRIDGE || t === T.SHALLOW) continue;
+      // paved almost wall to wall — a city, not a lawn
+      set(cx + dx, cy + dy, d < r * 0.9 && hash2(cx + dx, cy + dy, seed + 71) > 0.1 ? floor : baseGroundFor(cx + dx, cy + dy));
     }
   }
   function baseGroundFor(x, y) {
@@ -392,37 +388,40 @@ export function generateWorld() {
     return { TF: T.GRASS, FL: T.MEADOW, HV: T.DUST, DG: T.GRASS, EP: T.GRASS, MN: T.GRASS }[code] ?? T.GRASS;
   }
 
-  function building(bx, by, bw, bh, wall, roof) {
-    for (let dy = -1; dy <= bh; dy++) for (let dx = -1; dx <= bw; dx++) {
+  function building(bx, by, bw, bh, provCode, kind = 'house') {
+    // buildings sit flush against streets; only the footprint must be clear
+    for (let dy = 0; dy < bh; dy++) for (let dx = 0; dx < bw; dx++) {
       const t = get(bx + dx, by + dy);
-      if (t === T.WATER || t === T.DEEP || t === T.DOOR || t === T.ROAD || t === T.BRIDGE) return false;
+      if (t === T.WATER || t === T.DEEP || t === T.SHALLOW || t === T.TIDAL ||
+          t === T.DOOR || t === T.ROAD || t === T.BRIDGE || t === T.FOUNDATION ||
+          t === T.WALL_MARBLE || t === T.WALL_STONE) return false;
     }
     for (let dy = 0; dy < bh; dy++) for (let dx = 0; dx < bw; dx++) {
-      set(bx + dx, by + dy, dy === bh - 1 ? wall : roof);
+      set(bx + dx, by + dy, T.FOUNDATION);
     }
+    buildings.push({ x: bx, y: by, w: bw, h: bh, prov: provCode, kind, v: (hash2(bx, by, seed + 74) * 1e6) | 0 });
     return true;
   }
 
   function stampCity(c) {
-    const { wall, roof } = PROV_WALLS[c.prov];
     const floor = cityFloor[c.style];
     clearFlat(c.x, c.y, c.r, floor);
     const rng = (i, j) => hash2(c.x * 7 + i, c.y * 3 + j, seed + 75);
 
     if (c.style === 'grid') {
-      // dense metropolis: street grid with 5-tile blocks, tall buildings
-      const step = 6;
+      // dense metropolis: tight street grid, towers filling every block
+      const step = 4;
       for (let gy = -c.r + 1; gy <= c.r - 1; gy++) for (let gx = -c.r + 1; gx <= c.r - 1; gx++) {
         if (Math.hypot(gx, gy) > c.r - 1) continue;
-        if ((gx + c.r) % step === 0 || (gy + c.r) % step === 0) set(c.x + gx, c.y + gy, T.ROAD);
+        set(c.x + gx, c.y + gy, ((gx + c.r) % step === 0 || (gy + c.r) % step === 0) ? T.ROAD : T.NEON);
       }
       for (let by = -c.r; by < c.r - step; by += step) for (let bx = -c.r; bx < c.r - step; bx += step) {
-        const ox = bx + (c.r % step) + 2, oy = by + (c.r % step) + 2;
-        if (Math.hypot(ox, oy) > c.r - 3) continue;
-        if (rng(bx, by) < 0.85) building(c.x + ox, c.y + oy, 3, 3, wall, roof);
+        const ox = bx + (c.r % step) + 1, oy = by + (c.r % step) + 1;
+        if (Math.hypot(ox + 1, oy + 1) > c.r - 2) continue;
+        if (rng(bx, by) < 0.94) building(c.x + ox, c.y + oy, 3, 3, c.prov, 'tower');
       }
     } else if (c.style === 'courtyard') {
-      // walled compound with square courtyards and golden-roofed halls
+      // walled compound packed with golden-roofed halls around cross avenues
       const r = c.r - 2;
       for (let i = -r; i <= r; i++) {
         for (const [px2, py2] of [[c.x + i, c.y - r], [c.x + i, c.y + r], [c.x - r, c.y + i], [c.x + r, c.y + i]]) {
@@ -431,54 +430,61 @@ export function generateWorld() {
       }
       for (const gx of [0]) { set(c.x + gx, c.y + r, T.PLAZA); set(c.x + gx, c.y - r, T.PLAZA); }
       set(c.x - r, c.y, T.PLAZA); set(c.x + r, c.y, T.PLAZA);
-      // cross avenues first, then halls fill the quarters around them
       for (let i = -r + 1; i <= r - 1; i++) { set(c.x + i, c.y, T.ROAD); set(c.x, c.y + i, T.ROAD); }
-      for (let by = -r + 2; by < r - 3; by += 5) for (let bx = -r + 2; bx < r - 4; bx += 6) {
-        if (rng(bx, by) < 0.8) building(c.x + bx, c.y + by, 4, 3, wall, roof);
+      for (let by = -r + 1; by < r - 3; by += 4) for (let bx = -r + 1; bx < r - 4; bx += 5) {
+        if (rng(bx, by) < 0.9) building(c.x + bx, c.y + by, 4, 3, c.prov, 'hall');
       }
     } else if (c.style === 'saloon') {
-      // one wide dusty main street, false-front buildings either side
+      // one wide dusty main street, false fronts shoulder to shoulder
       for (let i = -c.r + 1; i <= c.r - 1; i++) for (let wgt = -1; wgt <= 1; wgt++) set(c.x + i, c.y + wgt, T.ROAD);
-      for (let bx = -c.r + 2; bx < c.r - 3; bx += 4) {
-        if (rng(bx, 1) < 0.85) building(c.x + bx, c.y - 5, 3, 3, wall, roof);
-        if (rng(bx, 2) < 0.85) building(c.x + bx, c.y + 3, 3, 3, wall, roof);
+      for (let bx = -c.r + 2; bx < c.r - 3; bx += 3) {
+        if (rng(bx, 1) < 0.94) building(c.x + bx, c.y - 5, 3, 3, c.prov, 'saloon');
+        if (rng(bx, 2) < 0.94) building(c.x + bx, c.y + 3, 3, 3, c.prov, 'saloon');
+        if (rng(bx, 3) < 0.5) building(c.x + bx, c.y - 9, 3, 3, c.prov, 'saloon');
+        if (rng(bx, 4) < 0.5) building(c.x + bx, c.y + 7, 3, 3, c.prov, 'saloon');
       }
     } else if (c.style === 'mediterranean') {
-      // central plaza, ring lane, white terracotta villas
+      // central plaza, ring lane, villas crowding both sides of the ring
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(c.x + dx, c.y + dy, T.PLAZA);
       const ringR = c.r - 3;
       for (let a = 0; a < 40; a++) {
         const ang = (a / 40) * Math.PI * 2;
         set(Math.round(c.x + Math.cos(ang) * ringR), Math.round(c.y + Math.sin(ang) * ringR), T.ROAD);
       }
-      for (let a = 0; a < 9; a++) {
-        const ang = (a / 9) * Math.PI * 2 + 0.3;
-        const bx = Math.round(c.x + Math.cos(ang) * (ringR - 3)) - 1;
-        const by = Math.round(c.y + Math.sin(ang) * (ringR - 3)) - 1;
-        if (rng(a, 0) < 0.9) building(bx, by, 3, 3, wall, roof);
+      for (let a = 0; a < 12; a++) {
+        const ang = (a / 12) * Math.PI * 2 + 0.3;
+        const bx = Math.round(c.x + Math.cos(ang) * (ringR - 2.6)) - 1;
+        const by = Math.round(c.y + Math.sin(ang) * (ringR - 2.6)) - 1;
+        if (rng(a, 0) < 0.92) building(bx, by, 3, 3, c.prov, 'villa');
+      }
+      for (let a = 0; a < 8; a++) {
+        const ang = (a / 8) * Math.PI * 2;
+        const bx = Math.round(c.x + Math.cos(ang) * (ringR + 2.4)) - 1;
+        const by = Math.round(c.y + Math.sin(ang) * (ringR + 2.4)) - 1;
+        if (rng(a, 5) < 0.8) building(bx, by, 3, 3, c.prov, 'villa');
       }
     } else if (c.style === 'highland') {
-      // cottages scattered along a winding lane
+      // cottages packed along a winding lane
       let lx = c.x - c.r + 2, ly = c.y + Math.round((rng(0, 9) - 0.5) * 4);
       for (let i = 0; i < c.r * 2 - 3; i++) {
         set(lx, ly, T.ROAD);
         set(lx, ly + 1, T.ROAD);
         lx += 1; ly += Math.round((fbm(lx, ly, 4, seed + 76) - 0.5) * 2.4);
-        if (i % 4 === 1 && rng(i, 3) < 0.8) building(lx - 1, ly - 5, 3, 3, wall, roof);
-        if (i % 5 === 2 && rng(i, 4) < 0.8) building(lx - 1, ly + 3, 3, 3, wall, roof);
+        if (i % 3 === 1 && rng(i, 3) < 0.9) building(lx - 1, ly - 5, 3, 3, c.prov, 'cottage');
+        if (i % 4 === 2 && rng(i, 4) < 0.9) building(lx - 1, ly + 3, 3, 3, c.prov, 'cottage');
       }
     } else if (c.style === 'jungle') {
-      // huts around clearings, connected by narrow trails
-      for (let a = 0; a < 6; a++) {
-        const ang = (a / 6) * Math.PI * 2;
+      // stilt huts around clearings, connected by narrow trails
+      for (let a = 0; a < 8; a++) {
+        const ang = (a / 8) * Math.PI * 2;
         const hx = Math.round(c.x + Math.cos(ang) * (c.r - 4));
         const hy = Math.round(c.y + Math.sin(ang) * (c.r - 4));
-        building(hx - 1, hy - 1, 3, 3, wall, roof);
+        building(hx - 1, hy - 1, 3, 3, c.prov, 'hut');
         const steps = c.r;
         for (let s2 = 0; s2 < steps; s2++) {
           const f = s2 / steps;
           const tx = Math.round(c.x + (hx - c.x) * f), ty = Math.round(c.y + 2 + (hy + 3 - c.y) * f);
-          if (get(tx, ty) !== T.ROOF_LEAF && get(tx, ty) !== T.WALL) set(tx, ty, T.TRAIL);
+          if (get(tx, ty) !== T.FOUNDATION) set(tx, ty, T.TRAIL);
         }
       }
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(c.x + dx, c.y + dy, T.PLAZA);
@@ -492,14 +498,13 @@ export function generateWorld() {
   const landmarks = [];
 
   function stampLandmark(lm) {
-    const { wall, roof } = PROV_WALLS[lm.prov];
     const { x, y, w, h } = lm;
     for (let dy = -1; dy <= h + 1; dy++) for (let dx = -1; dx <= w; dx++) {
       const t = get(x + dx, y + dy);
       if (t === T.WATER || t === T.DEEP) return; // refuse to build in the sea
     }
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
-      set(x + dx, y + dy, dy >= h - 1 ? wall : roof);
+      set(x + dx, y + dy, T.FOUNDATION);
     }
     const doorX = x + (w >> 1), doorY = y + h - 1;
     set(doorX, doorY, T.DOOR);
@@ -508,6 +513,7 @@ export function generateWorld() {
       if (t !== T.WATER && t !== T.DEEP) set(doorX + dx, doorY + dy, T.PLAZA);
     }
     lm.doorX = doorX; lm.doorY = doorY;
+    buildings.push({ x, y, w, h, prov: lm.prov, kind: 'landmark', v: (hash2(x, y, seed + 74) * 1e6) | 0, doorPx: (w >> 1) * 16 + 8 });
     landmarks.push(lm);
   }
 
@@ -737,39 +743,50 @@ export function generateWorld() {
     { name: 'Rapids Ford', x: 36, y: 133, r: 4, tidal: true },
   ];
 
-  /* Region name callouts (ordered: most specific first). */
+  /* Named places for the location HUD. tier 2 = larger area (line 2),
+     tier 3 = exact spot/neighbourhood (line 3). Ordered most specific
+     first within each tier. */
   const regions = [
-    { name: '⛰️ Green Gorge', x: 162, y: 124, r: 7 },
-    { name: '🏞️ Heaven Lake', x: 184, y: 103, r: 10 },
-    { name: '🏔️ Mount Snow', x: 220, y: 126, r: 5 },
-    { name: '🏔️ Mount Colossus', x: 229, y: 136, r: 7 },
-    { name: '🌉 Crossluck Pass', x: 180, y: 119, r: 5 },
-    { name: '🐉 Lung Island', x: 191, y: 219, r: 8 },
-    { name: '🏝️ Hidden Cove', x: 344, y: 148, r: 6 },
-    { name: '⚓ Upsilonia', x: 130, y: 19, r: 12 },
-    { name: '🌈 Clover Cliffs', x: 57, y: 108, r: 8 },
-    { name: '🏜️ Sunbleached Mesas', x: 52, y: 180, r: 12 },
-    { name: '🌊 Tychean Sea', x: 120, y: 33, r: 8 },
-    { name: '🌊 Fortunian Sea', x: 204, y: 30, r: 8 },
-    { name: '🌊 Neon Strait', x: 328, y: 24, r: 6 },
-    { name: '🌊 Paradise Sea', x: 276, y: 100, r: 24 },
-    { name: '🌊 Dragon’s Bay', x: 114, y: 156, r: 8 },
-    { name: '🏞️ Great River', x: 66, y: 132, r: 5 },
-    { name: '🏞️ Red River', x: 138, y: 191, r: 4 },
-    { name: '🏞️ Lucky River', x: 249, y: 190, r: 5 },
-    { name: '🏞️ Cyan River', x: 306, y: 190, r: 5 },
-    { name: '⛰️ The Dragonspine', x: 184, y: 110, r: 14 },
-    { name: '⛰️ The Emerald Divide', x: 120, y: 60, r: 10 },
-    { name: '⛰️ The Thunder Steps', x: 259, y: 168, r: 10 },
-    { name: '⛰️ The Mist Peaks', x: 304, y: 162, r: 14 },
-    { name: '🌾 Rolling Hills', x: 155, y: 85, r: 12 },
-    { name: '🌾 Tychean Hills', x: 131, y: 63, r: 9 },
-    { name: '🌾 Fortunian Hills', x: 216, y: 96, r: 11 },
-    { name: '🐧 Puffin Skerries', x: 12, y: 70, r: 8 },
+    // tier 3 — exact spots
+    { name: 'Green Gorge', tier: 3, x: 162, y: 124, r: 7 },
+    { name: 'Heaven Lake', tier: 3, x: 184, y: 103, r: 10 },
+    { name: 'Mount Snow', tier: 3, x: 220, y: 126, r: 5 },
+    { name: 'Mount Colossus', tier: 3, x: 229, y: 136, r: 7 },
+    { name: 'Crossluck Pass', tier: 3, x: 180, y: 119, r: 6 },
+    { name: 'Hidden Cove', tier: 3, x: 344, y: 148, r: 6 },
+    { name: 'Upsilonia Causeway', tier: 3, x: 127, y: 34, r: 5 },
+    { name: 'Neon Strait Sandbar', tier: 3, x: 328, y: 25, r: 6 },
+    { name: 'Rapids Ford', tier: 3, x: 36, y: 133, r: 5 },
+    { name: 'Epineion Docks', tier: 3, x: ferryA.x, y: ferryA.y, r: 4 },
+    { name: 'Maneki Docks', tier: 3, x: ferryB.x, y: ferryB.y, r: 4 },
+    { name: 'Great River', tier: 3, x: 66, y: 132, r: 5 },
+    { name: 'Red River', tier: 3, x: 138, y: 191, r: 4 },
+    { name: 'Lucky River', tier: 3, x: 249, y: 190, r: 5 },
+    { name: 'Cyan River', tier: 3, x: 306, y: 190, r: 5 },
+    { name: 'Clover Cliffs', tier: 3, x: 57, y: 108, r: 8 },
+    // tier 2 — larger areas
+    { name: 'Lung Island', tier: 2, x: 191, y: 219, r: 9 },
+    { name: 'Upsilonia', tier: 2, x: 130, y: 19, r: 12 },
+    { name: 'Sunbleached Mesas', tier: 2, x: 52, y: 180, r: 12 },
+    { name: 'Tychean Sea', tier: 2, x: 120, y: 33, r: 8 },
+    { name: 'Fortunian Sea', tier: 2, x: 204, y: 30, r: 8 },
+    { name: 'Neon Strait', tier: 2, x: 328, y: 24, r: 7 },
+    { name: 'Dragon’s Bay', tier: 2, x: 114, y: 156, r: 8 },
+    { name: 'Serpent Strait', tier: 2, x: 165, y: 206, r: 8 },
+    { name: 'The Dragonspine', tier: 2, x: 184, y: 110, r: 14 },
+    { name: 'The Emerald Divide', tier: 2, x: 120, y: 60, r: 10 },
+    { name: 'The Thunder Steps', tier: 2, x: 259, y: 168, r: 10 },
+    { name: 'The Mist Peaks', tier: 2, x: 304, y: 162, r: 14 },
+    { name: 'Temple Mounts', tier: 2, x: 218, y: 147, r: 10 },
+    { name: 'Rolling Hills', tier: 2, x: 155, y: 85, r: 12 },
+    { name: 'Tychean Hills', tier: 2, x: 131, y: 63, r: 9 },
+    { name: 'Fortunian Hills', tier: 2, x: 216, y: 96, r: 11 },
+    { name: 'Paradise Sea', tier: 2, x: 276, y: 100, r: 24 },
+    { name: 'Puffin Skerries', tier: 2, x: 12, y: 70, r: 8 },
   ];
 
   return {
-    W, H, tiles, prov, landmarks, events, zones, regions, cities, ferries, start: START,
+    W, H, tiles, prov, landmarks, events, zones, regions, cities, ferries, buildings, start: START,
     idx, get, inB,
     provAt(x, y) {
       return PROV_LIST[prov[idx(Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y)))]];

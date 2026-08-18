@@ -13,7 +13,9 @@ export const els = {
   balance: $('balance'),
   luckChip: $('luck-chip'),
   luckLabel: $('luck-label'),
-  areaBanner: $('area-banner'),
+  locProvince: $('loc-province'),
+  locArea: $('loc-area'),
+  locSpot: $('loc-spot'),
   tideFill: $('tide-fill'),
   tideLabel: $('tide-label'),
   tideIco: $('tide-ico'),
@@ -58,20 +60,25 @@ export function renderTide(level, rising) {
   els.tideIco.textContent = level > 0.62 ? '🌊' : level < 0.38 ? '🏖️' : rising ? '↗️' : '↘️';
 }
 
-let lastArea = null;
-export function renderArea(code) {
-  if (code === lastArea) return;
-  lastArea = code;
-  const p = PROVINCES[code];
-  if (!p) return;
-  els.areaBanner.textContent = p.name;
-  if (code !== 'SEA') {
-    els.splash.innerHTML = `${escapeHtml(p.name)}<span class="sub">${escapeHtml(p.sub)}</span>`;
-    els.splash.classList.remove('hidden');
-    els.splash.style.animation = 'none';
-    void els.splash.offsetWidth;
-    els.splash.style.animation = '';
+let lastProv = null, lastArea = null, lastSpot = null;
+export function renderLocation(code, area, spot) {
+  if (code !== lastProv) {
+    lastProv = code;
+    const p = PROVINCES[code];
+    if (p) {
+      els.locProvince.textContent = p.name;
+      if (code !== 'SEA') {
+        // keep the big splash for province changes — those look clean
+        els.splash.innerHTML = `${escapeHtml(p.name)}<span class="sub">${escapeHtml(p.sub)}</span>`;
+        els.splash.classList.remove('hidden');
+        els.splash.style.animation = 'none';
+        void els.splash.offsetWidth;
+        els.splash.style.animation = '';
+      }
+    }
   }
+  if (area !== lastArea) { lastArea = area; els.locArea.textContent = area || ''; }
+  if (spot !== lastSpot) { lastSpot = spot; els.locSpot.textContent = spot || ''; }
 }
 
 /* ---------------- hint / act button ---------------- */
@@ -264,7 +271,7 @@ export function openMapModal(world, player) {
       else if (t === T.PEAK) c = [232, 236, 244];
       else if (t === T.CLIFF) c = [125, 108, 82];
       else if (t === T.ROAD || t === T.BRIDGE || t === T.TRAIL) c = [200, 176, 136];
-      else if (t === T.WALL || t === T.ROOF || t === T.DOOR ||
+      else if (t === T.WALL || t === T.ROOF || t === T.DOOR || t === T.FOUNDATION ||
                t === T.WALL_MARBLE || t === T.WALL_STONE ||
                t === T.ROOF_GOLD || t === T.ROOF_SLATE || t === T.ROOF_LEAF) c = [160, 72, 56];
       else {
