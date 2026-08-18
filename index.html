@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1030" />
+  <meta name="description" content="Luckland — a whimsical open-world game of luck. Explore six provinces, find hidden treasures, and play games of chance." />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Luckland" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <title>Luckland</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="game"></canvas>
+
+    <!-- HUD overlay -->
+    <div id="hud">
+      <div id="hud-top-left">
+        <div id="balance-chip" class="chip">
+          <span class="coin-ico">🪙</span>
+          <span id="balance">0</span>
+        </div>
+        <div id="luck-chip" class="chip hidden">🍀 <span id="luck-label"></span></div>
+      </div>
+      <div id="hud-top-right">
+        <div id="area-banner" class="chip">Luckland</div>
+        <div id="tide-chip" class="chip"><span id="tide-ico">🌊</span> <span id="tide-label">Tide</span>
+          <div id="tide-bar"><div id="tide-fill"></div></div>
+        </div>
+      </div>
+      <div id="hud-bottom-right">
+        <button id="btn-stats" class="round-btn" title="Stats &amp; Collection">📜</button>
+        <button id="btn-map" class="round-btn" title="Map">🗺️</button>
+        <button id="btn-act" class="round-btn big hidden" title="Interact">✨</button>
+      </div>
+      <div id="joystick" class="hidden">
+        <div id="joystick-base"><div id="joystick-knob"></div></div>
+      </div>
+      <div id="toasts"></div>
+      <div id="hint" class="hidden"></div>
+      <div id="area-splash" class="hidden"></div>
+    </div>
+
+    <!-- Modal layer (dialogue, games, chests, stats, map) -->
+    <div id="modal-layer" class="hidden">
+      <div id="modal"></div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
