@@ -22,7 +22,7 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 
 # Runtime files only.
-cp index.html styles.css manifest.webmanifest sw.js "$OUT/"
+cp index.html styles.css manifest.json sw.js "$OUT/"
 cp -R src "$OUT/src"
 cp -R icons "$OUT/icons"
 

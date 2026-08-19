@@ -160,7 +160,7 @@ buffs, capped below 100%) is displayed in every game's header.
 
 ```
 index.html, styles.css      app shell + UI styling
-manifest.webmanifest, sw.js PWA manifest + offline service worker
+manifest.json, sw.js        PWA manifest + offline service worker
 icons/                      generated icons (node scripts/gen-icons.mjs)
 src/config.js               ← all economy/RTP tuning
 src/world.js                seeded worldgen: provinces, landmarks, roads, tides

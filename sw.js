@@ -1,13 +1,13 @@
 /* Luckland service worker — offline-first app shell.
    Bump CACHE_VERSION whenever files change to push an update. */
 
-const CACHE_VERSION = 'luckland-v14';
+const CACHE_VERSION = 'luckland-v15';
 
 const SHELL = [
   '.',
   'index.html',
   'styles.css',
-  'manifest.webmanifest',
+  'manifest.json',
   'src/main.js',
   'src/config.js',
   'src/rng.js',
