@@ -42,12 +42,12 @@ street games and roaming characters:
 
 | Province | Theme | Cities & landmarks | Street game |
 |---|---|---|---|
-| **Tyche & Fortuna (TF)** | Ancient Greece/Rome, northern capes | Tyche, Pontium (Panhellenium, Coliseum), Fortuna, Epineion, Fort Upsilonia | Tali (knucklebones) |
-| **Four Leaf Republic (FL)** | Celtic highlands, northwest | Ballyclover (Castle), Rapidstown, Puffin Point | Road bowls |
-| **Horseshoeville (HV)** | Wild-West plains, southwest | Downtown Horseshoeville (Grand Saloon), Horseshoe Downs | High-noon standoffs |
-| **Dragonia (DG)** | Dynastic China, mountainous south | Tiger City (Golden Tiger Hall), Kite City, Flat Palace, Hidden/Shady Temple, Peekaboo Palace | Alley mahjong |
-| **Elephantium (EP)** | SE-Asian jungle, mountainous east | Temple City (Golden Temple), Roaring Elephant Arena, Waterfall Park | Haiko (hi-lo) |
-| **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Downtown/North/East Maneki (Magic Mushroom Casino, Sumo Arena), Neko Town | Pachinko |
+| **Tyche & Fortuna (TF)** | Ancient Greece/Rome, northern capes | Tyche, Pontium (Panhellenium, Coliseum), Fortuna, Epineion, Oliveto, Argos Vale, Fort Upsilonia | Tali (knucklebones) |
+| **Four Leaf Republic (FL)** | Celtic highlands, northwest | Ballyclover (Castle), Kilfenny, Dunmara, Bramblewick Farm, Puffin Point | Road bowls |
+| **Horseshoeville (HV)** | Wild-West plains, southwest | Downtown Horseshoeville (Grand Saloon), Rapidstown, Vulture Gulch, Twin Spurs Ranch, Horseshoe Downs | High-noon standoffs |
+| **Dragonia (DG)** | Dynastic China, mountainous south | Tiger City (Golden Tiger Hall), Kite City, Dragon's Bay, Lotus Ford, Jade Terraces, Flat Palace, Hidden/Shady Temple, Peekaboo Palace | Alley mahjong |
+| **Elephantium (EP)** | SE-Asian jungle, mountainous east | Sawan City, Chao Lom, Temple City (Golden Temple), Mai Pai, Roaring Elephant Arena, Waterfall Park | Haiko (hi-lo) |
+| **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Downtown/North/East Maneki (Magic Mushroom Casino, Sumo Arena, Central Park), Koban Row, Neko Town | Pachinko |
 
 **Getting around:** shore shallows and small rivers are wadeable at reduced
 speed; deep water is not. The **Paradise Ferry** (fare in `src/config.js`)

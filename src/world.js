@@ -348,23 +348,42 @@ export function generateWorld() {
      Cities — big, built-up, styled per province culture.
      ============================================================ */
   const cities = [
-    { name: 'Ballyclover', prov: 'FL', x: 112, y: 124, r: 12, style: 'highland', citizens: 8 },
-    { name: 'Rapidstown', prov: 'FL', x: 24, y: 126, r: 8, style: 'highland', citizens: 5 },
+    /* ---- the great cities (expanded) ---- */
+    { name: 'Ballyclover', prov: 'FL', x: 112, y: 124, r: 14, style: 'highland', citizens: 11 },
+    { name: 'Downtown Horseshoeville', prov: 'HV', x: 88, y: 167, r: 14, style: 'saloon', citizens: 12 },
+    { name: 'Tyche', prov: 'TF', x: 122, y: 48, r: 13, style: 'mediterranean', citizens: 11 },
+    { name: 'Pontium', prov: 'TF', x: 173, y: 43, r: 13, style: 'mediterranean', citizens: 11 },
+    { name: 'Fortuna', prov: 'TF', x: 236, y: 34, r: 12, style: 'mediterranean', citizens: 10 },
+    { name: 'Epineion', prov: 'TF', x: 238, y: 60, r: 10, style: 'mediterranean', citizens: 7 },
+    { name: 'Tiger City', prov: 'DG', x: 155, y: 186, r: 15, style: 'courtyard', citizens: 13 },
+    { name: 'Kite City', prov: 'DG', x: 205, y: 132, r: 11, style: 'courtyard', citizens: 9 },
+    { name: "Dragon's Bay", prov: 'DG', x: 134, y: 155, r: 10, style: 'courtyard', citizens: 8 },
+    { name: 'Downtown Maneki', prov: 'MN', x: 292, y: 52, r: 16, style: 'grid', citizens: 18 },
+    /* ---- established towns ---- */
     { name: 'Puffin Point', prov: 'FL', x: 24, y: 88, r: 6, style: 'highland', citizens: 3 },
-    { name: 'Downtown Horseshoeville', prov: 'HV', x: 88, y: 167, r: 12, style: 'saloon', citizens: 9 },
     { name: 'Horseshoe Downs', prov: 'HV', x: 40, y: 203, r: 9, style: 'saloon', citizens: 5 },
-    { name: 'Tyche', prov: 'TF', x: 122, y: 48, r: 10, style: 'mediterranean', citizens: 8 },
-    { name: 'Pontium', prov: 'TF', x: 173, y: 43, r: 10, style: 'mediterranean', citizens: 8 },
-    { name: 'Fortuna', prov: 'TF', x: 236, y: 34, r: 9, style: 'mediterranean', citizens: 7 },
-    { name: 'Epineion', prov: 'TF', x: 238, y: 60, r: 7, style: 'mediterranean', citizens: 4 },
-    { name: 'Tiger City', prov: 'DG', x: 155, y: 186, r: 13, style: 'courtyard', citizens: 10 },
-    { name: 'Kite City', prov: 'DG', x: 205, y: 132, r: 8, style: 'courtyard', citizens: 6 },
     { name: 'Temple City', prov: 'EP', x: 249, y: 172, r: 9, style: 'jungle', citizens: 7 },
     { name: 'Waterfall Park', prov: 'EP', x: 311, y: 218, r: 6, style: 'jungle', citizens: 3 },
-    { name: 'Downtown Maneki', prov: 'MN', x: 292, y: 52, r: 12, style: 'grid', citizens: 12 },
     { name: 'East Maneki', prov: 'MN', x: 317, y: 66, r: 8, style: 'grid', citizens: 6 },
     { name: 'North Maneki', prov: 'MN', x: 284, y: 30, r: 7, style: 'grid', citizens: 5 },
     { name: 'Neko Town', prov: 'MN', x: 338, y: 23, r: 6, style: 'grid', citizens: 4 },
+    /* ---- Kilfenny keeps the north bank; Rapidstown moves south of the river ---- */
+    { name: 'Kilfenny', prov: 'FL', x: 24, y: 126, r: 8, style: 'highland', citizens: 5 },
+    { name: 'Rapidstown', prov: 'HV', x: 27, y: 143, r: 8, style: 'saloon', citizens: 5 },
+    /* ---- new countryside towns, villages & farms ---- */
+    { name: 'Dunmara', prov: 'FL', x: 60, y: 60, r: 7, style: 'highland', citizens: 4 },
+    { name: 'Bramblewick Farm', prov: 'FL', x: 90, y: 90, r: 5, style: 'highland', citizens: 3 },
+    { name: 'Oliveto', prov: 'TF', x: 152, y: 68, r: 7, style: 'mediterranean', citizens: 4 },
+    { name: 'Argos Vale', prov: 'TF', x: 140, y: 88, r: 5, style: 'mediterranean', citizens: 3 },
+    { name: 'Vulture Gulch', prov: 'HV', x: 55, y: 160, r: 6, style: 'saloon', citizens: 4 },
+    { name: 'Twin Spurs Ranch', prov: 'HV', x: 75, y: 195, r: 5, style: 'saloon', citizens: 3 },
+    { name: 'Lotus Ford', prov: 'DG', x: 145, y: 150, r: 6, style: 'courtyard', citizens: 4 },
+    { name: 'Jade Terraces', prov: 'DG', x: 175, y: 165, r: 5, style: 'courtyard', citizens: 3 },
+    /* ---- Elephantium's missing big cities ---- */
+    { name: 'Sawan City', prov: 'EP', x: 280, y: 155, r: 12, style: 'jungle', citizens: 10 },
+    { name: 'Chao Lom', prov: 'EP', x: 298, y: 202, r: 11, style: 'jungle', citizens: 9 },
+    { name: 'Mai Pai', prov: 'EP', x: 270, y: 130, r: 5, style: 'jungle', citizens: 3 },
+    { name: 'Koban Row', prov: 'MN', x: 280, y: 68, r: 6, style: 'grid', citizens: 5 },
   ];
 
   const cityFloor = { highland: T.MEADOW, saloon: T.DUST, mediterranean: T.PLAZA, courtyard: T.PLAZA, jungle: T.GRASS, grid: T.NEON };
@@ -628,7 +647,7 @@ export function generateWorld() {
     ['TF', 'Epineion Harbourhouse', '⚓', 'Sailors bet the tide here', 236, 58, 5, 4, ['tali', 'cointoss', 'amphorae']],
     ['TF', 'Fort Upsilonia', '⚓', "Leonidas' island navy — cross at low tide", 128, 18, 6, 4, ['tali', 'chariots']],
     ['FL', 'Ballyclover Castle', '🏰', 'Ancient keep of the Four Leaf kings', 112, 101, 8, 6, ['cointoss', 'roadbowls', 'cloverbloom', 'grovereels']],
-    ['FL', 'Rapidstown Bookmakers', '📓', 'Odds on anything that moves', 22, 124, 5, 4, ['roadbowls', 'cointoss']],
+    ['FL', 'Kilfenny Bookmakers', '📓', 'Odds on anything that moves', 22, 124, 5, 4, ['roadbowls', 'cointoss']],
     ['FL', 'Puffin Point Light', '🗼', 'The luckiest lighthouse in the Republic', 22, 85, 4, 4, ['rainbow']],
     ['HV', 'Horseshoe Downs', '🏇', 'The dustiest derby in the west', 36, 199, 9, 5, ['ponies', 'fivecard', 'goldencorral']],
     ['HV', 'The Grand Saloon', '🤠', 'Swing the doors, draw your luck', 85, 163, 7, 5, ['fivecard', 'standoff', 'horseshoetoss']],
@@ -737,6 +756,28 @@ export function generateWorld() {
   trail([[64, 184], [52, 176], [48, 176]]);                          // mesa overlook
   trail([[338, 24], [343, 28]]);                                     // Neko shrine steps
 
+  /* ---------- roads to the new settlements ---------- */
+  carvePath([[28, 146], [48, 158], [66, 166], [84, 167]]);           // Rapidstown -> Vulture Gulch -> Downtown HV
+  trail([[29, 140], [33, 136], [36, 134]]);                          // Rapidstown -> Rapids Ford (tide gate)
+  carvePath([[62, 64], [80, 85], [100, 105], [110, 120]]);           // Dunmara -> Ballyclover
+  carvePath([[90, 94], [95, 105], [105, 118]], 0, true);             // Bramblewick Farm lane
+  carvePath([[152, 72], [140, 85], [128, 96]]);                      // Oliveto -> western road
+  carvePath([[152, 64], [160, 52], [170, 46]]);                      // Oliveto -> Pontium
+  carvePath([[140, 92], [144, 100], [146, 106]], 0, true);           // Argos Vale lane -> J1
+  carvePath([[58, 162], [70, 165], [84, 167]]);                      // Vulture Gulch -> Downtown HV
+  carvePath([[75, 190], [80, 180], [86, 170]], 0, true);             // Twin Spurs Ranch lane
+  carvePath([[145, 154], [148, 165], [150, 180]]);                   // Lotus Ford -> Tiger City
+  carvePath([[143, 147], [136, 140], [130, 134]], 0, true);          // Lotus Ford -> Green Gorge road
+  carvePath([[136, 153], [141, 151], [143, 150]], 0, true);          // Dragon's Bay -> Lotus Ford
+  carvePath([[134, 158], [133, 164], [134, 168]]);                   // Dragon's Bay -> Flat Palace
+  carvePath([[175, 168], [165, 171], [157, 172]], 0, true);          // Jade Terraces -> Tiger road
+  carvePath([[175, 168], [168, 176], [160, 182]], 0, true);          // Jade Terraces -> Tiger City
+  carvePath([[280, 160], [276, 170], [272, 180]]);                   // Sawan City -> SE road
+  carvePath([[280, 150], [275, 140], [271, 133]], 0, true);          // Sawan City -> Mai Pai
+  carvePath([[268, 133], [260, 142], [252, 150]], 0, true);          // Mai Pai -> Thunder Steps road
+  carvePath([[298, 206], [297, 211]]);                               // Chao Lom -> Waterfall road
+  carvePath([[283, 66], [288, 60], [292, 58]]);                      // Koban Row -> Downtown Maneki
+
   /* ---------- countryside dirt tracks ----------
      Jagged walking paths webbing the open country between towns and
      landmarks: rough direction-finding, never bridging rivers. */
@@ -755,7 +796,7 @@ export function generateWorld() {
       }
     }
     let made = 0;
-    for (let i = 0; i < anchors.length * 2 && made < 34; i++) {
+    for (let i = 0; i < anchors.length * 2 && made < 42; i++) {
       const [ax, ay] = anchors[(i * 7) % anchors.length];
       let best = null, bd = 1e9;
       for (const [bx2, by2] of anchors) {
@@ -805,6 +846,7 @@ export function generateWorld() {
   }
   const ferryA = placeDock(240, 61, 1);   // Epineion Docks (TF east coast)
   const ferryB = placeDock(290, 54, -1);  // Maneki Docks (west shore)
+  placeDock(132, 156, -1);                // Dragon's Bay pier (decorative, out into the bay)
   const ferries = [
     { name: 'Paradise Ferry', a: { ...ferryA, label: 'Epineion Docks' }, b: { ...ferryB, label: 'Maneki Docks' } },
   ];
@@ -817,6 +859,40 @@ export function generateWorld() {
     if (Math.abs(dx) + Math.abs(dy) <= 3) set(START.x + dx, START.y + dy, T.PLAZA);
   }
   trail([[180, 116], [179, 112]]); // link up to the Dragonspine road
+
+  /* ============================================================
+     Maneki Central Park — a nestled green rectangle of calm
+     between the towers of North and East Maneki.
+     ============================================================ */
+  (function stampCentralPark(cx, cy, r) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const d = Math.hypot(dx, dy * 1.15); // gently squashed oval
+      if (d > r + (fbm(cx + dx, cy + dy, 5, seed + 130) - 0.5) * 2.5) continue;
+      const t = get(cx + dx, cy + dy);
+      if (t === T.WATER || t === T.DEEP || t === T.SHALLOW || t === T.TIDAL ||
+          t === T.FOUNDATION || t === T.DOOR || t === T.PIER || t === T.BRIDGE) continue;
+      const h = hash2(cx + dx, cy + dy, seed + 131);
+      set(cx + dx, cy + dy, h > 0.86 ? T.FLOWERS : h > 0.7 ? T.FOREST : T.MEADOW);
+      ground[idx(cx + dx, cy + dy)] = 255;
+    }
+    // the duck pond
+    for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) {
+      const d = Math.hypot(dx / 1.4, dy);
+      const px2 = cx - 3 + dx, py2 = cy + 2 + dy;
+      if (d <= 1.1) set(px2, py2, T.WATER);
+      else if (d <= 2.0 && get(px2, py2) !== T.WATER) set(px2, py2, T.SHALLOW);
+    }
+    // winding promenade loop + gates back into the streets
+    const loop = [];
+    for (let a = 0; a <= 20; a++) {
+      const ang = (a / 20) * Math.PI * 2;
+      loop.push([Math.round(cx + Math.cos(ang) * (r - 3)), Math.round(cy + Math.sin(ang) * (r - 4))]);
+    }
+    trail(loop);
+    trail([[cx - r - 2, cy], [cx - r + 3, cy]]);   // west gate (Downtown side)
+    trail([[cx + r - 3, cy], [cx + r + 2, cy]]);   // east gate (toward East Maneki)
+    trail([[cx, cy - r + 3], [cx, cy - r - 2]]);   // north gate (toward North Maneki)
+  })(306, 42, 9);
 
   /* ============================================================
      Roadside attractions — each game has a physical prop that
@@ -980,6 +1056,7 @@ export function generateWorld() {
     { name: 'Lucky River', tier: 3, x: 249, y: 190, r: 5 },
     { name: 'Cyan River', tier: 3, x: 306, y: 190, r: 5 },
     { name: 'Clover Cliffs', tier: 3, x: 57, y: 108, r: 8 },
+    { name: 'Maneki Central Park', tier: 3, x: 306, y: 42, r: 9 },
     // tier 2 — larger areas
     { name: 'Lung Island', tier: 2, x: 191, y: 219, r: 9 },
     { name: 'Upsilonia', tier: 2, x: 130, y: 19, r: 12 },
