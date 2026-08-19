@@ -1717,13 +1717,7 @@ export function makeShipSprite(hull, sail) {
     P(4, 17, 38, 2, hi);
     P(42, 18, 3, 4, '#c8ccd8');                             // bronze ram
     P(2, 15, 4, 4, hull); P(1, 13, 3, 3, dark);             // stern post curl
-    // deck crew: rowers' heads along the gunwale + captain astern
-    for (let i = 0; i < 4; i++) {
-      const hx = 10 + i * 8;
-      P(hx, 14, 3, 3, '#f0c8a0');
-      P(hx, 16, 3, 2, ['#c43a2a', '#5a76c8', '#c8ccd8', '#d9a545'][i]);
-    }
-    P(5, 12, 3, 3, '#f0c8a0'); P(5, 14, 3, 3, '#c8ccd8');   // helmsman
+    // (the deck stays clear — live NPC crew walk it at runtime)
     P(3, 14, 3, 2, '#8a6034');                              // steering oar
     // mast + square sail
     P(22, 2, 2, 15, '#5a3a24');

@@ -504,7 +504,7 @@ export function updatePatrons(it, dt) {
       continue;
     }
     p.thinkT -= dt;
-    if (p.thinkT <= 0 || !p.heading) {
+    if (p.thinkT <= 0) {
       p.thinkT = 1.6 + Math.random() * 2.6;
       if (Math.random() < 0.35) { p.heading = null; p.frame = 0; continue; }
       const ang = Math.random() * Math.PI * 2;
@@ -512,10 +512,12 @@ export function updatePatrons(it, dt) {
       p.dir = Math.abs(p.heading.dx) > Math.abs(p.heading.dy) ? (p.heading.dx < 0 ? 1 : 2) : (p.heading.dy < 0 ? 3 : 0);
     }
     if (!p.heading) continue;
+    // on a bump: pause and rethink shortly — never re-roll every frame
+    const stop = () => { p.heading = null; p.thinkT = 0.35 + Math.random() * 0.6; };
     const nx = p.x + p.heading.dx * p.speed * dt;
     const ny = p.y + p.heading.dy * p.speed * dt;
-    if (!solid(nx, p.y - 2) && !solid(nx, p.y + 5)) p.x = nx; else p.heading = null;
-    if (p.heading && !solid(p.x - 4, ny + 5) && !solid(p.x + 4, ny + 5)) p.y = ny; else p.heading = null;
+    if (!solid(nx, p.y - 2) && !solid(nx, p.y + 5)) p.x = nx; else stop();
+    if (p.heading && !solid(p.x - 4, ny + 5) && !solid(p.x + 4, ny + 5)) p.y = ny; else stop();
     if (p.heading) {
       p.animT += dt;
       if (p.animT > 0.18) { p.animT = 0; p.frame = 1 - p.frame; }

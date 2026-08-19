@@ -245,13 +245,13 @@ function moveEntity(e, world, tide, dt) {
   if (!isSolidTile(nt, tide) && nt !== T.SHALLOW) {
     e.x = nx; e.y = ny;
   } else {
+    // stop and think for a beat — re-rolling a direction every frame
+    // makes a wedged walker spin on the spot like a compass needle
     blocked = true;
-    const sp = Math.hypot(e.vx, e.vy) || 24;
-    const a = roll() * Math.PI * 2;
-    e.vx = Math.cos(a) * sp; e.vy = Math.sin(a) * sp;
-    e.moveT = 0.35 + roll() * 0.5;
+    e.vx = 0; e.vy = 0;
+    e.moveT = 0.3 + roll() * 0.6;
   }
-  if (Math.abs(e.vx) > Math.abs(e.vy)) e.dir = e.vx < 0 ? 1 : 2;
+  if (Math.abs(e.vx) > Math.abs(e.vy) && e.vx !== 0) e.dir = e.vx < 0 ? 1 : 2;
   else if (e.vy !== 0) e.dir = e.vy < 0 ? 3 : 0;
   return blocked;
 }

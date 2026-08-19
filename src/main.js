@@ -385,8 +385,12 @@ function drawTile(t, tx, ty, sx, sy, animFrame) {
 
 function drawSprite(e, camX, camY) {
   const cw = e.sprite.cellW || CHAR_W, ch = e.sprite.cellH || CHAR_H;
-  const sx = Math.round((e.x - cw / 2 - camX) * zoom);
+  let sx = Math.round((e.x - cw / 2 - camX) * zoom);
   let sy = Math.round((e.y - ch + 4 - camY) * zoom);
+  if (e.rumbleT > 0) {  // a heavy impact shudders the whole hull
+    sx += Math.round((Math.random() - 0.5) * 4 * zoom * Math.min(1, e.rumbleT * 3));
+    sy += Math.round((Math.random() - 0.5) * 3 * zoom * Math.min(1, e.rumbleT * 3));
+  }
   if (e.sink > 0) {  // a holed ship settles into the water
     ctx.globalAlpha = Math.max(0, 1 - e.sink / 1.5);
     sy += Math.round(e.sink * 6 * zoom);
@@ -509,6 +513,14 @@ function interiorTick(dt, now) {
   const list = [player, ...it.patrons, ...it.actors.filter((a) => a.sprite && !(a.sink > 1.5))].sort((a, b) => a.y - b.y);
   for (const e of list) {
     const { sx, sy } = drawSprite(e, camX, camY);
+    if (e.type === 'ship' && e.crew && e.sink === 0) {
+      // live deckhands walking the boards
+      for (const c of e.crew) {
+        const csx = Math.round((e.x + c.ox - 5 - camX) * zoom);
+        const csy = Math.round((e.y + c.oy - 6 - camY) * zoom);
+        ctx.drawImage(c.sprite, c.dir * CHAR_W, c.frame * CHAR_H, CHAR_W, CHAR_H, csx, csy, CHAR_W * zoom * 0.62, CHAR_H * zoom * 0.62);
+      }
+    }
     if (e.smokes) {
       // a slow curl of cigarette smoke
       const ph = (now / 400 + e.puffT) % 3;
