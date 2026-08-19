@@ -61,6 +61,32 @@ export const GAME_RTP = {
   haiko:      0.96,  // EP — hi-lo card streak
   muaythai:   0.93,  // EP — fight betting
   spirits:    0.94,  // EP — temple spirit bells
+
+  /* ---- roadside attractions: each has its own world prop ---- */
+  // Greek & Roman fortune (TF)
+  wheeltyche:     0.94,  // segmented marble wheel
+  amphorae:       0.95,  // sealed jars of Fortuna
+  fatesthread:    0.94,  // the thread woven then cut
+  // Chinese dynastic dragons (DG)
+  pearldrop:      0.95,  // pearl down the dragon board
+  ninegates:      0.96,  // nine gates, cash out between
+  dragonhoard:    0.94,  // urns before a sleeping dragon
+  // Wild West horseshoes (HV)
+  horseshoetoss:  0.94,  // ringers and leaners
+  goldencorral:   0.93,  // miniature horse race
+  prospector:     0.95,  // dig up a buried horseshoe
+  // Celtic clovers (FL)
+  cloverbloom:    0.94,  // count the leaves
+  faeriering:     0.95,  // the mushroom ring stops
+  grovereels:     0.93,  // four rotating stone leaves
+  // SE Asian jungle & spirituality (EP)
+  spiritlanterns: 0.95,  // lanterns drift to shrines
+  nagariver:      0.94,  // offering down branching currents
+  banyan:         0.96,  // shake the sacred tree
+  // Neon Japan (MN)
+  neonneko:       0.94,  // the beckoning paw's colour
+  catparade:      0.95,  // cats from the gacha doors
+  coincascade:    0.95,  // koban through the cat pins
 };
 
 /* Per-province multiplier applied on top of GAME_RTP + chest RTP.

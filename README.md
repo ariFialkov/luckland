@@ -81,9 +81,32 @@ Everything lives in **`src/config.js`**:
 - `RARITY_TIERS`, `ADDONS`, `BET_STEPS`, tide cycle length, bot counts, spawn
   caps, starting balance, world seed.
 
+### Roadside attractions
+
+Beyond the hub games, ~96 **attraction props** stand out in the world — each a
+hand-drawn machine or shrine you walk into to play, spawned in its own habitat
+(streets and plazas, riverbanks, treelines, mountain shrines, open country):
+
+| Province | Attractions |
+|---|---|
+| **TF** | Wheel of Tyche (segmented marble wheel), Fortuna's Amphorae (sealed jars), Fates' Thread (woven, then cut) |
+| **DG** | Dragon Pearl Drop (pearl down the board), Nine Dragon Gates (press on or cash out), Dragon's Hoard (urns before a sleeping dragon) |
+| **HV** | Lucky Horseshoe Toss (ringers and leaners), The Golden Corral (miniature race), Prospector's Horseshoe (dig a mound) |
+| **FL** | Clover Bloom (count the leaves), Faerie Ring (mushrooms light in turn), Luck of the Grove (four stone leaves) |
+| **EP** | Spirit Lanterns (drift to a shrine), Naga River (branching currents), Banyan Blessing (shake the sacred tree) |
+| **MN** | Neon Neko (the paw's colour), Lucky Cat Parade (gacha doors), Neko Coin Cascade (koban through the pins) |
+
+These run on six mechanics beyond the originals — `wheel` (segment stop),
+`plinko` (honest binomial drop with scaled pockets), `gates` (ladder with
+cash-out), `path` (a journey to a prize tier), `pickchain` (picks that can chain
+into free extra picks) and `reels` (N-of-a-kind matching).
+
 All paytables, race odds and loot tables are **auto-normalized** at play time:
-paytable games keep their clean multipliers and adjust the miss probability to hit
-the configured RTP; pick/race/hi-lo games pay `RTP / p(win)`. Change any number in
+paytable, wheel and path games keep their clean multipliers and adjust the miss
+probability to hit the configured RTP; pick/race/hi-lo/gates pay `RTP / p(win)`;
+plinko scales its pocket multipliers against the drop's true binomial odds; reels
+scale payouts against an exact enumeration of every combination; chained picks
+solve for the recursion. Every game is verified to pay its configured RTP exactly. Change any number in
 config and nothing else needs touching. Effective RTP (base × area × active luck
 buffs, capped below 100%) is displayed in every game's header.
 

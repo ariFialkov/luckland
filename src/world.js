@@ -622,28 +622,28 @@ export function generateWorld() {
 
   /* prov, name, icon, description, x, y, w, h, games */
   const LM = [
-    ['TF', 'Coliseum of Pontium', '🏟️', 'Chariots thunder for your denarii', 168, 44, 8, 5, ['chariots', 'tali']],
-    ['TF', 'Temple of Tyche', '🏛️', 'Marble halls above the western cape', 117, 51, 6, 4, ['oracle', 'tali']],
-    ['TF', 'Temple of Fortuna', '🏛️', 'Gilded seat of the eastern court', 233, 30, 6, 4, ['oracle', 'chariots']],
-    ['TF', 'Epineion Harbourhouse', '⚓', 'Sailors bet the tide here', 236, 58, 5, 4, ['tali', 'cointoss']],
+    ['TF', 'Coliseum of Pontium', '🏟️', 'Chariots thunder for your denarii', 168, 44, 8, 5, ['chariots', 'tali', 'wheeltyche']],
+    ['TF', 'Temple of Tyche', '🏛️', 'Marble halls above the western cape', 117, 51, 6, 4, ['oracle', 'wheeltyche', 'fatesthread']],
+    ['TF', 'Temple of Fortuna', '🏛️', 'Gilded seat of the eastern court', 233, 30, 6, 4, ['oracle', 'amphorae', 'fatesthread']],
+    ['TF', 'Epineion Harbourhouse', '⚓', 'Sailors bet the tide here', 236, 58, 5, 4, ['tali', 'cointoss', 'amphorae']],
     ['TF', 'Fort Upsilonia', '⚓', "Leonidas' island navy — cross at low tide", 128, 18, 6, 4, ['tali', 'chariots']],
-    ['FL', 'Ballyclover Castle', '🏰', 'Ancient keep of the Four Leaf kings', 112, 101, 8, 6, ['cointoss', 'roadbowls', 'rainbow']],
+    ['FL', 'Ballyclover Castle', '🏰', 'Ancient keep of the Four Leaf kings', 112, 101, 8, 6, ['cointoss', 'roadbowls', 'cloverbloom', 'grovereels']],
     ['FL', 'Rapidstown Bookmakers', '📓', 'Odds on anything that moves', 22, 124, 5, 4, ['roadbowls', 'cointoss']],
     ['FL', 'Puffin Point Light', '🗼', 'The luckiest lighthouse in the Republic', 22, 85, 4, 4, ['rainbow']],
-    ['HV', 'Horseshoe Downs', '🏇', 'The dustiest derby in the west', 36, 199, 9, 5, ['ponies', 'fivecard']],
-    ['HV', 'The Grand Saloon', '🤠', 'Swing the doors, draw your luck', 85, 163, 7, 5, ['fivecard', 'standoff']],
-    ['DG', 'Flat Palace', '🏯', 'Broad courts of the western dragon lords', 132, 170, 8, 5, ['mahjong', 'sicbo']],
-    ['DG', 'Golden Tiger Hall', '🏯', "Tiger City's roaring gambling court", 152, 183, 9, 6, ['mahjong', 'sicbo']],
-    ['DG', 'Kite Pavilion', '🪁', 'Where fortunes ride the mountain wind', 202, 129, 6, 4, ['sicbo', 'mahjong']],
+    ['HV', 'Horseshoe Downs', '🏇', 'The dustiest derby in the west', 36, 199, 9, 5, ['ponies', 'fivecard', 'goldencorral']],
+    ['HV', 'The Grand Saloon', '🤠', 'Swing the doors, draw your luck', 85, 163, 7, 5, ['fivecard', 'standoff', 'horseshoetoss']],
+    ['DG', 'Flat Palace', '🏯', 'Broad courts of the western dragon lords', 132, 170, 8, 5, ['mahjong', 'sicbo', 'pearldrop']],
+    ['DG', 'Golden Tiger Hall', '🏯', "Tiger City's roaring gambling court", 152, 183, 9, 6, ['mahjong', 'sicbo', 'ninegates']],
+    ['DG', 'Kite Pavilion', '🪁', 'Where fortunes ride the mountain wind', 202, 129, 6, 4, ['sicbo', 'pearldrop']],
     ['DG', 'Hidden Temple', '🍵', 'Whispered of, rarely found', 198, 149, 5, 4, ['teahouse']],
     ['DG', 'Shady Temple', '⛩️', 'High stakes in low light', 222, 145, 6, 4, ['sicbo', 'teahouse']],
-    ['DG', 'Peekaboo Palace', '🏯', 'Now you see your winnings…', 236, 153, 7, 5, ['mahjong', 'teahouse']],
-    ['EP', 'The Golden Temple', '🛕', 'Bells, bells, and blessed bells', 233, 164, 7, 5, ['spirits', 'haiko']],
-    ['EP', 'Roaring Elephant Arena', '🥊', "Khrueang's ring of glory", 333, 178, 8, 6, ['muaythai', 'haiko']],
-    ['EP', 'Waterfall Park Pavilion', '⛲', 'Wager to the sound of falling water', 297, 211, 5, 4, ['haiko', 'spirits']],
-    ['MN', 'Magic Mushroom Casino', '🍄', 'Neon towers of endless pachinko', 293, 68, 8, 6, ['pachinko', 'slots']],
-    ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumo', 'pachinko']],
-    ['MN', 'Horizon Park Lookout', '⛩️', 'Views over the beckoning sea', 342, 27, 5, 4, ['pachinko']],
+    ['DG', 'Peekaboo Palace', '🏯', 'Now you see your winnings…', 236, 153, 7, 5, ['mahjong', 'teahouse', 'dragonhoard']],
+    ['EP', 'The Golden Temple', '🛕', 'Bells, bells, and blessed bells', 233, 164, 7, 5, ['spirits', 'haiko', 'spiritlanterns', 'banyan']],
+    ['EP', 'Roaring Elephant Arena', '🥊', "Khrueang's ring of glory", 333, 178, 8, 6, ['muaythai', 'haiko', 'nagariver']],
+    ['EP', 'Waterfall Park Pavilion', '⛲', 'Wager to the sound of falling water', 297, 211, 5, 4, ['haiko', 'spirits', 'nagariver']],
+    ['MN', 'Magic Mushroom Casino', '🍄', 'Neon towers of endless pachinko', 293, 68, 8, 6, ['pachinko', 'slots', 'neonneko', 'coincascade']],
+    ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumo', 'pachinko', 'catparade']],
+    ['MN', 'Horizon Park Lookout', '⛩️', 'Views over the beckoning sea', 342, 27, 5, 4, ['pachinko', 'neonneko']],
   ];
   for (const [p, name, ico, desc, x, y, w, h, games] of LM) {
     stampLandmark({ prov: p, name, ico, desc, x, y, w, h, games });
@@ -819,35 +819,132 @@ export function generateWorld() {
   trail([[180, 116], [179, 112]]); // link up to the Dragonspine road
 
   /* ============================================================
-     Street gambling events near roads, per province
+     Roadside attractions — each game has a physical prop that
+     stands in the world. Props are solid; walk into one to play.
      ============================================================ */
-  const roadByProv = {};
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+  const EVENT_TYPES = [
+    /* Greek & Roman fortune */
+    { game: 'wheeltyche',  prov: 'TF', label: 'Wheel of Tyche',        w: 2, h: 2, spawn: 'urban',    n: 5 },
+    { game: 'amphorae',    prov: 'TF', label: "Fortuna's Amphorae",    w: 3, h: 2, spawn: 'urban',    n: 5 },
+    { game: 'fatesthread', prov: 'TF', label: "Fates' Thread",         w: 2, h: 2, spawn: 'upland',   n: 5 },
+    { game: 'tali',        prov: 'TF', label: 'Street Tali',           w: 2, h: 2, spawn: 'urban',    n: 4 },
+    /* Chinese dynastic dragons */
+    { game: 'pearldrop',   prov: 'DG', label: 'Dragon Pearl Drop',     w: 2, h: 2, spawn: 'urban',    n: 5 },
+    { game: 'ninegates',   prov: 'DG', label: 'Nine Dragon Gates',     w: 3, h: 2, spawn: 'urban',    n: 4 },
+    { game: 'dragonhoard', prov: 'DG', label: "Dragon's Hoard",        w: 3, h: 2, spawn: 'mountain', n: 5 },
+    { game: 'mahjong',     prov: 'DG', label: 'Alley Mahjong',         w: 2, h: 2, spawn: 'urban',    n: 4 },
+    /* Wild West horseshoes */
+    { game: 'horseshoetoss', prov: 'HV', label: 'Lucky Horseshoe Toss', w: 2, h: 2, spawn: 'urban',   n: 5 },
+    { game: 'goldencorral',  prov: 'HV', label: 'The Golden Corral',    w: 3, h: 2, spawn: 'urban',   n: 4 },
+    { game: 'prospector',    prov: 'HV', label: "Prospector's Horseshoe", w: 2, h: 2, spawn: 'wild',  n: 6 },
+    { game: 'standoff',      prov: 'HV', label: 'Showdown!',            w: 2, h: 2, spawn: 'urban',   n: 4 },
+    /* Celtic clovers */
+    { game: 'cloverbloom', prov: 'FL', label: 'Clover Bloom',          w: 2, h: 2, spawn: 'wild',     n: 6 },
+    { game: 'faeriering',  prov: 'FL', label: 'Faerie Ring',           w: 2, h: 2, spawn: 'forest',   n: 5 },
+    { game: 'grovereels',  prov: 'FL', label: 'Luck of the Grove',     w: 2, h: 2, spawn: 'upland',   n: 5 },
+    { game: 'roadbowls',   prov: 'FL', label: 'Road Bowls',            w: 2, h: 2, spawn: 'urban',    n: 4 },
+    /* SE Asian jungle & spirituality */
+    { game: 'spiritlanterns', prov: 'EP', label: 'Spirit Lanterns',    w: 2, h: 2, spawn: 'water',    n: 5 },
+    { game: 'nagariver',      prov: 'EP', label: 'Naga River',         w: 3, h: 2, spawn: 'water',    n: 5 },
+    { game: 'banyan',         prov: 'EP', label: 'Banyan Blessing',    w: 2, h: 2, spawn: 'forest',   n: 6 },
+    { game: 'haiko',          prov: 'EP', label: 'Haiko Corner',       w: 2, h: 2, spawn: 'urban',    n: 4 },
+    /* Neon Japan */
+    { game: 'neonneko',    prov: 'MN', label: 'Neon Neko',            w: 2, h: 2, spawn: 'urban',    n: 5 },
+    { game: 'catparade',   prov: 'MN', label: 'Lucky Cat Parade',     w: 3, h: 2, spawn: 'urban',    n: 5 },
+    { game: 'coincascade', prov: 'MN', label: 'Neko Coin Cascade',    w: 2, h: 2, spawn: 'urban',    n: 5 },
+    { game: 'pachinko',    prov: 'MN', label: 'Pachinko Stand',       w: 2, h: 2, spawn: 'urban',    n: 4 },
+  ];
+
+  const events = [];
+  const eventTiles = new Map();   // tile index -> event (for bump-to-play)
+
+  const nearTile = (x, y, r, pred) => {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (pred(get(x + dx, y + dy))) return true;
+    }
+    return false;
+  };
+  const inAnyCity = (x, y) => cities.some((c) => Math.hypot(x - c.x, y - c.y) <= c.r + 2);
+
+  /* Does this footprint sit on open, walkable ground with room to
+     stand around it? (Keeps props from plugging a one-tile lane.) */
+  function footprintOK(x, y, w, h) {
+    for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      const t = get(x + dx, y + dy);
+      if (isSolidTile(t, 0) || t === T.WATER || t === T.DEEP || t === T.SHALLOW ||
+          t === T.TIDAL || t === T.BRIDGE || t === T.PIER) return false;
+    }
+    let open = 0;
+    for (let dx = -1; dx <= w; dx++) {
+      for (const yy of [y - 1, y + h]) {
+        const t = get(x + dx, yy);
+        if (t === T.DOOR) return false;
+        if (!isSolidTile(t, 0) && t !== T.SHALLOW) open++;
+      }
+    }
+    for (let dy = -1; dy <= h; dy++) {
+      for (const xx of [x - 1, x + w]) {
+        const t = get(xx, y + dy);
+        if (t === T.DOOR) return false;
+        if (!isSolidTile(t, 0) && t !== T.SHALLOW) open++;
+      }
+    }
+    return open >= (w + h) * 2;   // plenty of room left to walk around it
+  }
+
+  function spawnFits(type, x, y) {
+    const code = PROV_LIST[prov[idx(x, y)]];
+    if (code !== type.prov) return false;
     const t = get(x, y);
-    if (t === T.ROAD || t === T.NEON || t === T.PLAZA) {
-      const code = PROV_LIST[prov[idx(x, y)]];
-      (roadByProv[code] ||= []).push([x, y]);
+    switch (type.spawn) {
+      case 'urban':                                   // streets, plazas, arcades
+        return (t === T.ROAD || t === T.PLAZA || t === T.NEON || t === T.DUST) && inAnyCity(x, y);
+      case 'wild':                                    // open country away from town
+        return !inAnyCity(x, y) &&
+          (t === T.GRASS || t === T.MEADOW || t === T.DUST || t === T.SCRUB || t === T.TRAIL);
+      case 'upland':                                  // hills, groves, sacred high ground
+        return !inAnyCity(x, y) && (t === T.HILL || t === T.MEADOW || t === T.GRASS) &&
+          nearTile(x, y, 3, (q) => q === T.HILL || q === T.MOUNTAIN || q === T.FOREST);
+      case 'forest':                                  // clearings at the treeline
+        return !inAnyCity(x, y) && (t === T.GRASS || t === T.MEADOW || t === T.BAMBOO) &&
+          nearTile(x, y, 2, (q) => q === T.FOREST || q === T.JUNGLE);
+      case 'water':                                   // riverbanks, waterfalls, shores
+        return (t === T.GRASS || t === T.SAND || t === T.TRAIL || t === T.PLAZA) &&
+          nearTile(x, y, 3, (q) => q === T.WATER || q === T.SHALLOW);
+      case 'mountain':                                // caves, vaults, mountain shrines
+        return (t === T.TRAIL || t === T.GRASS || t === T.HILL || t === T.BAMBOO) &&
+          nearTile(x, y, 2, (q) => q === T.MOUNTAIN || q === T.PEAK || q === T.CLIFF);
+      default: return false;
     }
   }
-  const EVENT_DEFS = {
-    TF: { game: 'tali', ico: '🎲', label: 'Street Tali' },
-    FL: { game: 'roadbowls', ico: '🥎', label: 'Road Bowls' },
-    HV: { game: 'standoff', ico: '🔫', label: 'Showdown!' },
-    DG: { game: 'mahjong', ico: '🀄', label: 'Alley Mahjong' },
-    EP: { game: 'haiko', ico: '🃏', label: 'Haiko Corner' },
-    MN: { game: 'pachinko', ico: '🎰', label: 'Pachinko Stand' },
-  };
-  const events = [];
-  for (const code of Object.keys(EVENT_DEFS)) {
-    const spots = roadByProv[code] || [];
-    const used = new Set();
-    for (let i = 0; i < 10 && spots.length; i++) {
-      const j = Math.floor(hash2(i, 999, seed + 90 + i) * spots.length);
-      if (used.has(j)) continue;
-      used.add(j);
-      const [x, y] = spots[j];
-      if (get(x, y - 1) === T.DOOR) continue;
-      events.push({ x, y, prov: code, ...EVENT_DEFS[code] });
+
+  /* Round-robin so every attraction gets its share of the good
+     spots rather than the first types claiming all the streets. */
+  const placedOf = EVENT_TYPES.map(() => 0);
+  for (let round = 0; round < 8; round++) {
+    for (let ti = 0; ti < EVENT_TYPES.length; ti++) {
+      const type = EVENT_TYPES[ti];
+      if (placedOf[ti] >= type.n) continue;
+      for (let attempt = 0; attempt < 900; attempt++) {
+        const salt = ti * 977 + round * 61 + attempt;
+        const x = 3 + Math.floor(hash2(salt, ti * 31 + round, seed + 120) * (W - 8));
+        const y = 3 + Math.floor(hash2(ti * 17 + round, salt, seed + 121) * (H - 8));
+        if (!spawnFits(type, x, y)) continue;
+        if (!footprintOK(x, y, type.w, type.h)) continue;
+        if (events.some((e) => Math.abs(e.x - x) < 7 && Math.abs(e.y - y) < 7)) continue;
+        const ev = {
+          x, y, w: type.w, h: type.h, prov: type.prov, game: type.game,
+          label: type.label, v: (hash2(x, y, seed + 122) * 1e6) | 0,
+        };
+        for (let dy = 0; dy < type.h; dy++) for (let dx = 0; dx < type.w; dx++) {
+          rememberGround(x + dx, y + dy);
+          set(x + dx, y + dy, T.FOUNDATION);
+          eventTiles.set(idx(x + dx, y + dy), ev);
+        }
+        events.push(ev);
+        placedOf[ti]++;
+        break;
+      }
     }
   }
 
@@ -905,7 +1002,7 @@ export function generateWorld() {
   ];
 
   return {
-    W, H, tiles, prov, ground, landmarks, events, zones, regions, cities, ferries, buildings, start: START,
+    W, H, tiles, prov, ground, landmarks, events, eventTiles, zones, regions, cities, ferries, buildings, start: START,
     idx, get, inB,
     provAt(x, y) {
       return PROV_LIST[prov[idx(Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y)))]];

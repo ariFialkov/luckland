@@ -8,10 +8,10 @@
 import { CONFIG } from './config.js';
 import { hash2, roll } from './rng.js';
 import { generateWorld, T, TILE, isSolidTile, PROVINCES } from './world.js';
-import { buildTileAtlas, makeCharSprite, getBuildingSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
+import { buildTileAtlas, makeCharSprite, getBuildingSprite, getEventSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
 import { state, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
-import { openGame, openHub } from './games.js';
+import { openGame, openHub, GAME_DEFS } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
 
@@ -106,16 +106,18 @@ function solidAt(px, py) {
   return isSolidTile(world.tiles[ty * world.W + tx], tideLevel);
 }
 
-let pendingDoor = null; // set when the player bumps a (solid) door tile
+let pendingDoor = null;   // bumped a landmark door
+let pendingEvent = null;  // bumped an attraction prop
 let doorCooldown = 0;
 
-function noteDoorBump(...points) {
+function noteBump(...points) {
   for (const [bx, by] of points) {
     const tx = Math.floor(bx / TILE), ty = Math.floor(by / TILE);
-    if (world.inB(tx, ty) && world.tiles[ty * world.W + tx] === T.DOOR) {
-      pendingDoor = { tx, ty };
-      return;
-    }
+    if (!world.inB(tx, ty)) continue;
+    const i = ty * world.W + tx;
+    if (world.tiles[i] === T.DOOR) { pendingDoor = { tx, ty }; return; }
+    const ev = world.eventTiles.get(i);
+    if (ev) { pendingEvent = ev; return; }
   }
 }
 
@@ -129,12 +131,12 @@ function tryMove(dx, dy, dt) {
   if (dx) {
     const p1 = [nx + Math.sign(dx) * r, player.y - r + 2], p2 = [nx + Math.sign(dx) * r, player.y + r];
     if (!solidAt(...p1) && !solidAt(...p2)) player.x = nx;
-    else noteDoorBump(p1, p2);
+    else noteBump(p1, p2);
   }
   if (dy) {
     const p1 = [player.x - r + 2, ny + Math.sign(dy) * r], p2 = [player.x + r, ny + Math.sign(dy) * r];
     if (!solidAt(...p1) && !solidAt(...p2)) player.y = ny;
-    else noteDoorBump(p1, p2);
+    else noteBump(p1, p2);
   }
   player.x = Math.max(8, Math.min(world.W * TILE - 8, player.x));
   player.y = Math.max(8, Math.min(world.H * TILE - 8, player.y));
@@ -184,10 +186,11 @@ function findTarget() {
       return { kind: 'concealer', obj: c, label: `${c.type.name} · ${c.type.price} 🪙`, ico: c.type.ico };
     }
   }
-  // street events
+  // roadside attractions (solid props — reach scales with their size)
   for (const ev of world.events) {
-    if (near(ev.x * TILE + 8, ev.y * TILE + 8, 24)) {
-      return { kind: 'event', obj: ev, label: ev.label, ico: ev.ico };
+    const cx = (ev.x + ev.w / 2) * TILE, cy = (ev.y + ev.h / 2) * TILE;
+    if (near(cx, cy, Math.max(ev.w, ev.h) * TILE * 0.5 + 28)) {
+      return { kind: 'event', obj: ev, label: ev.label, ico: GAME_DEFS[ev.game]?.ico || '🎲' };
     }
   }
   // ferry docks
@@ -352,14 +355,16 @@ function frame(now) {
   /* bumping into a door swings it open (with a cooldown so a closed
      modal doesn't immediately reopen while still pressing forward) */
   doorCooldown = Math.max(0, doorCooldown - dt);
-  if (pendingDoor && !UI.isModalOpen() && doorCooldown === 0) {
-    const lm = world.landmarks.find((l) => l.doorX === pendingDoor.tx && l.doorY === pendingDoor.ty);
-    if (lm) {
+  if (!UI.isModalOpen() && doorCooldown === 0) {
+    if (pendingDoor) {
+      const lm = world.landmarks.find((l) => l.doorX === pendingDoor.tx && l.doorY === pendingDoor.ty);
+      if (lm) { doorCooldown = 1.2; openHub(lm, currentProv); }
+    } else if (pendingEvent) {
       doorCooldown = 1.2;
-      openHub(lm, currentProv);
+      openGame(pendingEvent.game, currentProv);
     }
   }
-  pendingDoor = null;
+  pendingDoor = null; pendingEvent = null;
 
   /* --- entities --- */
   for (const n of npcs) updateNpc(n, world, tideLevel, dt);
@@ -427,6 +432,16 @@ function frame(now) {
     }
   }
 
+  /* roadside attraction props — footprint-exact, like buildings */
+  for (const ev of world.events) {
+    if (ev.x > x1 + 1 || ev.x + ev.w < x0 - 1 || ev.y > y1 + 1 || ev.y + ev.h < y0 - 1) continue;
+    const spr = getEventSprite(ev);
+    ctx.drawImage(spr,
+      Math.round((ev.x * TILE - camX) * zoom),
+      Math.round((ev.y * TILE - camY) * zoom),
+      spr.width * zoom, spr.height * zoom);
+  }
+
   /* buildings — footprint-exact sprites drawn with the terrain */
   for (const b of world.buildings) {
     if (b.x > x1 + 1 || b.x + b.w < x0 - 1 || b.y > y1 + 1 || b.y + b.h < y0 - 1) continue;
@@ -447,12 +462,7 @@ function frame(now) {
     }
   }
 
-  /* street events */
   const bobT = Math.sin(now / 300) * 2;
-  for (const ev of world.events) {
-    if (ev.x < x0 - 1 || ev.x > x1 + 1 || ev.y < y0 - 1 || ev.y > y1 + 1) continue;
-    drawEmoji(ev.ico, ev.x * TILE + 8, ev.y * TILE + 10, camX, camY, 11, bobT * 0.4);
-  }
 
   /* concealers with sparkle */
   for (const c of concealers) {

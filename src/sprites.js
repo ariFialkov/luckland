@@ -735,6 +735,359 @@ function drawBuilding(b) {
   return cv;
 }
 
+/* ============================================================
+   Roadside attraction props — the physical machines/shrines the
+   games live in. Drawn on a transparent canvas the size of their
+   footprint, so the terrain shows through around them.
+   ============================================================ */
+const eventSpriteCache = new Map();
+
+export function getEventSprite(ev) {
+  const key = `${ev.game}:${ev.w}x${ev.h}:${ev.v}`;
+  let cv = eventSpriteCache.get(key);
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.width = ev.w * CELL; cv.height = ev.h * CELL;
+    drawEventProp(cv.getContext('2d'), ev.game, cv.width, cv.height, ev.v);
+    eventSpriteCache.set(key, cv);
+  }
+  return cv;
+}
+
+function drawEventProp(ctx, game, W16, BH, v) {
+  const rnd = (i) => hash2(v, i * 53, 17);
+  const shadow = (x, y, w, h) => { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(x, y, w, h); };
+  const B = BH;   // bottom
+
+  switch (game) {
+    /* ---------------- Tyche & Fortuna ---------------- */
+    case 'wheeltyche': {                       // marble Tyche holding a wheel
+      shadow(4, B - 3, W16 - 8, 3);
+      px(ctx, 6, B - 6, 6, 6, '#d8d2c0');                   // plinth
+      px(ctx, 6, B - 6, 6, 1, '#f4f0e6');
+      px(ctx, 7, B - 15, 4, 9, '#e8e2d4');                  // robed figure
+      px(ctx, 7, B - 15, 1, 9, '#f4f0e6');
+      px(ctx, 7, B - 19, 4, 4, '#f0e4d0');                  // head
+      px(ctx, 11, B - 17, 2, 2, '#e8e2d4');                 // outstretched arm
+      const cx = 19, cy = B - 15;                            // the wheel
+      for (let a = 0; a < 12; a++) {
+        const ang = (a / 12) * Math.PI * 2;
+        px(ctx, Math.round(cx + Math.cos(ang) * 6), Math.round(cy + Math.sin(ang) * 6), 2, 2,
+          a % 3 === 0 ? '#f0c040' : (a % 2 ? '#c8c0ac' : '#e8e2d4'));
+      }
+      px(ctx, cx - 1, cy - 1, 3, 3, '#f0c040');
+      px(ctx, cx, cy - 9, 1, 3, '#c04838');                 // pointer
+      px(ctx, 3, B - 4, 2, 2, '#f0c040'); px(ctx, W16 - 6, B - 5, 2, 2, '#f0c040'); // spilled coins
+      break;
+    }
+    case 'amphorae': {                         // ring of jars round a shrine
+      shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, (W16 >> 1) - 4, B - 16, 8, 4, '#e8e2d4');     // shrine
+      px(ctx, (W16 >> 1) - 3, B - 12, 6, 8, '#d8d2c0');
+      px(ctx, (W16 >> 1) - 2, B - 15, 4, 3, '#f0c040');
+      const jars = [[3, B - 11], [11, B - 13], [W16 - 14, B - 13], [W16 - 6, B - 11], [7, B - 7], [W16 - 10, B - 7]];
+      jars.forEach(([jx, jy], i) => {
+        const c2 = ['#b8763a', '#a05a28', '#c98a4a'][i % 3];
+        px(ctx, jx + 1, jy, 4, 2, c2);                      // neck
+        px(ctx, jx, jy + 2, 6, 6, c2);                      // body
+        px(ctx, jx + 1, jy + 3, 1, 4, '#d9a066');           // lit side
+        px(ctx, jx + 1, jy + 5, 4, 1, '#5a3a24');           // painted band
+        px(ctx, jx + 2, jy + 8, 2, 1, '#7a4a20');
+      });
+      break;
+    }
+    case 'fatesthread': {                      // altar, spool and shears
+      shadow(4, B - 3, W16 - 8, 3);
+      px(ctx, 3, B - 7, W16 - 6, 7, '#c8c0ac');             // altar block
+      px(ctx, 3, B - 7, W16 - 6, 2, '#f4f0e6');
+      px(ctx, 5, B - 3, W16 - 10, 1, '#a89c88');
+      // three thick threads climbing out of the spool
+      const tcol = ['#f0c040', '#fff0a0', '#e8a020'];
+      [5, 9, 13].forEach((tx2, i) => {
+        const th = 12 + i * 3;
+        for (let k = 0; k < th; k++) {
+          px(ctx, tx2 + (k % 4 === 2 ? 1 : 0), B - 8 - k, 2, 1, tcol[i]);
+        }
+        px(ctx, tx2, B - 9 - th, 3, 3, '#fff8d0');          // glowing tip
+      });
+      px(ctx, 4, B - 12, 11, 5, '#b8880c');                 // spool
+      px(ctx, 4, B - 12, 11, 1, '#e8d060');
+      px(ctx, 6, B - 11, 1, 3, '#f0c040'); px(ctx, 10, B - 11, 1, 3, '#f0c040');
+      px(ctx, W16 - 9, B - 20, 3, 8, '#c8c0ac');            // shears, open
+      px(ctx, W16 - 5, B - 20, 3, 8, '#c8c0ac');
+      px(ctx, W16 - 9, B - 20, 1, 8, '#f4f0e6');
+      px(ctx, W16 - 8, B - 12, 5, 3, '#8a8480');            // pivot
+      px(ctx, W16 - 7, B - 9, 3, 4, '#5a4630');             // handle
+      break;
+    }
+
+    /* ---------------- Dragonia ---------------- */
+    case 'pearldrop': {                        // dragon board with a luminous pearl
+      shadow(3, B - 3, W16 - 6, 3);
+      const bw2 = W16 - 8, bx2 = 4;
+      px(ctx, bx2, B - 26, bw2, 20, '#7a2020');             // ornate drop board
+      px(ctx, bx2 + 1, B - 25, bw2 - 2, 18, '#4a1414');
+      px(ctx, bx2, B - 26, bw2, 2, '#f0c040');              // gilt frame
+      px(ctx, bx2, B - 8, bw2, 2, '#f0c040');
+      for (let r2 = 0; r2 < 5; r2++) {                       // pins
+        for (let c2 = 0; c2 < 4; c2++) {
+          px(ctx, bx2 + 3 + c2 * 4 + (r2 % 2) * 2, B - 23 + r2 * 3, 1, 1, '#f0c040');
+        }
+      }
+      for (let k = 0; k < 3; k++) px(ctx, bx2 + 2 + k * 6, B - 10, 4, 2, ['#c04040', '#f0c040', '#c04040'][k]); // pockets
+      px(ctx, (W16 >> 1) - 2, B - 31, 5, 5, '#fff0c0');     // pearl on top
+      px(ctx, (W16 >> 1) - 1, B - 30, 2, 2, '#ffffff');
+      px(ctx, 2, B - 6, W16 - 4, 6, '#a03030');             // dragon coiled at the base
+      px(ctx, 3, B - 5, W16 - 6, 2, '#c04040');
+      px(ctx, W16 - 9, B - 10, 7, 5, '#c04040');            // head
+      px(ctx, W16 - 10, B - 12, 2, 3, '#f0c040');
+      px(ctx, W16 - 4, B - 12, 2, 3, '#f0c040');
+      px(ctx, W16 - 7, B - 9, 1, 1, '#26202c');
+      px(ctx, W16 - 5, B - 9, 1, 1, '#26202c');
+      break;
+    }
+    case 'ninegates': {                        // long dragon under nine arches
+      shadow(2, B - 3, W16 - 4, 3);
+      for (let g = 0; g < 9; g++) {
+        const gx = 2 + Math.round(g * (W16 - 8) / 9);
+        px(ctx, gx, B - 14, 2, 12, '#a03030');              // pillar
+        px(ctx, gx, B - 16, 3, 2, '#f0c040');               // arch top
+        if (g % 2 === 0) px(ctx, gx + 1, B - 12, 1, 1, '#ffe066'); // lamp
+      }
+      px(ctx, 2, B - 8, W16 - 4, 5, '#c04040');             // dragon body threading through
+      px(ctx, 3, B - 7, W16 - 6, 2, '#e05a40');
+      px(ctx, W16 - 8, B - 12, 6, 5, '#e05a40');            // head
+      px(ctx, W16 - 9, B - 14, 2, 3, '#f0c040'); px(ctx, W16 - 4, B - 14, 2, 3, '#f0c040');
+      px(ctx, W16 - 6, B - 11, 1, 1, '#26202c');
+      px(ctx, 2, B - 10, 3, 3, '#f0c040');                  // tail flame
+      break;
+    }
+    case 'dragonhoard': {                      // sleeping dragon over urns
+      shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 4, B - 12, W16 - 8, 7, '#3f8468');            // sleeping coil
+      px(ctx, 5, B - 11, W16 - 10, 2, '#4f9c7e');
+      px(ctx, 4, B - 16, 7, 5, '#4f9c7e');                  // head resting
+      px(ctx, 3, B - 18, 2, 3, '#f0c040'); px(ctx, 9, B - 18, 2, 3, '#f0c040');
+      px(ctx, 6, B - 14, 3, 1, '#26202c');                  // closed eye
+      px(ctx, 12, B - 19, 1, 1, '#a8d0c0'); px(ctx, 14, B - 22, 1, 1, '#a8d0c0'); // zzz
+      [[5, B - 5], [13, B - 5], [W16 - 10, B - 5]].forEach(([ux, uy], i) => {
+        px(ctx, ux, uy, 6, 5, ['#8a6a42', '#a05a28', '#6d5230'][i]);
+        px(ctx, ux + 1, uy - 2, 4, 2, '#c8a060');
+        px(ctx, ux + 1, uy + 1, 4, 1, '#f0c040');
+      });
+      px(ctx, W16 - 5, B - 12, 3, 6, '#c8c0ac');            // incense burner
+      px(ctx, W16 - 4, B - 15, 1, 3, '#d8d8e0');
+      break;
+    }
+
+    /* ---------------- Horseshoeville ---------------- */
+    case 'horseshoetoss': {                    // stake, barrel, hitching post
+      shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 8, B - 14, 2, 12, '#8a6034');                 // stake
+      px(ctx, 7, B - 15, 4, 2, '#5f3f20');
+      px(ctx, 6, B - 9, 2, 2, '#b8b0a0');                   // ringed shoes
+      px(ctx, 10, B - 7, 2, 2, '#9a948a');
+      px(ctx, 3, B - 4, 3, 1, '#b8b0a0');
+      px(ctx, W16 - 10, B - 10, 8, 10, '#8a6034');          // barrel of shoes
+      px(ctx, W16 - 10, B - 8, 8, 1, '#5f3f20'); px(ctx, W16 - 10, B - 4, 8, 1, '#5f3f20');
+      px(ctx, W16 - 8, B - 12, 2, 2, '#b8b0a0'); px(ctx, W16 - 5, B - 12, 2, 2, '#9a948a');
+      px(ctx, W16 - 3, B - 16, 2, 14, '#6d4a28');           // hitching post
+      px(ctx, W16 - 6, B - 15, 5, 2, '#6d4a28');
+      break;
+    }
+    case 'goldencorral': {                     // miniature corral + bell
+      shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 2, B - 12, W16 - 4, 1, '#8a6034');            // rails
+      px(ctx, 2, B - 8, W16 - 4, 1, '#8a6034');
+      for (let fx = 2; fx < W16 - 2; fx += 6) px(ctx, fx, B - 13, 1, 11, '#6d4a28');
+      px(ctx, 5, B - 11, 5, 3, '#c8a060');                  // little horses
+      px(ctx, 9, B - 12, 2, 2, '#c8a060');
+      px(ctx, 14, B - 11, 5, 3, '#8a5a2a'); px(ctx, 18, B - 12, 2, 2, '#8a5a2a');
+      px(ctx, W16 - 14, B - 11, 5, 3, '#e8d49a'); px(ctx, W16 - 10, B - 12, 2, 2, '#e8d49a');
+      px(ctx, W16 - 6, B - 20, 5, 6, '#5a3a24');            // betting board
+      px(ctx, W16 - 5, B - 19, 3, 4, '#e8d49a');
+      px(ctx, W16 - 5, B - 24, 3, 4, '#f0c040');            // bell
+      break;
+    }
+    case 'prospector': {                       // dig site with lantern
+      shadow(3, B - 3, W16 - 6, 3);
+      [[3, 6], [11, 5], [W16 - 9, 6]].forEach(([mx, mw], i) => {
+        px(ctx, mx, B - 4, mw, 4, '#a5793f');               // dirt mounds
+        px(ctx, mx + 1, B - 6, mw - 2, 2, '#b8875a');
+        if (i === 1) px(ctx, mx + 1, B - 7, 2, 2, '#b8b0a0'); // a shoe peeking out
+      });
+      px(ctx, 6, B - 18, 2, 12, '#8a6034');                 // shovel
+      px(ctx, 5, B - 8, 4, 4, '#b8b0a0');
+      px(ctx, W16 - 6, B - 18, 1, 8, '#5a4630');            // lantern hook
+      px(ctx, W16 - 8, B - 12, 4, 5, '#3a3226');
+      px(ctx, W16 - 7, B - 11, 2, 3, '#ffe066');
+      px(ctx, W16 - 14, B - 16, 8, 5, '#c8a060');           // claim sign
+      px(ctx, W16 - 13, B - 15, 6, 3, '#5a3a24');
+      break;
+    }
+
+    /* ---------------- Four Leaf Republic ---------------- */
+    case 'cloverbloom': {                      // glowing clover patch + standing stones
+      shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 2, B - 13, 5, 13, '#9a948a');                 // standing stones
+      px(ctx, 2, B - 13, 2, 13, '#b4aea2');
+      px(ctx, 2, B - 14, 5, 1, '#8a847a');
+      px(ctx, W16 - 7, B - 17, 5, 17, '#9a948a');
+      px(ctx, W16 - 7, B - 17, 2, 17, '#b4aea2');
+      px(ctx, W16 - 7, B - 18, 5, 1, '#8a847a');
+      // four-leaf clovers: four round lobes on a stem
+      const clover = (cx2, cy2, lit) => {
+        const base = lit ? '#8dff6b' : '#3d8a3a', hi = lit ? '#c8ffb0' : '#4faf50';
+        px(ctx, cx2 - 3, cy2 - 3, 3, 3, base); px(ctx, cx2, cy2 - 3, 3, 3, base);
+        px(ctx, cx2 - 3, cy2, 3, 3, base);     px(ctx, cx2, cy2, 3, 3, base);
+        px(ctx, cx2 - 2, cy2 - 2, 1, 1, hi);   px(ctx, cx2 + 1, cy2 - 2, 1, 1, hi);
+        px(ctx, cx2 - 1, cy2 + 3, 1, 4, '#2f6a2a');         // stem
+        if (lit) { px(ctx, cx2 - 4, cy2 - 4, 1, 1, '#e8ffd0'); px(ctx, cx2 + 3, cy2 + 2, 1, 1, '#e8ffd0'); }
+      };
+      clover(11, B - 12, false);
+      clover(18, B - 8, true);
+      clover(9, B - 5, false);
+      clover(W16 - 12, B - 11, false);
+      clover(W16 - 15, B - 5, false);
+      break;
+    }
+    case 'faeriering': {                       // mushroom faerie circle
+      shadow(3, B - 3, W16 - 6, 3);
+      const caps = [[4, B - 6], [9, B - 9], [16, B - 10], [W16 - 8, B - 8], [W16 - 5, B - 4], [12, B - 3], [6, B - 3]];
+      caps.forEach(([mx, my], i) => {
+        px(ctx, mx + 1, my + 3, 2, 3, '#e8dcc0');           // stalk
+        px(ctx, mx, my, 5, 3, i % 3 === 0 ? '#c05a48' : (i % 3 === 1 ? '#d47a2a' : '#8a6ac0'));
+        px(ctx, mx + 1, my + 1, 1, 1, '#f4f0e6');
+        px(ctx, mx + 3, my, 1, 1, '#f4f0e6');
+      });
+      px(ctx, W16 - 14, B - 14, 6, 4, '#9a948a');           // clover-covered stone
+      px(ctx, W16 - 13, B - 15, 2, 2, '#4f9845');
+      px(ctx, 13, B - 13, 2, 2, '#8dff6b');                 // faerie spark
+      break;
+    }
+    case 'grovereels': {                       // giant stone clover, four turning leaves
+      shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, (W16 >> 1) - 7, B - 9, 14, 9, '#8a8480');     // broad pedestal
+      px(ctx, (W16 >> 1) - 7, B - 9, 14, 2, '#a8a29e');
+      px(ctx, (W16 >> 1) - 5, B - 6, 10, 1, '#6d6864');     // celtic knot bands
+      px(ctx, (W16 >> 1) - 5, B - 4, 10, 1, '#6d6864');
+      px(ctx, (W16 >> 1) - 2, B - 12, 4, 4, '#7a746a');     // stem column
+      // four stone leaves, each showing a carved symbol
+      const lx = (W16 >> 1) - 8, ly = B - 26;
+      const faces = ['#6d9c60', '#5a8a52', '#7aa86c', '#5f9058'];
+      [[0, 0], [8, 0], [0, 7], [8, 7]].forEach(([dx2, dy2], i) => {
+        px(ctx, lx + dx2 + 1, ly + dy2, 6, 7, faces[i]);    // leaf body
+        px(ctx, lx + dx2, ly + dy2 + 1, 8, 5, faces[i]);
+        px(ctx, lx + dx2 + 1, ly + dy2 + 1, 3, 1, '#9ac48c'); // lit edge
+        px(ctx, lx + dx2 + 3, ly + dy2 + 2, 2, 3, '#356030');  // carved mark
+        px(ctx, lx + dx2, ly + dy2 + 6, 8, 1, '#2f5a2a');   // shadow lip
+      });
+      px(ctx, (W16 >> 1) - 1, ly + 6, 2, 2, '#4a7a44');     // centre boss
+      break;
+    }
+
+    /* ---------------- Elephantium ---------------- */
+    case 'spiritlanterns': {                   // lantern rack + incense altar
+      shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 3, B - 16, 2, 16, '#6d4726');                 // rack posts
+      px(ctx, W16 - 6, B - 16, 2, 16, '#6d4726');
+      px(ctx, 3, B - 17, W16 - 6, 2, '#8a5c32');            // crossbeam
+      [[6, 5], [13, 7], [W16 - 12, 4], [W16 - 19, 8]].forEach(([lx2, drop], i) => {
+        px(ctx, lx2 + 1, B - 15, 1, drop, '#4a3a2a');       // cord
+        px(ctx, lx2, B - 15 + drop, 4, 5, ['#d44a4a', '#e8901a', '#f0c040', '#d44a8a'][i]);
+        px(ctx, lx2 + 1, B - 14 + drop, 1, 3, '#fff0c0');   // glow
+      });
+      px(ctx, (W16 >> 1) - 3, B - 6, 7, 6, '#a05a28');      // altar
+      px(ctx, (W16 >> 1) - 2, B - 8, 1, 2, '#d8d8e0');      // incense smoke
+      px(ctx, (W16 >> 1), B - 9, 1, 3, '#d8d8e0');
+      break;
+    }
+    case 'nagariver': {                        // naga fountain + channel
+      shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 2, B - 6, W16 - 4, 6, '#8a8480');             // stone channel
+      px(ctx, 3, B - 5, W16 - 6, 4, '#4a94b8');             // water
+      for (let wx = 4; wx < W16 - 4; wx += 5) px(ctx, wx, B - 4, 3, 1, '#a8e0ea');
+      px(ctx, 4, B - 16, 7, 10, '#4f9c7e');                 // naga head fountain
+      px(ctx, 5, B - 15, 5, 3, '#5fb08e');
+      px(ctx, 3, B - 19, 2, 4, '#f0c040'); px(ctx, 10, B - 19, 2, 4, '#f0c040'); // crest
+      px(ctx, 6, B - 13, 1, 1, '#26202c'); px(ctx, 9, B - 13, 1, 1, '#26202c');
+      px(ctx, 7, B - 8, 2, 3, '#a8e0ea');                   // pouring water
+      px(ctx, W16 - 10, B - 11, 6, 5, '#b8763a');           // offering bowl
+      px(ctx, W16 - 9, B - 12, 4, 2, '#e8d49a');
+      px(ctx, W16 - 8, B - 14, 2, 2, '#ff8ac0');            // flower offering
+      break;
+    }
+    case 'banyan': {                           // banyan tree + spirit house
+      shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 8, B - 14, 5, 14, '#6d4726');                 // trunk
+      px(ctx, 6, B - 6, 2, 6, '#5a3a1e'); px(ctx, 13, B - 8, 2, 8, '#5a3a1e'); // aerial roots
+      px(ctx, 2, B - 24, W16 - 6, 10, '#2f7a44');           // canopy
+      px(ctx, 4, B - 26, W16 - 12, 4, '#3d8a4c');
+      px(ctx, 5, B - 23, 4, 2, '#58a860');
+      px(ctx, W16 - 12, B - 20, 3, 2, '#256630');
+      px(ctx, 6, B - 16, 1, 3, '#f0c040'); px(ctx, 12, B - 15, 1, 3, '#ff8ac0'); // hanging offerings
+      px(ctx, W16 - 8, B - 12, 6, 5, '#c8a060');            // spirit house
+      px(ctx, W16 - 9, B - 15, 8, 3, '#d44a4a');
+      px(ctx, W16 - 6, B - 8, 2, 8, '#8a6a42');             // its little post
+      break;
+    }
+
+    /* ---------------- Maneki-Neko ---------------- */
+    case 'neonneko': {                         // giant neon beckoning cat
+      shadow(4, B - 3, W16 - 8, 3);
+      const neon = ['#ff6be0', '#5eeaff', '#ffe066'][v % 3];
+      px(ctx, 5, B - 7, W16 - 10, 7, '#2c2838');            // pedestal
+      px(ctx, 6, B - 6, W16 - 12, 2, neon);
+      px(ctx, 7, B - 20, W16 - 14, 13, '#f4f0e6');          // cat body
+      px(ctx, 7, B - 24, 4, 5, '#f4f0e6');                  // ears
+      px(ctx, W16 - 11, B - 24, 4, 5, '#f4f0e6');
+      px(ctx, 8, B - 23, 2, 3, '#ffb0c8'); px(ctx, W16 - 10, B - 23, 2, 3, '#ffb0c8');
+      px(ctx, 9, B - 18, 2, 2, '#26202c'); px(ctx, W16 - 11, B - 18, 2, 2, '#26202c'); // eyes
+      px(ctx, (W16 >> 1) - 1, B - 16, 2, 1, '#d44a4a');
+      px(ctx, W16 - 8, B - 22, 3, 5, '#f4f0e6');            // raised beckoning paw
+      px(ctx, (W16 >> 1) - 3, B - 13, 6, 5, '#f0c040');     // koban bib
+      px(ctx, 4, B - 12, 2, 6, neon); px(ctx, W16 - 6, B - 12, 2, 6, neon); // neon tubes
+      break;
+    }
+    case 'catparade': {                        // gachapon shrine with cat doors
+      shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 2, B - 20, W16 - 4, 20, '#d44a8a');           // cabinet
+      px(ctx, 3, B - 19, W16 - 6, 5, '#f8f0ff');            // header
+      px(ctx, 5, B - 18, W16 - 10, 3, '#5a1a4a');
+      for (let d = 0; d < 5; d++) {
+        const dx2 = 4 + d * Math.round((W16 - 10) / 5);
+        px(ctx, dx2, B - 13, 6, 6, '#2c2838');              // door
+        px(ctx, dx2 + 1, B - 12, 4, 4, ['#ffe066', '#5eeaff', '#8dff6b', '#ff6be0', '#f4f0e6'][d]);
+        px(ctx, dx2 + 2, B - 11, 1, 1, '#26202c');          // tiny cat face
+        px(ctx, dx2 + 4, B - 11, 1, 1, '#26202c');
+      }
+      px(ctx, 3, B - 6, W16 - 6, 4, '#5a1a4a');             // collection tray
+      px(ctx, 6, B - 5, 3, 2, '#f0c040');
+      px(ctx, W16 - 6, B - 24, 2, 4, '#ff6be0');            // sign post
+      break;
+    }
+    case 'coincascade': {                      // transparent cat pachinko + koban
+      shadow(4, B - 3, W16 - 8, 3);
+      px(ctx, 4, B - 24, W16 - 8, 20, '#2c2838');           // cabinet
+      px(ctx, 6, B - 22, W16 - 12, 15, '#5aa8c8');          // glass
+      px(ctx, 6, B - 22, W16 - 12, 15, 'rgba(160,220,240,0.35)');
+      for (let r2 = 0; r2 < 4; r2++) for (let c2 = 0; c2 < 4; c2++) {
+        px(ctx, 8 + c2 * 4 + (r2 % 2) * 2, B - 20 + r2 * 4, 1, 1, '#f8f0ff'); // pins
+      }
+      for (let k = 0; k < 3; k++) px(ctx, 7 + k * 6, B - 8, 4, 3, ['#ff6be0', '#ffe066', '#5eeaff'][k]); // pockets
+      px(ctx, (W16 >> 1) - 3, B - 30, 6, 5, '#f0c040');     // giant koban on top
+      px(ctx, (W16 >> 1) - 2, B - 29, 4, 3, '#ffe066');
+      px(ctx, 4, B - 26, W16 - 8, 2, '#ff6be0');            // neon crown
+      px(ctx, W16 - 8, B - 6, 3, 3, '#f0c040');             // payout tray coin
+      break;
+    }
+    default:
+      shadow(4, B - 3, W16 - 8, 3);
+      px(ctx, 5, B - 10, W16 - 10, 10, '#8a8480');
+      break;
+  }
+}
+
 /* 16x16 decorative street props, styled per province. */
 function drawProp(ctx, prov, v) {
   const kind = v % 3;
