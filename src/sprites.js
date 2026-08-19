@@ -1545,6 +1545,206 @@ function drawLucklian(ctx, def) {
 }
 
 /* ============================================================
+   Performing animal & vessel sheets — 4-dir x 2-frame gallop
+   sheets for track Lucklians (optionally mounted or hitched to
+   a chariot), a hunting big cat, and crewed Roman galleys.
+   Layout mirrors the character sheets: cols = dirs
+   (0 down, 1 left, 2 right, 3 up), rows = frames.
+   ============================================================ */
+
+export function makeCourserSprite(pal, opts = {}) {
+  const { body = '#8a5a2a', mane = '#4a3222', accent = '#e8dcc0' } = pal;
+  const CW = opts.chariot ? 34 : 24, CH = 26;
+  const cv = document.createElement('canvas');
+  cv.width = CW * 4; cv.height = CH * 2;
+  const ctx = cv.getContext('2d');
+  const dark = shade(body, -30), hi = shade(body, 22);
+
+  for (let dir = 0; dir < 4; dir++) {
+    for (let f = 0; f < 2; f++) {
+      const ox = dir * CW, oy = f * CH;
+      const X = (x, w = 1) => (dir === 1 ? ox + CW - x - w : ox + x);
+      const P = (x, y, w, h, c) => px(ctx, X(x, w), oy + y, w, h, c);
+      ctx.fillStyle = 'rgba(0,0,0,0.22)';
+      ctx.fillRect(ox + 4, oy + CH - 3, CW - 8, 2);
+      const bob = f === 1 ? 1 : 0;
+
+      if (dir === 1 || dir === 2) {
+        /* ---- side gallop (drawn facing right; dir 1 mirrors) ---- */
+        const bx = opts.chariot ? 12 : 3;
+        P(bx, 10 - bob, 15, 8, body);                       // barrel
+        P(bx + 1, 10 - bob, 13, 2, hi);
+        P(bx + 12, 5 - bob, 5, 8, body);                    // neck
+        P(bx + 13, 2 - bob, 7, 5, body);                    // head
+        P(bx + 18, 4 - bob, 2, 2, dark);                    // muzzle
+        P(bx + 14, 0 - bob + 1, 2, 2, mane);                // ears
+        P(bx + 12, 3 - bob, 2, 8, mane);                    // mane
+        P(bx + 13, 3 - bob, 1, 1, '#181420');               // eye
+        P(bx - 1, 9 - bob, 3, 4, mane);                     // tail
+        P(bx - 2, 12 - bob, 2, 3, mane);
+        if (f === 0) {                                       // legs extended
+          P(bx + 1, 18, 3, 5, dark); P(bx + 12, 18, 3, 5, dark);
+          P(bx - 1, 20, 3, 3, body); P(bx + 15, 19, 3, 4, body);
+        } else {                                             // legs gathered
+          P(bx + 3, 18, 3, 5, body); P(bx + 10, 18, 3, 5, body);
+          P(bx + 5, 20, 3, 3, dark); P(bx + 8, 20, 3, 3, dark);
+        }
+        P(bx + 3, 17, 10, 1, accent);                       // belly line
+        if (opts.rider) {                                    // mounted rider
+          const rx = bx + 5;
+          P(rx, 3 - bob, 4, 6, opts.rider === 'roman' ? '#c8ccd8' : '#5a76c8');   // torso
+          P(rx + 1, 0 - bob, 3, 3, '#f0c8a0');              // head
+          if (opts.rider === 'roman') { P(rx, -1 - bob + 1, 5, 1, '#c43a2a'); P(rx + 1, -1 - bob, 3, 1, '#c43a2a'); } // crest
+          else { P(rx - 1, 0 - bob, 6, 1, '#8a6034'); P(rx, -1 - bob + 1, 4, 1, '#8a6034'); }                        // hat
+          P(rx + 3, 8 - bob, 4, 2, opts.rider === 'roman' ? '#c8ccd8' : '#40354a'); // leg
+        }
+        if (opts.chariot) {                                  // cart + charioteer behind
+          P(1, 8 - bob, 9, 9, opts.teamColor || '#c04a4a'); // cab
+          P(2, 9 - bob, 7, 2, shade(opts.teamColor || '#c04a4a', 25));
+          P(3, 3 - bob, 4, 6, '#c8ccd8');                   // charioteer torso
+          P(4, 0 - bob, 3, 3, '#f0c8a0');
+          P(3, 0 - bob, 5, 1, '#c43a2a');                   // crest
+          ctx.save();                                        // wheel (drawn unmirrored ok)
+          const wx = X(3, 6);
+          px(ctx, wx, oy + 15, 6, 6, '#5a3a24');
+          px(ctx, wx + 1, oy + 16, 4, 4, '#8a6034');
+          px(ctx, wx + 2, oy + 15 + (f ? 1 : 3), 2, 1, '#3a2a18');
+          ctx.restore();
+          P(10, 12 - bob, 3, 2, '#5a3a24');                 // yoke pole
+        }
+      } else if (dir === 0) {
+        /* ---- front view (running at camera) ---- */
+        const cx = CW / 2;
+        px(ctx, ox + cx - 4, oy + 2 - bob, 8, 7, body);      // head
+        px(ctx, ox + cx - 5, oy + 0 - bob, 2, 3, mane); px(ctx, ox + cx + 3, oy + 0 - bob, 2, 3, mane);
+        px(ctx, ox + cx - 3, oy + 4 - bob, 2, 2, '#181420'); px(ctx, ox + cx + 1, oy + 4 - bob, 2, 2, '#181420');
+        px(ctx, ox + cx - 2, oy + 7 - bob, 4, 2, dark);      // muzzle
+        px(ctx, ox + cx - 5, oy + 9 - bob, 10, 9, body);     // chest
+        px(ctx, ox + cx - 5, oy + 9 - bob, 2, 9, hi);
+        px(ctx, ox + cx - 1, oy + 9 - bob, 2, 6, accent);    // blaze
+        px(ctx, ox + cx - 5, oy + 18, 3, f ? 5 : 3, dark);   // legs alternate
+        px(ctx, ox + cx + 2, oy + 18, 3, f ? 3 : 5, dark);
+        if (opts.rider) {
+          px(ctx, ox + cx - 2, oy + 6 - bob, 5, 4, opts.rider === 'roman' ? '#c8ccd8' : '#5a76c8');
+          px(ctx, ox + cx - 1, oy + 3 - bob, 3, 3, '#f0c8a0');
+          px(ctx, ox + cx - 1, oy + 2 - bob, 3, 1, opts.rider === 'roman' ? '#c43a2a' : '#8a6034');
+        }
+      } else {
+        /* ---- back view (running away) ---- */
+        const cx = CW / 2;
+        px(ctx, ox + cx - 5, oy + 8 - bob, 10, 10, body);    // rump
+        px(ctx, ox + cx - 5, oy + 8 - bob, 10, 2, hi);
+        px(ctx, ox + cx - 1, oy + 10 - bob, 2, 7, mane);     // tail
+        px(ctx, ox + cx - 1, oy + 16 - bob, 2, 4, mane);
+        px(ctx, ox + cx - 3, oy + 3 - bob, 6, 6, body);      // head over back
+        px(ctx, ox + cx - 4, oy + 1 - bob, 2, 3, mane); px(ctx, ox + cx + 2, oy + 1 - bob, 2, 3, mane);
+        px(ctx, ox + cx - 5, oy + 18, 3, f ? 5 : 3, dark);
+        px(ctx, ox + cx + 2, oy + 18, 3, f ? 3 : 5, dark);
+        if (opts.rider) {
+          px(ctx, ox + cx - 2, oy + 4 - bob, 5, 5, opts.rider === 'roman' ? '#c8ccd8' : '#5a76c8');
+          px(ctx, ox + cx - 1, oy + 1 - bob, 3, 3, '#4a3222');
+        }
+      }
+    }
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
+export function makeBigCatSprite(pal) {
+  const { body = '#6a2a38', mane = '#e8dcc0', accent = '#c49038' } = pal;
+  const CW = 26, CH = 22;
+  const cv = document.createElement('canvas');
+  cv.width = CW * 4; cv.height = CH * 2;
+  const ctx = cv.getContext('2d');
+  const dark = shade(body, -28), hi = shade(body, 20);
+  for (let dir = 0; dir < 4; dir++) for (let f = 0; f < 2; f++) {
+    const ox = dir * CW, oy = f * CH;
+    const X = (x, w = 1) => (dir === 1 ? ox + CW - x - w : ox + x);
+    const P = (x, y, w, h, c) => px(ctx, X(x, w), oy + y, w, h, c);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(ox + 4, oy + CH - 3, CW - 8, 2);
+    const bob = f === 1 ? 1 : 0;
+    if (dir === 1 || dir === 2) {
+      const stretch = f === 0 ? 2 : 0;                       // full-stretch vs gathered
+      P(3 - stretch / 2, 9 - bob, 16 + stretch, 7, body);    // long body
+      P(4, 9 - bob, 14, 2, hi);
+      P(16, 5 - bob, 7, 6, body);                            // head
+      P(21, 7 - bob, 2, 2, dark);                            // muzzle
+      P(17, 3 - bob, 2, 2, body); P(20, 3 - bob, 2, 2, body); // ears
+      P(17, 6 - bob, 2, 2, '#ffe066');                       // burning eye
+      P(15, 5 - bob, 3, 7, mane);                            // mane/ruff
+      P(-1 + 3, 8 - bob, 4, 2, body); P(0, 6 - bob, 3, 3, dark); // tail whipping
+      if (f === 0) { P(2, 15, 3, 5, dark); P(17, 15, 3, 5, dark); P(0, 17, 3, 3, body); P(20, 16, 3, 4, body); }
+      else { P(6, 15, 3, 5, body); P(13, 15, 3, 5, body); P(8, 17, 3, 3, dark); P(11, 17, 3, 3, dark); }
+      P(6, 10, 2, 2, accent); P(11, 12, 2, 2, accent);       // rosettes
+    } else if (dir === 0) {
+      const cx = CW / 2;
+      px(ctx, ox + cx - 5, oy + 3 - bob, 10, 8, body);
+      px(ctx, ox + cx - 6, oy + 1 - bob, 3, 3, body); px(ctx, ox + cx + 3, oy + 1 - bob, 3, 3, body);
+      px(ctx, ox + cx - 3, oy + 5 - bob, 2, 2, '#ffe066'); px(ctx, ox + cx + 1, oy + 5 - bob, 2, 2, '#ffe066');
+      px(ctx, ox + cx - 1, oy + 8 - bob, 2, 2, dark);
+      px(ctx, ox + cx - 5, oy + 10 - bob, 10, 3, mane);      // ruff
+      px(ctx, ox + cx - 4, oy + 12 - bob, 8, 6, body);
+      px(ctx, ox + cx - 4, oy + 17, 3, f ? 4 : 2, dark); px(ctx, ox + cx + 1, oy + 17, 3, f ? 2 : 4, dark);
+    } else {
+      const cx = CW / 2;
+      px(ctx, ox + cx - 4, oy + 6 - bob, 8, 11, body);
+      px(ctx, ox + cx - 4, oy + 6 - bob, 8, 2, hi);
+      px(ctx, ox + cx - 3, oy + 2 - bob, 6, 5, body);
+      px(ctx, ox + cx - 4, oy + 0 - bob, 2, 3, body); px(ctx, ox + cx + 2, oy + 0 - bob, 2, 3, body);
+      px(ctx, ox + cx - 1, oy + 8 - bob, 2, 8, dark);        // tail
+      px(ctx, ox + cx - 4, oy + 16, 3, f ? 5 : 3, dark); px(ctx, ox + cx + 1, oy + 16, 3, f ? 3 : 5, dark);
+    }
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
+export function makeShipSprite(hull, sail) {
+  const CW = 46, CH = 30;
+  const cv = document.createElement('canvas');
+  cv.width = CW * 2; cv.height = CH * 2;    // cols: 0 = facing right, 1 = facing left; rows: oar frames
+  const ctx = cv.getContext('2d');
+  const dark = shade(hull, -30), hi = shade(hull, 22);
+  for (let face = 0; face < 2; face++) for (let f = 0; f < 2; f++) {
+    const ox = face * CW, oy = f * CH;
+    const X = (x, w = 1) => (face === 1 ? ox + CW - x - w : ox + x);
+    const P = (x, y, w, h, c) => px(ctx, X(x, w), oy + y, w, h, c);
+    // hull with curved bow (points right) and stern
+    P(4, 17, 38, 7, hull);
+    P(6, 24, 34, 2, dark);
+    P(4, 17, 38, 2, hi);
+    P(42, 18, 3, 4, '#c8ccd8');                             // bronze ram
+    P(2, 15, 4, 4, hull); P(1, 13, 3, 3, dark);             // stern post curl
+    // deck crew: rowers' heads along the gunwale + captain astern
+    for (let i = 0; i < 4; i++) {
+      const hx = 10 + i * 8;
+      P(hx, 14, 3, 3, '#f0c8a0');
+      P(hx, 16, 3, 2, ['#c43a2a', '#5a76c8', '#c8ccd8', '#d9a545'][i]);
+    }
+    P(5, 12, 3, 3, '#f0c8a0'); P(5, 14, 3, 3, '#c8ccd8');   // helmsman
+    P(3, 14, 3, 2, '#8a6034');                              // steering oar
+    // mast + square sail
+    P(22, 2, 2, 15, '#5a3a24');
+    P(13, 3, 20, 9, sail);
+    P(13, 3, 20, 2, shade(sail, 25));
+    P(13, 11, 20, 1, shade(sail, -25));
+    P(21, 5, 4, 5, dark);                                   // emblem
+    // oars sweeping (frame-dependent angle)
+    for (let i = 0; i < 5; i++) {
+      const oxr = 9 + i * 7;
+      if (f === 0) { P(oxr, 24, 2, 4, '#8a6034'); P(oxr - 1, 27, 3, 2, '#a5793f'); }
+      else { P(oxr + 2, 24, 2, 3, '#8a6034'); P(oxr + 3, 26, 3, 2, '#a5793f'); }
+    }
+    // bow wake
+    P(41, 24, 4, 2, 'rgba(220,240,250,0.5)');
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
+/* ============================================================
    Interior furniture — game stations you walk into to play,
    and themed hall décor. Footprint-sized, like buildings.
    ============================================================ */

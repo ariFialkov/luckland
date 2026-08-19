@@ -17,6 +17,7 @@ import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast
 import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
 import { getLucklianSprite, getStationSprite, getDecorSprite } from './sprites.js';
 import { getInterior, updatePatrons } from './interiors.js';
+import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay } from './liveevents.js';
 
 /* ---------------- boot ---------------- */
 const canvas = document.getElementById('game');
@@ -264,8 +265,13 @@ function doInteract() {
   const prov = currentProv;
   const t = currentTarget;
   if (t.kind === 'landmark') enterLandmark(t.obj);
-  else if (t.kind === 'station') openGame(t.obj.game, prov);
-  else if (t.kind === 'exit') exitInterior();
+  else if (t.kind === 'station') {
+    if (scene && stationIsLive(scene.it, t.obj)) openLiveBet(scene.it, t.obj, prov);
+    else openGame(t.obj.game, prov);
+  } else if (t.kind === 'exit') {
+    if (scene?.it.live) UI.toast('🏟️ The event is still running — see it out!');
+    else exitInterior();
+  }
   else if (t.kind === 'npc') talkTo(t.obj, prov);
   else if (t.kind === 'concealer') openConcealer(t.obj, prov, () => {});
   else if (t.kind === 'event') openGame(t.obj.game, prov);
@@ -378,9 +384,21 @@ function drawTile(t, tx, ty, sx, sy, animFrame) {
 }
 
 function drawSprite(e, camX, camY) {
-  const sx = Math.round((e.x - CHAR_W / 2 - camX) * zoom);
-  const sy = Math.round((e.y - CHAR_H + 4 - camY) * zoom);
-  ctx.drawImage(e.sprite, e.dir * CHAR_W, e.frame * CHAR_H, CHAR_W, CHAR_H, sx, sy, CHAR_W * zoom, CHAR_H * zoom);
+  const cw = e.sprite.cellW || CHAR_W, ch = e.sprite.cellH || CHAR_H;
+  const sx = Math.round((e.x - cw / 2 - camX) * zoom);
+  let sy = Math.round((e.y - ch + 4 - camY) * zoom);
+  if (e.sink > 0) {  // a holed ship settles into the water
+    ctx.globalAlpha = Math.max(0, 1 - e.sink / 1.5);
+    sy += Math.round(e.sink * 6 * zoom);
+  }
+  ctx.drawImage(e.sprite, (e.dir || 0) * cw, (e.frame || 0) * ch, cw, ch, sx, sy, cw * zoom, ch * zoom);
+  if (e.hitT > 0) {   // white hit-flash
+    ctx.globalAlpha = Math.min(0.6, e.hitT * 3);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(sx + zoom * 2, sy + zoom * 2, (cw - 4) * zoom, (ch - 6) * zoom);
+    ctx.globalAlpha = e.sink > 0 ? Math.max(0, 1 - e.sink / 1.5) : 1;
+  }
+  ctx.globalAlpha = 1;
   return { sx, sy };
 }
 
@@ -395,13 +413,14 @@ function interiorTick(dt, now) {
   const it = scene.it;
   const lm = scene.lm;
 
-  // stepping onto the doorway mat leads back outside
+  // stepping onto the doorway mat leads back outside (never mid-event)
   const ptx = Math.floor(player.x / TILE), pty = Math.floor(player.y / TILE);
-  if (!switching && pty >= it.H - 2 && it.exitXs.includes(ptx) && player.y > (it.H - 1.6) * TILE) {
+  if (!switching && !it.live && pty >= it.H - 2 && it.exitXs.includes(ptx) && player.y > (it.H - 1.6) * TILE) {
     exitInterior();
   }
 
   updatePatrons(it, dt);
+  updateLive(it, dt, now);
 
   /* interaction target */
   if (!UI.isModalOpen()) {
@@ -422,11 +441,14 @@ function interiorTick(dt, now) {
 
   const viewW = vw / zoom, viewH = vh / zoom;
   const roomW = it.W * TILE, roomH = it.H * TILE;
+  // camera: follows the player — but locks onto the arena while a wager rides
+  const focX = it.live ? it.live.focus.x : player.x;
+  const focY = it.live ? it.live.focus.y : player.y;
   let camX, camY;
   if (roomW <= viewW) camX = -(viewW - roomW) / 2;
-  else camX = Math.max(0, Math.min(roomW - viewW, player.x - viewW / 2));
+  else camX = Math.max(0, Math.min(roomW - viewW, focX - viewW / 2));
   if (roomH <= viewH) camY = -(viewH - roomH) / 2;
-  else camY = Math.max(0, Math.min(roomH - viewH, player.y - viewH / 2));
+  else camY = Math.max(0, Math.min(roomH - viewH, focY - viewH / 2));
 
   for (let ty = 0; ty < it.H; ty++) {
     for (let tx = 0; tx < it.W; tx++) {
@@ -457,6 +479,19 @@ function interiorTick(dt, now) {
     }
   }
 
+  /* the naumachia: the arena floods for naval events */
+  if (it.arena?.flooded) {
+    const R = it.arena.rect;
+    ctx.fillStyle = '#2a6a9a';
+    ctx.fillRect(Math.round((R.x - camX) * zoom), Math.round((R.y - camY) * zoom), R.w * zoom, R.h * zoom);
+    ctx.fillStyle = 'rgba(160,216,234,0.5)';
+    for (let i = 0; i < 26; i++) {
+      const wx = R.x + ((hash2(i, 3, 9) * (R.w - 28)) | 0) + ((now / 260 + i * 13) % 24);
+      const wy = R.y + ((hash2(7, i, 9) * (R.h - 6)) | 0);
+      ctx.fillRect(Math.round((wx - camX) * zoom), Math.round((wy - camY) * zoom), 4 * zoom, zoom);
+    }
+  }
+
   /* stations + décor (footprint-exact, same rule as buildings) */
   for (const st of it.stations) {
     const spr = getStationSprite(st.kind, st.w, st.h, st.v);
@@ -469,22 +504,9 @@ function interiorTick(dt, now) {
       spr.width * zoom, spr.height * zoom);
   }
 
-  /* Lucklian performers first (racers circle behind the crowd) */
-  for (const a of it.actors) {
-    if (!a.lk) continue;
-    const spr = getLucklianSprite(a.lk);
-    ctx.drawImage(spr,
-      Math.round((a.x - 12 - camX) * zoom),
-      Math.round((a.y - 18 + (a.bob || 0) - camY) * zoom),
-      spr.width * zoom, spr.height * zoom);
-    if (a.type === 'racer') {   // dust kicked up behind
-      ctx.fillStyle = 'rgba(200,170,120,0.4)';
-      ctx.fillRect(Math.round((a.x - 16 - camX) * zoom), Math.round((a.y - camY) * zoom), zoom * 2, zoom);
-    }
-  }
-
-  /* patrons + player + performing figures, y-sorted */
-  const list = [player, ...it.patrons, ...it.actors.filter((a) => a.sprite)].sort((a, b) => a.y - b.y);
+  /* patrons + player + performing figures (racers, fighters, ships,
+     the beast…), y-sorted; fully sunk hulls stay under the waves */
+  const list = [player, ...it.patrons, ...it.actors.filter((a) => a.sprite && !(a.sink > 1.5))].sort((a, b) => a.y - b.y);
   for (const e of list) {
     const { sx, sy } = drawSprite(e, camX, camY);
     if (e.smokes) {
@@ -498,17 +520,15 @@ function interiorTick(dt, now) {
     if (e.emote) drawEmoji(e.emote.ico, e.x, e.y - 20, camX, camY, 9, Math.sin(now / 120) * 1.5);
   }
 
-  /* emoji performers + crowd roar */
+  /* crowd roar — louder while a wager rides */
   for (const a of it.actors) {
-    if (a.type === 'chariot') {
-      drawEmoji(a.ico, a.x, a.y, camX, camY, 13, Math.sin(a.ang * 6) * 1.2);
-      ctx.fillStyle = 'rgba(200,170,120,0.4)';
-      ctx.fillRect(Math.round((a.x - 14 - camX) * zoom), Math.round((a.y - 2 - camY) * zoom), zoom * 3, zoom);
-    } else if (a.type === 'cheer') {
-      const h = hash2(a.x | 0, ((now / 450) | 0), 13);
-      if (h > 0.55) drawEmoji(h > 0.85 ? '🎉' : h > 0.7 ? '📣' : '🙌', a.x, a.y, camX, camY, 8, Math.sin(now / 100 + a.x) * 2);
-    }
+    if (a.type !== 'cheer') continue;
+    const h = hash2(a.x | 0, ((now / (it.live ? 300 : 450)) | 0), 13);
+    if (h > (it.live ? 0.4 : 0.55)) drawEmoji(h > 0.85 ? '🎉' : h > 0.7 ? '📣' : '🙌', a.x, a.y, camX, camY, 8, Math.sin(now / 100 + a.x) * 2);
   }
+
+  /* in-scene event UI: health bars, clocks, leaderboards, verdicts */
+  drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw);
 
   /* room ambience tint + gentle lamplight */
   ctx.fillStyle = it.style.tint;
@@ -587,7 +607,11 @@ function frame(now) {
   doorCooldown = Math.max(0, doorCooldown - dt);
   if (!UI.isModalOpen() && doorCooldown === 0 && !switching) {
     if (scene) {
-      if (pendingStation) { doorCooldown = 1.2; openGame(pendingStation.game, currentProv); }
+      if (pendingStation && !scene.it.live) {
+        doorCooldown = 1.2;
+        if (stationIsLive(scene.it, pendingStation)) openLiveBet(scene.it, pendingStation, currentProv);
+        else openGame(pendingStation.game, currentProv);
+      }
     } else if (pendingDoor) {
       const lm = world.landmarks.find((l) => l.doorX === pendingDoor.tx && l.doorY === pendingDoor.ty);
       if (lm) enterLandmark(lm);

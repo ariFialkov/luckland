@@ -13,7 +13,7 @@
 
 import { T, TILE } from './world.js';
 import { hash2, mulberry32 } from './rng.js';
-import { makeCharSprite } from './sprites.js';
+import { makeCharSprite, makeCourserSprite } from './sprites.js';
 import { GAME_DEFS } from './games.js';
 import { BY_ID } from './lucklians.js';
 
@@ -209,15 +209,22 @@ function buildFightArena(lm) {   // Roaring Elephant Arena — live Muay Thai
   // THE RING — one big playable station running the live book
   const ring = it.addStation(cx - 3, cy - 2, 7, 5, 'muaythaibout', 'ring');
   ring.label = 'Ringside Book — live bouts';
+  ring.live = true;
   // remaining games on the concourse
   const rest = (lm.games || []).filter((g) => g !== 'muaythaibout');
   const spots = [[5, 10], [25, 10], [10, 16]];
   rest.forEach((g, i) => { const [sx, sy] = spots[i % spots.length]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
 
   // fighters, ref, corner teams — alive in the ring
-  figure(it, cx - 1.2, cy + 0.6, FIGHTER_R, 'fighter', { foeDx: 1, dir: 2, hitIco: '💥' });
-  figure(it, cx + 2.2, cy + 0.6, FIGHTER_B, 'fighter', { foeDx: -1, dir: 1, hitIco: '🦵' });
+  const fR = figure(it, cx - 1.2, cy + 0.6, FIGHTER_R, 'fighter', { foeDx: 1, dir: 2, hitIco: '💥', arena: true, name: 'RED' });
+  const fB = figure(it, cx + 2.2, cy + 0.6, FIGHTER_B, 'fighter', { foeDx: -1, dir: 1, hitIco: '🦵', arena: true, name: 'BLUE' });
   figure(it, cx + 0.5, cy - 0.8, REF_P, 'ref', { cx: (cx + 0.5) * TILE, cy: (cy) * TILE, r: 10 });
+  it.arena = {
+    kind: 'fight', game: 'muaythaibout',
+    center: { x: (cx + 0.5) * TILE, y: (cy + 0.5) * TILE },
+    rect: { x: (cx - 3) * TILE, y: (cy - 2) * TILE, w: 7 * TILE, h: 5 * TILE },
+    fighters: [fR, fB],
+  };
   figure(it, cx - 3.6, cy - 2.4, FIGHTER_R, 'corner', { dir: 0 });
   figure(it, cx + 4.6, cy + 3.4, FIGHTER_B, 'corner', { dir: 3 });
   // cheering crowd markers over the bleachers
@@ -311,28 +318,51 @@ function buildCastleFeast(lm) {  // Ballyclover — the great feast
 function buildDowns(lm) {        // Horseshoe Downs — paddock, track, bookies, slots
   const style = { wall: T.WALL_STONE, floor: T.DUST, tint: 'rgba(140,90,30,0.10)' };
   const it = makeRoom(lm, style, 33, 21);
-  // paddock (top-left): railed pen with tomorrow's runners
+  // the six coursers of the Stakes — palettes straight off their species
+  const RACER_IDS = { 'Voltjack': 109, 'Deadlight Courser': 115, 'Whitewraith': 102, 'Blackspur': 31, 'Coppergrin': 37, 'Old Bristlejack': 3 };
+  const racerPal = (name) => {
+    const d = BY_ID.get(RACER_IDS[name]);
+    return d ? { body: d.c[0], mane: d.c[1], accent: d.c[2] } : { body: '#8a5a2a', mane: '#4a3222', accent: '#e8dcc0' };
+  };
+  // paddock (top-left): railed pen with runners on show
   it.floorRects.push({ x: 2, y: 3, w: 9, h: 6, color: 'rgba(120,160,80,0.3)' });
   it.addDecor(2, 2, 4, 2, 'rail'); it.addDecor(7, 2, 4, 2, 'rail');
   it.addDecor(2, 8, 4, 2, 'rail'); it.addDecor(7, 8, 4, 2, 'rail');
-  for (const [id, hx, hy] of [[109, 4, 5], [115, 7, 4.4], [102, 9, 6]]) {
-    it.addActor({ type: 'horse', lk: BY_ID.get(id), x: hx * TILE, y: hy * TILE, t: it.rng() * 5 });
-  }
+  [['Voltjack', 4, 5, 2], ['Deadlight Courser', 7, 4.4, 0], ['Whitewraith', 9, 6, 1]].forEach(([nm, hx, hy, dir]) => {
+    it.addActor({ type: 'paddock', sprite: makeCourserSprite(racerPal(nm)), x: hx * TILE, y: hy * TILE, dir, frame: 0, t: it.rng() * 5 });
+  });
   figure(it, 3, 9.6, PATRON_PALETTES[0], 'corner', { dir: 3 });   // punters eyeing the field
   figure(it, 8, 9.6, PATRON_PALETTES[3], 'corner', { dir: 3 });
-  // the track (right): oval with racers pounding around it
+  // the track (right): oval where the full field pounds laps
   it.floorRects.push({ x: 15, y: 3, w: 16, h: 9, color: 'rgba(160,110,60,0.4)' });
   it.floorRects.push({ x: 18, y: 5, w: 10, h: 5, color: 'rgba(120,160,80,0.35)' }); // infield
   it.addDecor(15, 2, 5, 2, 'bleacher'); it.addDecor(21, 2, 5, 2, 'bleacher'); it.addDecor(27, 2, 4, 2, 'bleacher');
-  for (const [id, sp, ph] of [[109, 1.05, 0], [115, 0.98, 2.1], [31, 0.92, 4.2]]) {
-    it.addActor({ type: 'racer', lk: BY_ID.get(id), cx: 23 * TILE, cy: 7.5 * TILE, rx: 6.5 * TILE, ry: 3 * TILE, ang: ph, speed: sp });
-  }
+  const oval = { cx: 23 * TILE, cy: 7.5 * TILE, rx: 6.5 * TILE, ry: 3 * TILE };
+  GAME_DEFS.downsrace.runners.forEach((r, i) => {
+    it.addActor({
+      type: 'lapper', arena: true, sprite: makeCourserSprite(racerPal(r.name), { rider: 'cowboy' }),
+      ang: i * 1.05, speed: 0.85 + it.rng() * 0.25, o: oval, x: 0, y: 0, dir: 2, frame: 0, raceIdx: i,
+    });
+  });
+  const starter = figure(it, 15.4, 11.4, { skin: '#c89a70', body: '#8a2030', legs: '#40354a', hat: 'cap', hatColor: '#8a6034' }, 'corner', { dir: 3 });
   for (const [bx, by] of [[17, 2.5], [23, 2.5], [29, 2.5]]) it.addActor({ type: 'cheer', x: bx * TILE + 8, y: by * TILE });
+  it.arena = {
+    kind: 'race', game: 'downsrace',
+    center: { x: oval.cx, y: oval.cy },
+    rect: { x: 15 * TILE, y: 3 * TILE, w: 16 * TILE, h: 9 * TILE },
+    oval, starter, ambientCount: 6,
+  };
   // bookie hall (bottom-left): kiosks + tv wall
   it.addDecor(2, 12, 4, 2, 'tvwall');
   const rest = (lm.games || []);
   const spots = [[2, 15], [6, 15], [10, 15], [13, 12]];
-  rest.forEach((g, i) => { const [sx, sy] = spots[i % spots.length]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
+  rest.forEach((g, i) => {
+    const [sx, sy] = spots[i % spots.length];
+    if (!it.occupied(sx, sy, 2, 2)) {
+      const st = it.addStation(sx, sy, 2, 2, g);
+      if (g === 'downsrace') st.live = true;
+    }
+  });
   // slots corner (bottom-right)
   it.addDecor(24, 15, 4, 2, 'slotbank'); it.addDecor(29, 15, 2, 2, 'crate');
   it.addDecor(20, 15, 3, 2, 'foodstand');
@@ -372,10 +402,15 @@ function buildColiseum(lm) {     // TF — concourse, marble crowds, live games 
   it.addDecor(8, 2, 5, 2, 'marblestand'); it.addDecor(14, 2, 5, 2, 'marblestand'); it.addDecor(20, 2, 5, 2, 'marblestand');
   it.addDecor(5, 5, 2, 4, 'marblestand'); it.addDecor(5, 10, 2, 4, 'marblestand');
   it.addDecor(26, 5, 2, 4, 'marblestand'); it.addDecor(26, 10, 2, 4, 'marblestand');
-  // the show: a chariot thundering laps while gladiators spar
-  it.addActor({ type: 'chariot', ico: '🏇', cx: 16.5 * TILE, cy: 9.5 * TILE, rx: 6.8 * TILE, ry: 3.6 * TILE, ang: 0, speed: 1.35 });
-  figure(it, 15.4, 9.5, { skin: '#c89a70', body: '#c8ccd8', legs: '#8a4a2a' }, 'fighter', { foeDx: 1, dir: 2, hitIco: '⚔️' });
-  figure(it, 17.8, 9.5, { skin: '#a5713f', body: '#c49038', legs: '#6a4a20' }, 'fighter', { foeDx: -1, dir: 1, hitIco: '🛡️' });
+  // the show itself is run by the live-events program: chariots ->
+  // gladiators -> beast hunt -> naval battle, rotating on the sand
+  it.arena = {
+    kind: 'coliseum', game: 'coliseumbets',
+    center: { x: 16.5 * TILE, y: 9.5 * TILE },
+    rect: { x: 8 * TILE, y: 4 * TILE, w: 17 * TILE, h: 11 * TILE },
+    oval: { cx: 16.5 * TILE, cy: 9.5 * TILE, rx: 6.6 * TILE, ry: 3.4 * TILE },
+    ambientCount: 3,
+  };
   for (const [bx, by] of [[10, 2.5], [16, 2.5], [22, 2.5], [5.5, 6.5], [27.5, 6.5], [5.5, 11.5], [27.5, 11.5]]) {
     it.addActor({ type: 'cheer', x: bx * TILE + 8, y: by * TILE });
   }
@@ -383,6 +418,7 @@ function buildColiseum(lm) {     // TF — concourse, marble crowds, live games 
   it.addDecor(2, 17, 3, 2, 'foodstand'); it.addDecor(28, 17, 3, 2, 'foodstand');
   it.addDecor(2, 2, 2, 2, 'statue'); it.addDecor(29, 2, 2, 2, 'statue');
   fillStations(it, [[6, 17], [24, 17], [13, 17], [19, 17]]);
+  it.stations.forEach((st) => { if (st.game === 'coliseumbets') st.live = true; });
   scatterPatrons(it, 8, 0.1);
   return it;
 }
@@ -487,6 +523,7 @@ export function updatePatrons(it, dt) {
   }
 
   for (const a of it.actors) {
+    if (a.arena) continue;   // arena performers belong to the live-events director
     a.t = (a.t || 0) + dt;
     if (a.emote) { a.emote.t -= dt; if (a.emote.t <= 0) a.emote = null; }
     switch (a.type) {
@@ -496,6 +533,11 @@ export function updatePatrons(it, dt) {
         a.x = a.homeX + Math.sin(a.t * 3.2) * 5 * (a.foeDx || 1);
         a.frame = ((a.t * 6) | 0) % 2;
         if (!a.emote && Math.random() < dt * 0.5) a.emote = { ico: a.hitIco || '💥', t: 0.6 };
+        break;
+      }
+      case 'paddock': {   // a courser on show: shifts its stance now and then
+        if (Math.random() < dt * 0.3) a.dir = [0, 1, 2][(Math.random() * 3) | 0];
+        a.frame = 0;
         break;
       }
       case 'ref': {
@@ -534,17 +576,6 @@ export function updatePatrons(it, dt) {
         const beat = ((now / 1700) | 0) % 2;
         a.frame = ((now / 850) | 0) % 2;
         if (beat === a.pair && !a.emote) a.emote = { ico: a.emes[((now / 3400) | 0) % a.emes.length], t: 1.2 };
-        break;
-      }
-      case 'chariot':
-      case 'racer': {
-        a.ang += a.speed * dt;
-        a.x = a.cx + Math.cos(a.ang) * a.rx;
-        a.y = a.cy + Math.sin(a.ang) * a.ry;
-        break;
-      }
-      case 'horse': {
-        a.bob = Math.sin(a.t * 2.2) * 1.5;
         break;
       }
       // 'cheer' markers animate at draw time

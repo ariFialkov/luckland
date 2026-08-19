@@ -75,18 +75,28 @@ roadside attractions and roaming characters:
 **Landmark halls:** every landmark door leads inside, Pokémon style — a quick
 fade to black, and you're standing in a walkable hall themed to the place.
 Each hall's games are physical stations — walk into one to play — and the
-doorway mat leads back out. The great set-pieces are alive: the Roaring
-Elephant Arena has bleachers roaring around a live ring (fighters trading
-blows, ref circling, corner teams) where the **Ringside Book** takes prop
-bets on the bouts; Horseshoe Downs has a paddock of horse-like Lucklians, a
-track with racers pounding laps, a TV-lined bookie hall running **The
-Lucklian Stakes**; the Coliseum's marble stands scream over chariots and
-gladiators on the sand while **The Editor's Book** takes wagers on the
-games; the Panhellenium hosts a philosophers' debate in its amphitheatre;
-Ballyclover Castle throws a permanent feast (nobles, servants, jesters with
-games); the Shady Temple hides treasure, synchronized tai chi and tea
-corners; EP's temples are zen gardens with meditating monks and incense;
-and the Magic Mushroom Casino is wall-to-wall slots, neon and smoke.
+doorway mat leads back out. The Panhellenium hosts a philosophers' debate in
+its amphitheatre; Ballyclover Castle throws a permanent feast (nobles,
+servants, jesters with games); the Shady Temple hides treasure, synchronized
+tai chi and tea corners; EP's temples are zen gardens with meditating monks
+and incense; the Magic Mushroom Casino is wall-to-wall slots, neon and smoke.
+
+**Live arena betting:** three halls stage their events IN the scene. Place a
+wager and the camera locks on while it plays out with in-world UI, and the
+book pays on the result (every wager returns `RTP / p` — honest to the
+configured RTP):
+
+- **Roaring Elephant Arena** — the *Ringside Book*: health bars appear over
+  both fighters, a round clock and pot panel over the ring, and the bout
+  runs three rounds to a KO or a decision.
+- **Horseshoe Downs** — *The Lucklian Stakes*: six species-coloured coursers
+  with cowboy riders load the gates, the starter fires, and a live
+  leaderboard ranks the field lap by lap, locking at the wire.
+- **Coliseum of Pontium** — *The Editor's Book* covers whatever's on the
+  rotating card: chariot races (leaderboard), gladiator bouts (health
+  bars), *Survive the Vesperon* (a big-cat Lucklian hunts three gladiators
+  under a survival clock), and the naumachia — the arena floods and 2–5
+  crewed Roman galleys trade ballista fire until one fleet remains.
 
 **Getting around:** shore shallows and small rivers are wadeable at reduced
 speed; deep water is not. The **Paradise Ferry** (fare in `src/config.js`)
@@ -185,6 +195,7 @@ src/games.js                wager engine (paytable/pick/race/hi-lo) + 18 games
 src/concealers.js           chest spawning, loot rolls, opening ceremonies
 src/lucklians.js            157 creatures: encounters, snares, Lucklipedia, traders
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
+src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/npcs.js                 named characters, dialogue, bot crowd
 src/ui.js                   HUD, modals, toasts, joystick, map/stats screens
 src/state.js                wallet, stats, buffs, localStorage saves
