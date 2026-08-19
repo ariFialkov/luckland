@@ -15,7 +15,8 @@ import { openGame, openHub, GAME_DEFS } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
 import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
-import { getLucklianSprite } from './sprites.js';
+import { getLucklianSprite, getStationSprite, getDecorSprite } from './sprites.js';
+import { getInterior, updatePatrons } from './interiors.js';
 
 /* ---------------- boot ---------------- */
 const canvas = document.getElementById('game');
@@ -103,20 +104,68 @@ function updateTide() {
   tideRising = Math.cos(phase) > 0;
 }
 
-/* ---------------- movement & collision ---------------- */
-function solidAt(px, py) {
-  const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
-  if (!world.inB(tx, ty)) return true;
-  return isSolidTile(world.tiles[ty * world.W + tx], tideLevel);
+/* ---------------- interior scene ----------------
+   scene = null on the overworld; else { lm, it } while inside a
+   landmark hall. Entering/leaving does a quick fade to black. */
+let scene = null;
+let switching = false;
+const fadeEl = document.getElementById('fade');
+
+function fadeSwap(swap) {
+  if (switching) return;
+  switching = true;
+  fadeEl.classList.add('on');
+  setTimeout(() => {
+    swap();
+    setTimeout(() => { fadeEl.classList.remove('on'); switching = false; }, 60);
+  }, 280);
 }
 
-let pendingDoor = null;   // bumped a landmark door
-let pendingEvent = null;  // bumped an attraction prop
+function enterLandmark(lm) {
+  if (scene || switching) return;
+  doorCooldown = 1.2;
+  fadeSwap(() => {
+    const it = getInterior(lm);
+    scene = { lm, it };
+    player.x = it.spawn.x; player.y = it.spawn.y;
+    player.dir = 3; player.frame = 0;
+    UI.toast(`${lm.ico} Welcome to <b>${UI.escapeHtml(lm.name)}</b>`);
+  });
+}
+
+function exitInterior() {
+  if (!scene || switching) return;
+  const lm = scene.lm;
+  fadeSwap(() => {
+    scene = null;
+    player.x = lm.doorX * TILE + 8;
+    player.y = (lm.doorY + 2) * TILE + 8;
+    player.dir = 0; player.frame = 0;
+    doorCooldown = 1.2;
+  });
+}
+
+/* ---------------- movement & collision ---------------- */
+function solidAt(px, py) {
+  const m = scene ? scene.it : world;
+  const tx = Math.floor(px / TILE), ty = Math.floor(py / TILE);
+  if (tx < 0 || ty < 0 || tx >= m.W || ty >= m.H) return true;
+  return isSolidTile(m.tiles[ty * m.W + tx], scene ? 0 : tideLevel);
+}
+
+let pendingDoor = null;      // bumped a landmark door
+let pendingEvent = null;     // bumped an attraction prop
+let pendingStation = null;   // bumped a game station inside a hall
 let doorCooldown = 0;
 
 function noteBump(...points) {
   for (const [bx, by] of points) {
     const tx = Math.floor(bx / TILE), ty = Math.floor(by / TILE);
+    if (scene) {
+      const st = scene.it.stationTiles.get(scene.it.idx(tx, ty));
+      if (st) { pendingStation = st; return; }
+      continue;
+    }
     if (!world.inB(tx, ty)) continue;
     const i = ty * world.W + tx;
     if (world.tiles[i] === T.DOOR) { pendingDoor = { tx, ty }; return; }
@@ -127,7 +176,8 @@ function noteBump(...points) {
 
 function tryMove(dx, dy, dt) {
   // wading through shallows is slow going
-  const here = world.tiles[Math.floor(player.y / TILE) * world.W + Math.floor(player.x / TILE)];
+  const m = scene ? scene.it : world;
+  const here = m.tiles[Math.floor(player.y / TILE) * m.W + Math.floor(player.x / TILE)];
   const speedMul = here === T.SHALLOW ? 0.45 : 1;
   const step = player.speed * speedMul * dt;
   const nx = player.x + dx * step, ny = player.y + dy * step;
@@ -142,8 +192,9 @@ function tryMove(dx, dy, dt) {
     if (!solidAt(...p1) && !solidAt(...p2)) player.y = ny;
     else noteBump(p1, p2);
   }
-  player.x = Math.max(8, Math.min(world.W * TILE - 8, player.x));
-  player.y = Math.max(8, Math.min(world.H * TILE - 8, player.y));
+  const mm = scene ? scene.it : world;
+  player.x = Math.max(8, Math.min(mm.W * TILE - 8, player.x));
+  player.y = Math.max(8, Math.min(mm.H * TILE - 8, player.y));
 }
 
 /* If the rising tide floods the tile under your feet, wash ashore. */
@@ -212,11 +263,28 @@ function doInteract() {
   if (!currentTarget) return;
   const prov = currentProv;
   const t = currentTarget;
-  if (t.kind === 'landmark') openHub(t.obj, prov);
+  if (t.kind === 'landmark') enterLandmark(t.obj);
+  else if (t.kind === 'station') openGame(t.obj.game, prov);
+  else if (t.kind === 'exit') exitInterior();
   else if (t.kind === 'npc') talkTo(t.obj, prov);
   else if (t.kind === 'concealer') openConcealer(t.obj, prov, () => {});
   else if (t.kind === 'event') openGame(t.obj.game, prov);
   else if (t.kind === 'ferry') offerFerry(t.obj);
+}
+
+/* interaction targets while inside a hall: game stations + the way out */
+function findInteriorTarget() {
+  const it = scene.it;
+  for (const st of it.stations) {
+    const cx = (st.x + st.w / 2) * TILE, cy = (st.y + st.h / 2) * TILE;
+    if (Math.hypot(cx - player.x, cy - player.y) < Math.max(st.w, st.h) * TILE * 0.5 + 24) {
+      return { kind: 'station', obj: st, label: `Play ${st.label}`, ico: st.ico };
+    }
+  }
+  if (Math.abs(player.x - it.doorX * TILE - 8) < 26 && player.y > (it.H - 3.2) * TILE) {
+    return { kind: 'exit', obj: null, label: 'Step outside', ico: '🚪' };
+  }
+  return null;
 }
 
 function offerFerry({ f, other }) {
@@ -322,6 +390,121 @@ function drawEmoji(txt, wx, wy, camX, camY, sizePx, bob = 0) {
   ctx.fillText(txt, (wx - camX) * zoom, (wy - camY + bob) * zoom);
 }
 
+/* ---------------- interior scene tick ---------------- */
+function interiorTick(dt, now) {
+  const it = scene.it;
+  const lm = scene.lm;
+
+  // stepping onto the doorway mat leads back outside
+  const ptx = Math.floor(player.x / TILE), pty = Math.floor(player.y / TILE);
+  if (!switching && pty >= it.H - 2 && it.exitXs.includes(ptx) && player.y > (it.H - 1.6) * TILE) {
+    exitInterior();
+  }
+
+  updatePatrons(it, dt);
+
+  /* interaction target */
+  if (!UI.isModalOpen()) {
+    currentTarget = findInteriorTarget();
+    UI.setHint(currentTarget ? `${currentTarget.ico} ${currentTarget.label}` : null);
+    UI.setActButton(!!currentTarget, currentTarget?.ico || '✨');
+  } else {
+    UI.setHint(null);
+    UI.setActButton(false);
+  }
+
+  currentProv = lm.prov;
+  UI.renderLocation(lm.prov, lm.name, null);
+
+  /* ---- render: the hall floats in darkness, Pokémon style ---- */
+  ctx.fillStyle = '#07070d';
+  ctx.fillRect(0, 0, vw, vh);
+
+  const viewW = vw / zoom, viewH = vh / zoom;
+  const roomW = it.W * TILE, roomH = it.H * TILE;
+  let camX, camY;
+  if (roomW <= viewW) camX = -(viewW - roomW) / 2;
+  else camX = Math.max(0, Math.min(roomW - viewW, player.x - viewW / 2));
+  if (roomH <= viewH) camY = -(viewH - roomH) / 2;
+  else camY = Math.max(0, Math.min(roomH - viewH, player.y - viewH / 2));
+
+  for (let ty = 0; ty < it.H; ty++) {
+    for (let tx = 0; tx < it.W; tx++) {
+      let t = it.tiles[ty * it.W + tx];
+      if (t === T.FOUNDATION) t = it.style.floor;   // floor shows beneath the furniture
+      const col = Math.floor(hash2(tx, ty, 7) * 4);
+      ctx.drawImage(atlas, col * CELL, t * CELL, CELL, CELL,
+        Math.round((tx * TILE - camX) * zoom), Math.round((ty * TILE - camY) * zoom),
+        zoom * TILE, zoom * TILE);
+    }
+  }
+
+  /* rugs / pits / the welcome mat — bordered so they read as fabric */
+  for (const r of it.floorRects) {
+    const rx = Math.round((r.x * TILE - camX) * zoom), ry = Math.round((r.y * TILE - camY) * zoom);
+    const rw = r.w * TILE * zoom, rh = r.h * TILE * zoom;
+    ctx.fillStyle = r.color;
+    ctx.fillRect(rx, ry, rw, rh);
+    ctx.strokeStyle = 'rgba(0,0,0,0.28)';
+    ctx.lineWidth = zoom;
+    ctx.strokeRect(rx + zoom, ry + zoom, rw - zoom * 2, rh - zoom * 2);
+    ctx.strokeStyle = 'rgba(255,240,200,0.25)';
+    ctx.strokeRect(rx + zoom * 4, ry + zoom * 4, rw - zoom * 8, rh - zoom * 8);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    for (const [cx2, cy2] of [[rx + zoom * 6, ry + zoom * 6], [rx + rw - zoom * 8, ry + zoom * 6],
+      [rx + zoom * 6, ry + rh - zoom * 8], [rx + rw - zoom * 8, ry + rh - zoom * 8]]) {
+      ctx.fillRect(cx2, cy2, zoom * 2, zoom * 2);
+    }
+  }
+
+  /* stations + décor (footprint-exact, same rule as buildings) */
+  for (const st of it.stations) {
+    const spr = getStationSprite(st.kind, st.w, st.h, st.v);
+    ctx.drawImage(spr, Math.round((st.x * TILE - camX) * zoom), Math.round((st.y * TILE - camY) * zoom),
+      spr.width * zoom, spr.height * zoom);
+  }
+  for (const d of it.decor) {
+    const spr = getDecorSprite(d.kind, d.w, d.h, d.kind === 'neonsign' ? (d.v + ((now / 700) | 0)) : d.v);
+    ctx.drawImage(spr, Math.round((d.x * TILE - camX) * zoom), Math.round((d.y * TILE - camY) * zoom),
+      spr.width * zoom, spr.height * zoom);
+  }
+
+  /* patrons + player, y-sorted */
+  const list = [player, ...it.patrons].sort((a, b) => a.y - b.y);
+  for (const e of list) {
+    const { sx, sy } = drawSprite(e, camX, camY);
+    if (e.smokes) {
+      // a slow curl of cigarette smoke
+      const ph = (now / 400 + e.puffT) % 3;
+      ctx.fillStyle = `rgba(200,200,210,${Math.max(0, 0.5 - ph * 0.16)})`;
+      ctx.fillRect(sx + (CHAR_W - 3) * zoom, sy + (2 - ph * 2.5) * zoom, zoom, zoom);
+      ctx.fillRect(sx + (CHAR_W - 2) * zoom, sy - ph * 3.2 * zoom, zoom, zoom);
+    }
+    if (e.cheerT > 0) drawEmoji('🎉', e.x, e.y - 20, camX, camY, 9, Math.sin(now / 90) * 2);
+  }
+
+  /* room ambience tint + gentle lamplight */
+  ctx.fillStyle = it.style.tint;
+  ctx.fillRect(Math.round((TILE - camX) * zoom), Math.round((TILE - camY) * zoom),
+    (it.W - 2) * TILE * zoom, (it.H - 2) * TILE * zoom);
+
+  /* floaters (wins ping inside too) */
+  for (let i = floaters.length - 1; i >= 0; i--) {
+    const f = floaters[i];
+    f.t += dt;
+    if (f.t > 1.4) { floaters.splice(i, 1); continue; }
+    ctx.globalAlpha = Math.max(0, 1 - f.t / 1.4);
+    ctx.font = `bold ${9 * zoom}px "Courier New", monospace`;
+    ctx.textAlign = 'center';
+    ctx.strokeStyle = '#000'; ctx.lineWidth = 3;
+    const fx = (f.x - camX) * zoom, fy = (f.y - f.t * 22 - camY) * zoom;
+    ctx.strokeText(f.text, fx, fy);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, fx, fy);
+    ctx.globalAlpha = 1;
+  }
+}
+
 /* ---------------- main loop ---------------- */
 let last = performance.now();
 let waterFrame = 0, waterT = 0;
@@ -357,32 +540,43 @@ function frame(now) {
       const ntx = Math.floor(player.x / TILE), nty = Math.floor(player.y / TILE);
       if (ntx !== lastStepTile.tx || nty !== lastStepTile.ty) {
         lastStepTile = { tx: ntx, ty: nty };
-        maybeEncounter(world, ntx, nty, currentProv);
+        if (!scene) maybeEncounter(world, ntx, nty, currentProv);
       }
     } else player.frame = 0;
   }
   tickEncounterCooldown(dt);
-  traderTimer -= dt;
-  if (traderTimer <= 0) {
-    traderTimer = CONFIG.LUCKLIAN.TRADER_MIN_S + roll() * (CONFIG.LUCKLIAN.TRADER_MAX_S - CONFIG.LUCKLIAN.TRADER_MIN_S);
-    if (roll() < CONFIG.LUCKLIAN.TRADER_CHANCE) maybeTraderOffer();
+  if (!scene) {
+    traderTimer -= dt;
+    if (traderTimer <= 0) {
+      traderTimer = CONFIG.LUCKLIAN.TRADER_MIN_S + roll() * (CONFIG.LUCKLIAN.TRADER_MAX_S - CONFIG.LUCKLIAN.TRADER_MIN_S);
+      if (roll() < CONFIG.LUCKLIAN.TRADER_CHANCE) maybeTraderOffer();
+    }
+    resolveTideStranding();
+    state.px = player.x; state.py = player.y;
   }
-  resolveTideStranding();
-  state.px = player.x; state.py = player.y;
 
   /* bumping into a door swings it open (with a cooldown so a closed
      modal doesn't immediately reopen while still pressing forward) */
   doorCooldown = Math.max(0, doorCooldown - dt);
-  if (!UI.isModalOpen() && doorCooldown === 0) {
-    if (pendingDoor) {
+  if (!UI.isModalOpen() && doorCooldown === 0 && !switching) {
+    if (scene) {
+      if (pendingStation) { doorCooldown = 1.2; openGame(pendingStation.game, currentProv); }
+    } else if (pendingDoor) {
       const lm = world.landmarks.find((l) => l.doorX === pendingDoor.tx && l.doorY === pendingDoor.ty);
-      if (lm) { doorCooldown = 1.2; openHub(lm, currentProv); }
+      if (lm) enterLandmark(lm);
     } else if (pendingEvent) {
       doorCooldown = 1.2;
       openGame(pendingEvent.game, currentProv);
     }
   }
-  pendingDoor = null; pendingEvent = null;
+  pendingDoor = null; pendingEvent = null; pendingStation = null;
+
+  /* ------- inside a landmark hall: its own tick + render ------- */
+  if (scene) {
+    interiorTick(dt, now);
+    requestAnimationFrame(frame);
+    return;
+  }
 
   /* --- entities --- */
   for (const n of npcs) updateNpc(n, world, tideLevel, dt);
@@ -560,7 +754,10 @@ function frame(now) {
 requestAnimationFrame(frame);
 
 /* Debug/testing handle (also handy for tinkering in devtools). */
-window.LUCKLAND = { world, player, state, concealers, npcs, bots, citizens };
+window.LUCKLAND = {
+  world, player, state, concealers, npcs, bots, citizens,
+  enterLandmark, exitInterior, getScene: () => scene,
+};
 
 /* ---------------- PWA service worker ---------------- */
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {

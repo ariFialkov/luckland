@@ -72,6 +72,14 @@ roadside attractions and roaming characters:
 | **Elephantium (EP)** | SE-Asian jungle, mountainous east | Sawan City, Chao Lom, Temple City (Golden Temple), Mai Pai, Roaring Elephant Arena, Waterfall Park | Haiko (hi-lo) |
 | **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Downtown/North/East Maneki (Magic Mushroom Casino, Sumo Arena, Central Park), Koban Row, Neko Town | Pachinko |
 
+**Landmark halls:** every landmark door leads inside, Pokémon style — a quick
+fade to black, and you're standing in a walkable hall themed to the place:
+slot banks, neon signs and smoking patrons in the Magic Mushroom Casino, a
+bar, piano and card tables in the Grand Saloon, lacquered pillars and
+lanterns in the Golden Tiger Hall, banners in Ballyclover Castle. Each of
+the hall's games is a physical station — walk into one to play — and the
+doorway mat leads back out.
+
 **Getting around:** shore shallows and small rivers are wadeable at reduced
 speed; deep water is not. The **Paradise Ferry** (fare in `src/config.js`)
 sails between Epineion Docks and Maneki Docks — it's the only way to the
@@ -168,6 +176,7 @@ src/sprites.js              procedural pixel-art tiles & character sprites
 src/games.js                wager engine (paytable/pick/race/hi-lo) + 18 games
 src/concealers.js           chest spawning, loot rolls, opening ceremonies
 src/lucklians.js            157 creatures: encounters, snares, Lucklipedia, traders
+src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/npcs.js                 named characters, dialogue, bot crowd
 src/ui.js                   HUD, modals, toasts, joystick, map/stats screens
 src/state.js                wallet, stats, buffs, localStorage saves

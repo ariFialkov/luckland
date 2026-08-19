@@ -1544,6 +1544,235 @@ function drawLucklian(ctx, def) {
   }
 }
 
+/* ============================================================
+   Interior furniture — game stations you walk into to play,
+   and themed hall décor. Footprint-sized, like buildings.
+   ============================================================ */
+const stationCache = new Map();
+
+export function getStationSprite(kind, w, h, v) {
+  const key = `${kind}:${w}x${h}:${v}`;
+  let cv = stationCache.get(key);
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.width = w * CELL; cv.height = h * CELL;
+    drawStation(cv.getContext('2d'), kind, cv.width, cv.height, v);
+    stationCache.set(key, cv);
+  }
+  return cv;
+}
+
+function drawStation(ctx, kind, W16, B, v) {
+  const sh = () => { ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(2, B - 3, W16 - 4, 3); };
+  switch (kind) {
+    case 'slot': {                                // one-armed bandit pair
+      sh();
+      for (const ox of [1, W16 / 2 + 1]) {
+        px(ctx, ox, B - 26, W16 / 2 - 3, 23, '#8a2a4a');       // cabinet
+        px(ctx, ox + 1, B - 25, W16 / 2 - 5, 2, '#c04a6a');
+        px(ctx, ox + 2, B - 21, W16 / 2 - 7, 6, '#0d0d16');    // reel window
+        px(ctx, ox + 3, B - 20, 2, 4, '#ffe066'); px(ctx, ox + 6, B - 20, 2, 4, '#ff6be0'); px(ctx, ox + 9, B - 20, 2, 4, '#5eeaff');
+        px(ctx, ox + 2, B - 13, W16 / 2 - 7, 3, '#f0c040');    // payline plate
+        px(ctx, ox + W16 / 2 - 4, B - 24, 2, 8, '#c8ccd8');    // arm
+        px(ctx, ox + W16 / 2 - 4, B - 26, 2, 2, '#e05a70');
+        px(ctx, ox + 3, B - 8, W16 / 2 - 9, 2, '#2c2838');     // tray
+      }
+      break;
+    }
+    case 'pachinko': {                            // upright pin cabinet pair
+      sh();
+      for (const ox of [1, W16 / 2 + 1]) {
+        px(ctx, ox, B - 27, W16 / 2 - 3, 24, '#2c2838');
+        px(ctx, ox + 1, B - 26, W16 / 2 - 5, 18, '#3c5a8a');   // glass board
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 3; c++) {
+          px(ctx, ox + 3 + c * 3 + (r % 2), B - 24 + r * 4, 1, 1, '#f8f0ff');
+        }
+        px(ctx, ox + 1, B - 27, W16 / 2 - 5, 2, '#ff6be0');    // top lamp
+        px(ctx, ox + 2, B - 7, W16 / 2 - 7, 3, '#f0c040');     // ball tray
+      }
+      break;
+    }
+    case 'table': {                               // green felt game table
+      sh();
+      px(ctx, 2, B - 18, W16 - 4, 13, '#5a3a24');              // table body
+      px(ctx, 1, B - 20, W16 - 2, 6, '#2f7a44');               // felt top
+      px(ctx, 2, B - 19, W16 - 4, 4, '#3d8a4c');
+      px(ctx, 4, B - 18, 3, 2, '#f4f0e6'); px(ctx, 10, B - 19, 3, 2, '#e05a70'); // cards + chips
+      px(ctx, W16 - 8, B - 18, 3, 2, '#f0c040');
+      px(ctx, 3, B - 6, 2, 3, '#3a2a18'); px(ctx, W16 - 5, B - 6, 2, 3, '#3a2a18'); // legs
+      break;
+    }
+    case 'wheel': {                               // wheel of fortune dais
+      sh();
+      px(ctx, W16 / 2 - 4, B - 8, 8, 5, '#5a3a24');            // pedestal
+      const cx = W16 / 2, cy = B - 17;
+      for (let a = 0; a < 10; a++) {
+        const ang = (a / 10) * Math.PI * 2;
+        px(ctx, Math.round(cx + Math.cos(ang) * 7) - 1, Math.round(cy + Math.sin(ang) * 7) - 1, 3, 3,
+          a % 2 ? '#c04a4a' : '#f0c040');
+      }
+      px(ctx, cx - 2, cy - 2, 4, 4, '#e8e2d4');
+      px(ctx, cx - 1, cy - 10, 2, 3, '#26202c');               // pointer
+      break;
+    }
+    case 'board': {                               // race betting board
+      sh();
+      px(ctx, 2, B - 26, W16 - 4, 18, '#2c2838');              // big board
+      px(ctx, 3, B - 25, W16 - 6, 16, '#1a2c1e');
+      for (let r = 0; r < 4; r++) {
+        px(ctx, 5, B - 23 + r * 4, 8, 2, ['#ffe066', '#5eeaff', '#e05a70', '#8dff6b'][r]); // runners
+        px(ctx, W16 - 10, B - 23 + r * 4, 5, 2, '#c8ccd8');    // odds
+      }
+      px(ctx, 4, B - 7, W16 - 8, 3, '#5a3a24');                // counter
+      break;
+    }
+    case 'shrine': {                              // luck altar with offerings
+      sh();
+      px(ctx, 3, B - 10, W16 - 6, 7, '#8a6a42');               // altar block
+      px(ctx, 3, B - 10, W16 - 6, 2, '#c8a060');
+      px(ctx, W16 / 2 - 3, B - 20, 6, 10, '#a05a28');          // idol
+      px(ctx, W16 / 2 - 2, B - 23, 4, 4, '#f0c040');           // gilded head
+      px(ctx, 5, B - 13, 2, 3, '#e05a70'); px(ctx, W16 - 7, B - 13, 2, 3, '#5eeaff'); // candles
+      px(ctx, 5, B - 14, 1, 1, '#ffe066'); px(ctx, W16 - 7, B - 14, 1, 1, '#ffe066');
+      break;
+    }
+    default: {                                    // 'counter' — a game counter with a keeper's setup
+      sh();
+      px(ctx, 2, B - 14, W16 - 4, 10, '#5a3a24');              // counter
+      px(ctx, 2, B - 14, W16 - 4, 2, '#8a6034');
+      px(ctx, 4, B - 22, 6, 7, '#c8a060');                     // sign
+      px(ctx, 5, B - 21, 4, 4, '#5a3a24');
+      px(ctx, W16 - 10, B - 18, 5, 4, '#e8d49a');              // prizes
+      px(ctx, W16 - 9, B - 17, 3, 2, '#f0c040');
+      break;
+    }
+  }
+}
+
+const decorCache = new Map();
+
+export function getDecorSprite(kind, w, h, v) {
+  const key = `${kind}:${w}x${h}:${v}`;
+  let cv = decorCache.get(key);
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.width = w * CELL; cv.height = h * CELL;
+    drawDecor(cv.getContext('2d'), kind, cv.width, cv.height, v);
+    decorCache.set(key, cv);
+  }
+  return cv;
+}
+
+function drawDecor(ctx, kind, W16, B, v) {
+  switch (kind) {
+    case 'bar': {                                 // long bar with bottles and taps
+      px(ctx, 1, B - 16, W16 - 2, 12, '#5a3a24');
+      px(ctx, 1, B - 16, W16 - 2, 3, '#8a6034');
+      for (let i = 0; i < Math.floor(W16 / 9); i++) {
+        px(ctx, 4 + i * 9, B - 23, 2, 6, ['#3d8a4c', '#c04a4a', '#d9a545'][i % 3]);   // bottles
+        px(ctx, 4 + i * 9, B - 24, 2, 1, '#26202c');
+      }
+      px(ctx, W16 - 8, B - 20, 2, 5, '#c8ccd8');               // tap
+      px(ctx, 3, B - 12, 3, 2, '#f0c040');                     // mug
+      break;
+    }
+    case 'piano': {
+      px(ctx, 2, B - 20, W16 - 4, 16, '#241a20');
+      px(ctx, 3, B - 12, W16 - 6, 3, '#f4f0e6');               // keys
+      for (let k = 5; k < W16 - 5; k += 3) px(ctx, k, B - 12, 1, 2, '#26202c');
+      px(ctx, 4, B - 18, W16 - 8, 3, '#3a2a30');               // open lid
+      break;
+    }
+    case 'plant': {
+      px(ctx, W16 / 2 - 3, B - 6, 6, 4, '#a05a28');            // pot
+      px(ctx, W16 / 2 - 5, B - 18, 10, 10, '#2f7a44');
+      px(ctx, W16 / 2 - 3, B - 21, 6, 5, '#3d8a4c');
+      px(ctx, W16 / 2 - 1, B - 15, 2, 4, '#58a860');
+      break;
+    }
+    case 'statue': {
+      px(ctx, W16 / 2 - 5, B - 5, 10, 3, '#c8c0ac');           // plinth
+      px(ctx, W16 / 2 - 3, B - 16, 6, 11, '#e8e2d4');          // robed figure
+      px(ctx, W16 / 2 - 2, B - 20, 4, 4, '#f0e4d0');
+      px(ctx, W16 / 2 - 3, B - 16, 1, 11, '#f4f0e6');
+      px(ctx, W16 / 2 + 3, B - 14, 3, 2, '#e8e2d4');           // arm
+      break;
+    }
+    case 'pillar': {                              // tall lacquered column
+      const cx = W16 >> 1;
+      px(ctx, cx - 6, B - 2, 12, 2, 'rgba(0,0,0,0.25)');       // shadow
+      px(ctx, cx - 4, B - 28, 8, 26, '#c04a3a');               // shaft
+      px(ctx, cx - 4, B - 28, 2, 26, '#e06a4a');
+      px(ctx, cx + 2, B - 28, 2, 26, '#8a2a20');
+      px(ctx, cx - 6, B - 31, 12, 3, '#f0c040');               // capital
+      px(ctx, cx - 5, B - 24, 10, 2, '#f0c040');               // gilt band
+      px(ctx, cx - 6, B - 4, 12, 3, '#8a2a20');                // base
+      break;
+    }
+    case 'lantern': {
+      px(ctx, W16 / 2 - 1, B - 28, 2, 6, '#4a3a2a');           // cord
+      px(ctx, W16 / 2 - 4, B - 22, 8, 9, '#d44a4a');
+      px(ctx, W16 / 2 - 2, B - 20, 4, 5, '#ffe066');           // glow
+      px(ctx, W16 / 2 - 1, B - 12, 2, 3, '#f0c040');           // tassel
+      break;
+    }
+    case 'banner': {
+      px(ctx, 2, B - 30, W16 - 4, 2, '#5a3a24');               // rod
+      px(ctx, 3, B - 28, W16 - 6, 16, '#8a2030');
+      px(ctx, 3, B - 14, 3, 3, '#8a2030'); px(ctx, W16 - 6, B - 14, 3, 3, '#8a2030'); // swallowtail
+      px(ctx, W16 / 2 - 2, B - 24, 4, 6, '#f0c040');           // sigil
+      break;
+    }
+    case 'crate': {
+      px(ctx, 2, B - 13, 12, 10, '#8a6034');
+      px(ctx, 2, B - 13, 12, 2, '#a5793f');
+      px(ctx, 2, B - 8, 12, 1, '#5f3f20'); px(ctx, 7, B - 13, 1, 10, '#5f3f20');
+      px(ctx, W16 - 12, B - 19, 10, 8, '#a5793f');             // stacked barrel
+      px(ctx, W16 - 12, B - 16, 10, 1, '#5f3f20');
+      break;
+    }
+    case 'bell': {                                // temple bell on frame
+      px(ctx, 2, B - 28, 3, 26, '#6d4726'); px(ctx, W16 - 5, B - 28, 3, 26, '#6d4726');
+      px(ctx, 1, B - 30, W16 - 2, 3, '#8a5c32');
+      px(ctx, W16 / 2 - 5, B - 25, 10, 12, '#c49038');
+      px(ctx, W16 / 2 - 5, B - 25, 3, 12, '#e8c060');
+      px(ctx, W16 / 2 - 1, B - 12, 2, 3, '#8a6a20');
+      break;
+    }
+    case 'rail': {                                // spectator rail
+      px(ctx, 1, B - 12, W16 - 2, 2, '#8a6034');
+      for (let x = 2; x < W16 - 2; x += 6) px(ctx, x, B - 10, 2, 8, '#6d4a28');
+      px(ctx, 1, B - 5, W16 - 2, 1, '#5f3f20');
+      break;
+    }
+    case 'stair': {                               // lighthouse spiral stair
+      for (let s = 0; s < 5; s++) px(ctx, 3 + s * 4, B - 8 - s * 5, 10, 3, '#9a948a');
+      px(ctx, 5, B - 30, 3, 26, '#6d6860');
+      break;
+    }
+    case 'slotbank': {                            // row of house slot machines (décor)
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(2, B - 3, W16 - 4, 3);
+      const n = Math.floor(W16 / 14);
+      for (let i = 0; i < n; i++) {
+        const ox = 1 + i * 14;
+        px(ctx, ox, B - 24, 12, 21, i % 2 ? '#3c2a5a' : '#5a2a4a');
+        px(ctx, ox + 1, B - 20, 10, 5, '#0d0d16');
+        px(ctx, ox + 2, B - 19, 2, 3, '#ffe066'); px(ctx, ox + 5, B - 19, 2, 3, '#5eeaff'); px(ctx, ox + 8, B - 19, 2, 3, '#ff6be0');
+        px(ctx, ox + 1, B - 24, 10, 2, '#ff6be0');
+        px(ctx, ox + 2, B - 12, 8, 2, '#f0c040');
+      }
+      break;
+    }
+    case 'neonsign': {                            // glowing wall sign
+      const cols = ['#ff6be0', '#5eeaff', '#ffe066', '#8dff6b'];
+      px(ctx, 0, 2, W16, B - 6, '#16121e');
+      for (let i = 0; i < 4; i++) px(ctx, 3 + i * ((W16 - 8) / 4), 4, (W16 - 12) / 4, B - 10, cols[(i + v) % 4]);
+      px(ctx, 1, 2, W16 - 2, 1, '#ff6be0'); px(ctx, 1, B - 4, W16 - 2, 1, '#5eeaff');
+      break;
+    }
+  }
+}
+
 /* 16x16 decorative street props, styled per province. */
 function drawProp(ctx, prov, v) {
   const kind = v % 3;

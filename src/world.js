@@ -409,7 +409,8 @@ export function generateWorld() {
       const d = Math.hypot(dx, dy);
       if (d > r + (fbm(cx + dx, cy + dy, 5, seed + 70) - 0.5) * 3) continue;
       const t = get(cx + dx, cy + dy);
-      if (t === T.WATER || t === T.DEEP || t === T.TIDAL || t === T.BRIDGE || t === T.SHALLOW) continue;
+      if (t === T.WATER || t === T.DEEP || t === T.TIDAL || t === T.BRIDGE || t === T.SHALLOW ||
+          t === T.FOUNDATION || t === T.DOOR) continue; // never pave through a standing building
       // paved almost wall to wall — a city, not a lawn
       set(cx + dx, cy + dy, d < r * 0.9 && hash2(cx + dx, cy + dy, seed + 71) > 0.1 ? floor : baseGroundFor(cx + dx, cy + dy));
     }
@@ -502,7 +503,10 @@ export function generateWorld() {
       }
     } else if (c.style === 'mediterranean') {
       // central plaza, ring lane, villas crowding both sides of the ring
-      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(c.x + dx, c.y + dy, T.PLAZA);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const t = get(c.x + dx, c.y + dy);
+        if (t !== T.FOUNDATION && t !== T.DOOR) set(c.x + dx, c.y + dy, T.PLAZA);
+      }
       const ringR = c.r - 3;
       for (let a = 0; a < 40; a++) {
         const ang = (a / 40) * Math.PI * 2;
@@ -544,7 +548,10 @@ export function generateWorld() {
           if (get(tx, ty) !== T.FOUNDATION) set(tx, ty, T.TRAIL);
         }
       }
-      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(c.x + dx, c.y + dy, T.PLAZA);
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+        const t = get(c.x + dx, c.y + dy);
+        if (t !== T.FOUNDATION && t !== T.DOOR) set(c.x + dx, c.y + dy, T.PLAZA);
+      }
     }
 
     // decorative street props: lanterns, barrels, flowerbeds, statues…
@@ -605,6 +612,7 @@ export function generateWorld() {
       : lm.prov === 'DG' && /Temple|Palace|Pavilion|Hall/.test(n) ? 'pagoda'
       : /Harbourhouse|Docks/.test(n) ? 'warehouse'
       : null;
+    lm.sub = sub;   // interiors style themselves by this too
     buildings.push({ x, y, w, h, prov: lm.prov, kind: 'landmark', sub, v: (hash2(x, y, seed + 74) * 1e6) | 0, doorPx: (w >> 1) * 16 + 8 });
     landmarks.push(lm);
   }
@@ -612,6 +620,19 @@ export function generateWorld() {
   /* The Panhellenium — great circular sanctuary on the Pontium cape */
   function stampPanhellenium(cx, cy) {
     const R = 5;
+    // evict any city building the sanctuary would slice through
+    for (let i = buildings.length - 1; i >= 0; i--) {
+      const o = buildings[i];
+      if (o.x < cx + R + 2 && o.x + o.w > cx - R - 2 && o.y < cy + R + 3 && o.y + o.h > cy - R - 2) {
+        for (let dy = 0; dy < o.h; dy++) for (let dx = 0; dx < o.w; dx++) {
+          if (get(o.x + dx, o.y + dy) === T.FOUNDATION) {
+            set(o.x + dx, o.y + dy, T.PLAZA);
+            ground[idx(o.x + dx, o.y + dy)] = 255;
+          }
+        }
+        buildings.splice(i, 1);
+      }
+    }
     for (let dy = -R - 1; dy <= R + 1; dy++) for (let dx = -R - 1; dx <= R + 1; dx++) {
       const d = Math.hypot(dx, dy);
       if (d <= R + 0.5 && d >= R - 0.7) set(cx + dx, cy + dy, T.WALL_MARBLE);
@@ -636,7 +657,7 @@ export function generateWorld() {
       const tx = Math.round(cx + Math.cos(ang) * 9), ty = Math.round(cy + Math.sin(ang) * 5);
       for (const [ox, oy] of [[0, 0], [1, 0]]) {
         const t = get(tx + ox, ty + oy);
-        if (t !== T.WATER && t !== T.DEEP) set(tx + ox, ty + oy, T.ROAD);
+        if (t !== T.WATER && t !== T.DEEP && t !== T.FOUNDATION && t !== T.DOOR) set(tx + ox, ty + oy, T.ROAD);
       }
     }
   })(40, 206);
@@ -839,7 +860,7 @@ export function generateWorld() {
       if (t === T.WATER || t === T.DEEP || t === T.SHALLOW || t === T.TIDAL) break;
       x += dx;
     }
-    set(x, y, T.PLAZA);
+    if (get(x, y) !== T.FOUNDATION && get(x, y) !== T.DOOR) set(x, y, T.PLAZA);
     for (let i = 1; i <= 4; i++) {
       const t = get(x + dx * i, y);
       if (t === T.WATER || t === T.DEEP || t === T.SHALLOW || t === T.TIDAL) set(x + dx * i, y, T.PIER);
@@ -881,8 +902,10 @@ export function generateWorld() {
     for (let dy = -2; dy <= 2; dy++) for (let dx = -3; dx <= 3; dx++) {
       const d = Math.hypot(dx / 1.4, dy);
       const px2 = cx - 3 + dx, py2 = cy + 2 + dy;
+      const cur = get(px2, py2);
+      if (cur === T.FOUNDATION || cur === T.DOOR) continue; // never flood a building
       if (d <= 1.1) set(px2, py2, T.WATER);
-      else if (d <= 2.0 && get(px2, py2) !== T.WATER) set(px2, py2, T.SHALLOW);
+      else if (d <= 2.0 && cur !== T.WATER) set(px2, py2, T.SHALLOW);
     }
     // winding promenade loop + gates back into the streets
     const loop = [];
