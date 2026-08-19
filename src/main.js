@@ -284,6 +284,12 @@ UI.renderBalance();
 
 /* ---------------- render helpers ---------------- */
 function drawTile(t, tx, ty, sx, sy, animFrame) {
+  // under building/prop sprites, draw the terrain that was there before
+  // the stamp — sprites' transparent parts blend into their surroundings
+  if (t === T.FOUNDATION || t === T.DOOR) {
+    const g = world.ground[ty * world.W + tx];
+    if (g !== 255) t = g;
+  }
   let row = t, col = hash2(tx, ty, 7) * 4 | 0;
   if (t === T.DEEP || t === T.WATER || t === T.SHALLOW) col = animFrame;
   else if (t === T.TIDAL) {

@@ -373,6 +373,16 @@ export function generateWorld() {
      footprint tiles become solid FOUNDATION for collision. */
   const buildings = [];
 
+  /* Ground memory: the terrain that sat under each footprint tile before
+     stamping. The renderer draws THIS beneath a building/prop sprite, so
+     the transparent parts of a sprite (roof tapers, wall insets, the space
+     around a statue) show grass on grass, rock on rock, neon on neon —
+     never a mismatched grey slab. 255 = no override. */
+  const ground = new Uint8Array(W * H).fill(255);
+  function rememberGround(x, y) {
+    if (inB(x, y) && ground[idx(x, y)] === 255) ground[idx(x, y)] = tiles[idx(x, y)];
+  }
+
   function clearFlat(cx, cy, r, floor) {
     for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
       const d = Math.hypot(dx, dy);
@@ -397,6 +407,7 @@ export function generateWorld() {
           t === T.WALL_MARBLE || t === T.WALL_STONE) return false;
     }
     for (let dy = 0; dy < bh; dy++) for (let dx = 0; dx < bw; dx++) {
+      rememberGround(bx + dx, by + dy);
       set(bx + dx, by + dy, T.FOUNDATION);
     }
     buildings.push({ x: bx, y: by, w: bw, h: bh, prov: provCode, kind, v: (hash2(bx, by, seed + 74) * 1e6) | 0 });
@@ -545,12 +556,16 @@ export function generateWorld() {
       const o = buildings[i];
       if (o.x < x + w + 2 && o.x + o.w > x - 2 && o.y < y + h + 3 && o.y + o.h > y) {
         for (let dy = 0; dy < o.h; dy++) for (let dx = 0; dx < o.w; dx++) {
-          if (get(o.x + dx, o.y + dy) === T.FOUNDATION) set(o.x + dx, o.y + dy, T.PLAZA);
+          if (get(o.x + dx, o.y + dy) === T.FOUNDATION) {
+            set(o.x + dx, o.y + dy, T.PLAZA);
+            ground[idx(o.x + dx, o.y + dy)] = 255;
+          }
         }
         buildings.splice(i, 1);
       }
     }
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
+      rememberGround(x + dx, y + dy);
       set(x + dx, y + dy, T.FOUNDATION);
     }
     const doorX = x + (w >> 1), doorY = y + h - 1;
@@ -890,7 +905,7 @@ export function generateWorld() {
   ];
 
   return {
-    W, H, tiles, prov, landmarks, events, zones, regions, cities, ferries, buildings, start: START,
+    W, H, tiles, prov, ground, landmarks, events, zones, regions, cities, ferries, buildings, start: START,
     idx, get, inB,
     provAt(x, y) {
       return PROV_LIST[prov[idx(Math.max(0, Math.min(W - 1, x)), Math.max(0, Math.min(H - 1, y)))]];
