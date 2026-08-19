@@ -38,9 +38,9 @@ ranges (the Dragonspine, the Emerald Divide, the Thunder Steps, the Mist
 Peaks) with narrow winding trails carved through the rock, jagged coastlines,
 four rivers, Heaven Lake, and big styled cities full of ambient townsfolk.
 Six provinces, each with landmark hubs housing its gambling culture, plus
-street games and roaming characters:
+roadside attractions and roaming characters:
 
-| Province | Theme | Cities & landmarks | Street game |
+| Province | Theme | Cities & landmarks | Signature game (in its hubs) |
 |---|---|---|---|
 | **Tyche & Fortuna (TF)** | Ancient Greece/Rome, northern capes | Tyche, Pontium (Panhellenium, Coliseum), Fortuna, Epineion, Oliveto, Argos Vale, Fort Upsilonia | Tali (knucklebones) |
 | **Four Leaf Republic (FL)** | Celtic highlands, northwest | Ballyclover (Castle), Kilfenny, Dunmara, Bramblewick Farm, Puffin Point | Road bowls |
@@ -83,7 +83,7 @@ Everything lives in **`src/config.js`**:
 
 ### Roadside attractions
 
-Beyond the hub games, ~96 **attraction props** stand out in the world — each a
+Beyond the hub games, ~90 **attraction props** stand out in the world — each a
 hand-drawn machine or shrine you walk into to play, spawned in its own habitat
 (streets and plazas, riverbanks, treelines, mountain shrines, open country):
 

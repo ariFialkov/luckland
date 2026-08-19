@@ -903,32 +903,26 @@ export function generateWorld() {
     { game: 'wheeltyche',  prov: 'TF', label: 'Wheel of Tyche',        w: 2, h: 2, spawn: 'urban',    n: 5 },
     { game: 'amphorae',    prov: 'TF', label: "Fortuna's Amphorae",    w: 3, h: 2, spawn: 'urban',    n: 5 },
     { game: 'fatesthread', prov: 'TF', label: "Fates' Thread",         w: 2, h: 2, spawn: 'upland',   n: 5 },
-    { game: 'tali',        prov: 'TF', label: 'Street Tali',           w: 2, h: 2, spawn: 'urban',    n: 4 },
     /* Chinese dynastic dragons */
     { game: 'pearldrop',   prov: 'DG', label: 'Dragon Pearl Drop',     w: 2, h: 2, spawn: 'urban',    n: 5 },
     { game: 'ninegates',   prov: 'DG', label: 'Nine Dragon Gates',     w: 3, h: 2, spawn: 'urban',    n: 4 },
     { game: 'dragonhoard', prov: 'DG', label: "Dragon's Hoard",        w: 3, h: 2, spawn: 'mountain', n: 5 },
-    { game: 'mahjong',     prov: 'DG', label: 'Alley Mahjong',         w: 2, h: 2, spawn: 'urban',    n: 4 },
     /* Wild West horseshoes */
     { game: 'horseshoetoss', prov: 'HV', label: 'Lucky Horseshoe Toss', w: 2, h: 2, spawn: 'urban',   n: 5 },
     { game: 'goldencorral',  prov: 'HV', label: 'The Golden Corral',    w: 3, h: 2, spawn: 'urban',   n: 4 },
     { game: 'prospector',    prov: 'HV', label: "Prospector's Horseshoe", w: 2, h: 2, spawn: 'wild',  n: 6 },
-    { game: 'standoff',      prov: 'HV', label: 'Showdown!',            w: 2, h: 2, spawn: 'urban',   n: 4 },
     /* Celtic clovers */
     { game: 'cloverbloom', prov: 'FL', label: 'Clover Bloom',          w: 2, h: 2, spawn: 'wild',     n: 6 },
     { game: 'faeriering',  prov: 'FL', label: 'Faerie Ring',           w: 2, h: 2, spawn: 'forest',   n: 5 },
     { game: 'grovereels',  prov: 'FL', label: 'Luck of the Grove',     w: 2, h: 2, spawn: 'upland',   n: 5 },
-    { game: 'roadbowls',   prov: 'FL', label: 'Road Bowls',            w: 2, h: 2, spawn: 'urban',    n: 4 },
     /* SE Asian jungle & spirituality */
     { game: 'spiritlanterns', prov: 'EP', label: 'Spirit Lanterns',    w: 2, h: 2, spawn: 'water',    n: 5 },
     { game: 'nagariver',      prov: 'EP', label: 'Naga River',         w: 3, h: 2, spawn: 'water',    n: 5 },
     { game: 'banyan',         prov: 'EP', label: 'Banyan Blessing',    w: 2, h: 2, spawn: 'forest',   n: 6 },
-    { game: 'haiko',          prov: 'EP', label: 'Haiko Corner',       w: 2, h: 2, spawn: 'urban',    n: 4 },
     /* Neon Japan */
     { game: 'neonneko',    prov: 'MN', label: 'Neon Neko',            w: 2, h: 2, spawn: 'urban',    n: 5 },
     { game: 'catparade',   prov: 'MN', label: 'Lucky Cat Parade',     w: 3, h: 2, spawn: 'urban',    n: 5 },
     { game: 'coincascade', prov: 'MN', label: 'Neko Coin Cascade',    w: 2, h: 2, spawn: 'urban',    n: 5 },
-    { game: 'pachinko',    prov: 'MN', label: 'Pachinko Stand',       w: 2, h: 2, spawn: 'urban',    n: 4 },
   ];
 
   const events = [];

@@ -763,6 +763,14 @@ function drawEventProp(ctx, game, W16, BH, v) {
     /* ---------------- Tyche & Fortuna ---------------- */
     case 'wheeltyche': {                       // marble Tyche holding a wheel
       shadow(4, B - 3, W16 - 8, 3);
+      px(ctx, 1, B - 32, W16 - 2, 4, '#e8e2d4');            // shrine canopy
+      px(ctx, 1, B - 32, W16 - 2, 1, '#f4f0e6');
+      px(ctx, 1, B - 29, W16 - 2, 1, '#c8c0ac');
+      px(ctx, (W16 >> 1) - 3, B - 31, 6, 2, '#f0c040');     // gilt boss
+      px(ctx, 2, B - 28, 3, 13, '#d8d2c0');                 // canopy posts
+      px(ctx, W16 - 5, B - 28, 3, 13, '#d8d2c0');
+      px(ctx, 2, B - 28, 1, 13, '#f4f0e6');
+      px(ctx, W16 - 5, B - 28, 1, 13, '#f4f0e6');
       px(ctx, 6, B - 6, 6, 6, '#d8d2c0');                   // plinth
       px(ctx, 6, B - 6, 6, 1, '#f4f0e6');
       px(ctx, 7, B - 15, 4, 9, '#e8e2d4');                  // robed figure
@@ -782,6 +790,16 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'amphorae': {                         // ring of jars round a shrine
       shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 2, B - 32, W16 - 4, 3, '#d8d2c0');            // vine pergola over the jars
+      px(ctx, 2, B - 32, W16 - 4, 1, '#f4f0e6');
+      for (let bx2 = 6; bx2 < W16 - 6; bx2 += 7) px(ctx, bx2, B - 29, 2, 3, '#c8c0ac');
+      px(ctx, 3, B - 29, 3, 14, '#e8e2d4');                 // posts
+      px(ctx, W16 - 6, B - 29, 3, 14, '#e8e2d4');
+      px(ctx, 3, B - 29, 1, 14, '#f4f0e6');
+      px(ctx, W16 - 6, B - 29, 1, 14, '#f4f0e6');
+      px(ctx, 8, B - 28, 5, 2, '#4f9c5a');                  // trained vine
+      px(ctx, W16 - 15, B - 27, 6, 2, '#4f9c5a');
+      px(ctx, 15, B - 26, 2, 3, '#3d8a4c');
       px(ctx, (W16 >> 1) - 4, B - 16, 8, 4, '#e8e2d4');     // shrine
       px(ctx, (W16 >> 1) - 3, B - 12, 6, 8, '#d8d2c0');
       px(ctx, (W16 >> 1) - 2, B - 15, 4, 3, '#f0c040');
@@ -798,6 +816,14 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'fatesthread': {                      // altar, spool and shears
       shadow(4, B - 3, W16 - 8, 3);
+      px(ctx, 1, B - 32, W16 - 2, 4, '#c8c0ac');            // the loom the threads run up into
+      px(ctx, 1, B - 32, W16 - 2, 1, '#f4f0e6');
+      px(ctx, 2, B - 28, 3, 12, '#d8d2c0');                 // loom uprights
+      px(ctx, W16 - 5, B - 28, 3, 12, '#d8d2c0');
+      px(ctx, 2, B - 28, 1, 12, '#f4f0e6');
+      px(ctx, W16 - 5, B - 28, 1, 12, '#f4f0e6');
+      px(ctx, 5, B - 27, W16 - 10, 2, '#a89c88');           // warp beam
+      for (let wx2 = 6; wx2 < W16 - 6; wx2 += 4) px(ctx, wx2, B - 25, 1, 4, '#e8d060'); // hanging warp
       px(ctx, 3, B - 7, W16 - 6, 7, '#c8c0ac');             // altar block
       px(ctx, 3, B - 7, W16 - 6, 2, '#f4f0e6');
       px(ctx, 5, B - 3, W16 - 10, 1, '#a89c88');
@@ -848,6 +874,16 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'ninegates': {                        // long dragon under nine arches
       shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 3, B - 31, W16 - 6, 4, '#a03030');            // paifang gate roof
+      px(ctx, 3, B - 31, W16 - 6, 1, '#f0c040');
+      px(ctx, 1, B - 27, W16 - 2, 4, '#7a2020');            // lower eave
+      px(ctx, 1, B - 27, W16 - 2, 1, '#f0c040');
+      px(ctx, 0, B - 25, 4, 2, '#f0c040');                  // upturned tips
+      px(ctx, W16 - 4, B - 25, 4, 2, '#f0c040');
+      px(ctx, 4, B - 23, 3, 7, '#8a2828');                  // gate posts down to the arcade
+      px(ctx, W16 - 7, B - 23, 3, 7, '#8a2828');
+      px(ctx, (W16 >> 1) - 4, B - 23, 8, 4, '#f0c040');     // gilt name board
+      px(ctx, (W16 >> 1) - 3, B - 22, 6, 2, '#7a2020');
       for (let g = 0; g < 9; g++) {
         const gx = 2 + Math.round(g * (W16 - 8) / 9);
         px(ctx, gx, B - 14, 2, 12, '#a03030');              // pillar
@@ -864,6 +900,15 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'dragonhoard': {                      // sleeping dragon over urns
       shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 0, B - 32, W16, 7, '#6d6864');                // cave roof over the hoard
+      px(ctx, 0, B - 32, W16, 2, '#8a847a');
+      px(ctx, 0, B - 26, W16, 1, '#4a4642');
+      [[5, 5], [14, 7], [24, 4], [34, 6], [42, 5]].forEach(([sx3, sh]) => {
+        px(ctx, sx3, B - 26, 3, sh, '#6d6864');             // stalactites
+        px(ctx, sx3, B - 26, 1, sh - 1, '#8a847a');
+      });
+      px(ctx, 1, B - 25, 3, 10, '#5a5652');                 // rock jambs
+      px(ctx, W16 - 4, B - 25, 3, 10, '#5a5652');
       px(ctx, 4, B - 12, W16 - 8, 7, '#3f8468');            // sleeping coil
       px(ctx, 5, B - 11, W16 - 10, 2, '#4f9c7e');
       px(ctx, 4, B - 16, 7, 5, '#4f9c7e');                  // head resting
@@ -883,6 +928,16 @@ function drawEventProp(ctx, game, W16, BH, v) {
     /* ---------------- Horseshoeville ---------------- */
     case 'horseshoetoss': {                    // stake, barrel, hitching post
       shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 3, B - 31, W16 - 6, 3, '#8a6034');            // sign gantry
+      px(ctx, 3, B - 31, W16 - 6, 1, '#a5793f');
+      px(ctx, 4, B - 28, 2, 12, '#6d4a28');                 // gantry legs
+      px(ctx, W16 - 6, B - 28, 2, 12, '#6d4a28');
+      px(ctx, (W16 >> 1) - 5, B - 28, 2, 2, '#5a4630');     // hanging chains
+      px(ctx, (W16 >> 1) + 3, B - 28, 2, 2, '#5a4630');
+      px(ctx, (W16 >> 1) - 6, B - 26, 12, 8, '#c8a060');    // painted board
+      px(ctx, (W16 >> 1) - 6, B - 26, 12, 1, '#e8d49a');
+      px(ctx, (W16 >> 1) - 4, B - 24, 8, 5, '#5a3a24');     // horseshoe device
+      px(ctx, (W16 >> 1) - 2, B - 22, 4, 3, '#c8a060');
       px(ctx, 8, B - 14, 2, 12, '#8a6034');                 // stake
       px(ctx, 7, B - 15, 4, 2, '#5f3f20');
       px(ctx, 6, B - 9, 2, 2, '#b8b0a0');                   // ringed shoes
@@ -897,6 +952,15 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'goldencorral': {                     // miniature corral + bell
       shadow(2, B - 3, W16 - 4, 3);
+      px(ctx, 3, B - 30, 3, 19, '#6d4a28');                 // ranch gate posts
+      px(ctx, W16 - 6, B - 30, 3, 19, '#6d4a28');
+      px(ctx, 2, B - 32, W16 - 4, 3, '#8a6034');            // header beam
+      px(ctx, 2, B - 32, W16 - 4, 1, '#a5793f');
+      px(ctx, (W16 >> 1) - 11, B - 29, 22, 8, '#5a3a24');   // hanging sign
+      px(ctx, (W16 >> 1) - 10, B - 28, 20, 6, '#c8a060');
+      px(ctx, (W16 >> 1) - 7, B - 27, 3, 4, '#5a3a24');     // brand marks
+      px(ctx, (W16 >> 1) - 2, B - 27, 3, 4, '#5a3a24');
+      px(ctx, (W16 >> 1) + 3, B - 27, 3, 4, '#5a3a24');
       px(ctx, 2, B - 12, W16 - 4, 1, '#8a6034');            // rails
       px(ctx, 2, B - 8, W16 - 4, 1, '#8a6034');
       for (let fx = 2; fx < W16 - 2; fx += 6) px(ctx, fx, B - 13, 1, 11, '#6d4a28');
@@ -911,6 +975,15 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'prospector': {                       // dig site with lantern
       shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 3, B - 31, W16 - 6, 3, '#6d4a28');            // headframe over the claim
+      px(ctx, 3, B - 31, W16 - 6, 1, '#8a6034');
+      px(ctx, 4, B - 28, 2, 13, '#8a6034');                 // legs
+      px(ctx, W16 - 6, B - 28, 2, 13, '#8a6034');
+      px(ctx, 6, B - 25, W16 - 12, 1, '#5f3f20');           // cross brace
+      px(ctx, 6, B - 21, W16 - 12, 1, '#5f3f20');
+      px(ctx, (W16 >> 1) - 2, B - 29, 4, 3, '#9a948a');     // pulley
+      px(ctx, (W16 >> 1) - 1, B - 26, 1, 8, '#5a4630');     // rope
+      px(ctx, (W16 >> 1) - 3, B - 18, 6, 4, '#7a746a');     // ore bucket
       [[3, 6], [11, 5], [W16 - 9, 6]].forEach(([mx, mw], i) => {
         px(ctx, mx, B - 4, mw, 4, '#a5793f');               // dirt mounds
         px(ctx, mx + 1, B - 6, mw - 2, 2, '#b8875a');
@@ -929,12 +1002,16 @@ function drawEventProp(ctx, game, W16, BH, v) {
     /* ---------------- Four Leaf Republic ---------------- */
     case 'cloverbloom': {                      // glowing clover patch + standing stones
       shadow(3, B - 3, W16 - 6, 3);
-      px(ctx, 2, B - 13, 5, 13, '#9a948a');                 // standing stones
-      px(ctx, 2, B - 13, 2, 13, '#b4aea2');
-      px(ctx, 2, B - 14, 5, 1, '#8a847a');
-      px(ctx, W16 - 7, B - 17, 5, 17, '#9a948a');
-      px(ctx, W16 - 7, B - 17, 2, 17, '#b4aea2');
-      px(ctx, W16 - 7, B - 18, 5, 1, '#8a847a');
+      // a dolmen: two standing stones carrying a capstone, clovers beneath
+      px(ctx, 2, B - 26, 6, 26, '#9a948a');
+      px(ctx, 2, B - 26, 2, 26, '#b4aea2');
+      px(ctx, W16 - 8, B - 26, 6, 26, '#9a948a');
+      px(ctx, W16 - 8, B - 26, 2, 26, '#b4aea2');
+      px(ctx, 1, B - 32, W16 - 2, 6, '#8a847a');            // capstone
+      px(ctx, 1, B - 32, W16 - 2, 2, '#a8a29e');
+      px(ctx, 1, B - 27, W16 - 2, 1, '#6d6864');
+      px(ctx, 4, B - 25, 3, 2, '#4f9845');                  // moss
+      px(ctx, W16 - 7, B - 21, 3, 2, '#4f9845');
       // four-leaf clovers: four round lobes on a stem
       const clover = (cx2, cy2, lit) => {
         const base = lit ? '#8dff6b' : '#3d8a3a', hi = lit ? '#c8ffb0' : '#4faf50';
@@ -953,6 +1030,16 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'faeriering': {                       // mushroom faerie circle
       shadow(3, B - 3, W16 - 6, 3);
+      px(ctx, 2, B - 27, 4, 27, '#5a3a1e');                 // old bough leaning over the ring
+      px(ctx, 3, B - 32, W16 - 9, 4, '#5a3a1e');
+      px(ctx, 3, B - 32, W16 - 9, 1, '#6d4726');
+      px(ctx, W16 - 7, B - 30, 4, 8, '#5a3a1e');            // it dips back down
+      px(ctx, 6, B - 28, 6, 3, '#2f7a44');                  // leaf clumps
+      px(ctx, 15, B - 29, 7, 3, '#3d8a4c');
+      px(ctx, W16 - 13, B - 27, 6, 3, '#2f7a44');
+      px(ctx, 10, B - 25, 1, 4, '#8dff6b');                 // faerie lights on threads
+      px(ctx, 18, B - 25, 1, 5, '#c8ffb0');
+      px(ctx, W16 - 10, B - 23, 1, 3, '#8dff6b');
       const caps = [[4, B - 6], [9, B - 9], [16, B - 10], [W16 - 8, B - 8], [W16 - 5, B - 4], [12, B - 3], [6, B - 3]];
       caps.forEach(([mx, my], i) => {
         px(ctx, mx + 1, my + 3, 2, 3, '#e8dcc0');           // stalk
@@ -989,13 +1076,16 @@ function drawEventProp(ctx, game, W16, BH, v) {
     /* ---------------- Elephantium ---------------- */
     case 'spiritlanterns': {                   // lantern rack + incense altar
       shadow(3, B - 3, W16 - 6, 3);
-      px(ctx, 3, B - 16, 2, 16, '#6d4726');                 // rack posts
-      px(ctx, W16 - 6, B - 16, 2, 16, '#6d4726');
-      px(ctx, 3, B - 17, W16 - 6, 2, '#8a5c32');            // crossbeam
-      [[6, 5], [13, 7], [W16 - 12, 4], [W16 - 19, 8]].forEach(([lx2, drop], i) => {
-        px(ctx, lx2 + 1, B - 15, 1, drop, '#4a3a2a');       // cord
-        px(ctx, lx2, B - 15 + drop, 4, 5, ['#d44a4a', '#e8901a', '#f0c040', '#d44a8a'][i]);
-        px(ctx, lx2 + 1, B - 14 + drop, 1, 3, '#fff0c0');   // glow
+      px(ctx, 3, B - 30, 3, 30, '#6d4726');                 // tall rack posts
+      px(ctx, W16 - 7, B - 30, 3, 30, '#6d4726');
+      px(ctx, 3, B - 30, 1, 30, '#8a5c32');
+      px(ctx, W16 - 7, B - 30, 1, 30, '#8a5c32');
+      px(ctx, 2, B - 32, W16 - 4, 3, '#8a5c32');            // crossbeam
+      px(ctx, 2, B - 32, W16 - 4, 1, '#a5713e');
+      [[7, 3], [13, 9], [W16 - 12, 5], [W16 - 18, 12]].forEach(([lx2, drop], i) => {
+        px(ctx, lx2 + 1, B - 29, 1, drop, '#4a3a2a');       // cord
+        px(ctx, lx2, B - 29 + drop, 4, 5, ['#d44a4a', '#e8901a', '#f0c040', '#d44a8a'][i]);
+        px(ctx, lx2 + 1, B - 28 + drop, 1, 3, '#fff0c0');   // glow
       });
       px(ctx, (W16 >> 1) - 3, B - 6, 7, 6, '#a05a28');      // altar
       px(ctx, (W16 >> 1) - 2, B - 8, 1, 2, '#d8d8e0');      // incense smoke
@@ -1004,6 +1094,18 @@ function drawEventProp(ctx, game, W16, BH, v) {
     }
     case 'nagariver': {                        // naga fountain + channel
       shadow(2, B - 3, W16 - 4, 3);
+      // the naga's body arcs overhead, carried on two carved pillars
+      for (let ax2 = 1; ax2 < W16 - 1; ax2++) {
+        const ay2 = B - 30 + Math.round(Math.sin(ax2 * 0.42) * 2);
+        px(ctx, ax2, ay2, 1, 6, '#3f8468');
+        px(ctx, ax2, ay2, 1, 2, '#5fb08e');
+        if (ax2 % 6 === 0) px(ctx, ax2, ay2 + 6, 1, 2, '#f0c040');   // scale studs
+      }
+      px(ctx, 18, B - 23, 4, 8, '#8a8480');                 // pillars
+      px(ctx, W16 - 15, B - 23, 4, 8, '#8a8480');
+      px(ctx, 18, B - 23, 1, 8, '#a8a29e');
+      px(ctx, W16 - 15, B - 23, 1, 8, '#a8a29e');
+      px(ctx, W16 - 9, B - 32, 5, 4, '#f0c040');            // tail crest
       px(ctx, 2, B - 6, W16 - 4, 6, '#8a8480');             // stone channel
       px(ctx, 3, B - 5, W16 - 6, 4, '#4a94b8');             // water
       for (let wx = 4; wx < W16 - 4; wx += 5) px(ctx, wx, B - 4, 3, 1, '#a8e0ea');
@@ -1082,8 +1184,10 @@ function drawEventProp(ctx, game, W16, BH, v) {
       break;
     }
     default:
-      shadow(4, B - 3, W16 - 8, 3);
-      px(ctx, 5, B - 10, W16 - 10, 10, '#8a8480');
+      // No prop art for this game — never spawn one in the world. A grey
+      // placeholder slab reads as a rendering bug and leaves an invisible
+      // solid band above it, so draw nothing and say so loudly instead.
+      console.warn(`[luckland] no world prop drawn for game "${game}" — remove it from EVENT_TYPES`);
       break;
   }
 }
