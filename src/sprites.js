@@ -1636,6 +1636,35 @@ function drawStation(ctx, kind, W16, B, v) {
       px(ctx, 5, B - 14, 1, 1, '#ffe066'); px(ctx, W16 - 7, B - 14, 1, 1, '#ffe066');
       break;
     }
+    case 'ring': {                                // full boxing ring — canvas, ropes, posts
+      px(ctx, 0, 4, W16, B - 4, '#3a5a9a');                    // apron
+      px(ctx, 2, 6, W16 - 4, B - 12, '#6a8ac8');               // canvas
+      px(ctx, 3, 7, W16 - 6, B - 14, '#7a9ad8');
+      px(ctx, W16 / 2 - 8, B / 2 - 6, 16, 12, '#c04a4a');      // centre logo
+      px(ctx, W16 / 2 - 6, B / 2 - 4, 12, 8, '#e8b830');
+      for (const ry of [8, 14]) {                              // ropes
+        px(ctx, 1, ry, W16 - 2, 2, '#e8e2d4');
+        px(ctx, 1, ry + B - 26, W16 - 2, 2, '#c04a4a');
+      }
+      for (const [cx2, cy2] of [[1, 4], [W16 - 4, 4], [1, B - 8], [W16 - 4, B - 8]]) {
+        px(ctx, cx2, cy2, 3, 8, '#26202c');                    // corner posts
+        px(ctx, cx2, cy2, 3, 2, '#f0c040');
+      }
+      break;
+    }
+    case 'kiosk': {                               // bookie kiosk with odds board
+      sh();
+      px(ctx, 2, B - 24, W16 - 4, 10, '#2c2838');              // odds board
+      for (let r = 0; r < 3; r++) {
+        px(ctx, 4, B - 22 + r * 3, 8, 2, ['#ffe066', '#5eeaff', '#8dff6b'][r]);
+        px(ctx, W16 - 12, B - 22 + r * 3, 7, 2, '#c8ccd8');
+      }
+      px(ctx, 2, B - 13, W16 - 4, 9, '#5a3a24');               // counter
+      px(ctx, 2, B - 13, W16 - 4, 2, '#8a6034');
+      px(ctx, 4, B - 10, 4, 3, '#e8d49a');                     // ticket stack
+      px(ctx, W16 - 9, B - 10, 4, 3, '#f0c040');               // coin tray
+      break;
+    }
     default: {                                    // 'counter' — a game counter with a keeper's setup
       sh();
       px(ctx, 2, B - 14, W16 - 4, 10, '#5a3a24');              // counter
@@ -1770,8 +1799,145 @@ function drawDecor(ctx, kind, W16, B, v) {
       px(ctx, 1, 2, W16 - 2, 1, '#ff6be0'); px(ctx, 1, B - 4, W16 - 2, 1, '#5eeaff');
       break;
     }
+    case 'bleacher': {                            // packed stand, crowd facing out
+      px(ctx, 0, 2, W16, B - 4, '#8a6a4a');                    // tiers
+      px(ctx, 0, 2, W16, 2, '#a5824f');
+      for (let row = 0; row < Math.floor((B - 8) / 9); row++) {
+        px(ctx, 0, 4 + row * 9 + 7, W16, 2, '#6d5238');        // tier lip
+        for (let hx = 2 + (row % 2) * 4; hx < W16 - 3; hx += 7) {
+          const c = ['#f0c8a0', '#c89a70', '#a5713f', '#e8b890'][((hx + row * 3 + v) >> 2) % 4];
+          const shirt = ['#5a76c8', '#c85a6a', '#4f9c5e', '#d9a545', '#8a5ac8'][((hx * 7 + row + v) >> 1) % 5];
+          px(ctx, hx, 5 + row * 9 + ((hx + v) % 2), 4, 3, c);  // head (bobbing)
+          px(ctx, hx, 8 + row * 9, 4, 3, shirt);               // shoulders
+        }
+      }
+      break;
+    }
+    case 'marblestand': {                         // carved coliseum seating with crowd
+      px(ctx, 0, 0, W16, B, '#d8d2c0');
+      for (let row = 0; row < Math.floor(B / 9); row++) {
+        px(ctx, 0, row * 9 + 7, W16, 2, '#b4ad9c');
+        for (let hx = 2 + (row % 2) * 4; hx < W16 - 3; hx += 7) {
+          const c = ['#f0c8a0', '#c89a70', '#a5713f'][((hx + row + v) >> 2) % 3];
+          px(ctx, hx, row * 9 + 1 + ((hx + v) % 2), 4, 3, c);
+          px(ctx, hx, row * 9 + 4, 4, 3, ['#e8e2d4', '#c04a4a', '#5a76c8', '#d9a545'][((hx * 3 + row + v) >> 1) % 4]);
+        }
+      }
+      break;
+    }
+    case 'foodstand': {                           // snack stall with awning
+      sh2(ctx, W16, B);
+      px(ctx, 1, B - 26, W16 - 2, 4, (v % 2) ? '#c04a4a' : '#3d8a4c'); // awning
+      for (let sx2 = 1; sx2 < W16 - 2; sx2 += 6) px(ctx, sx2, B - 26, 3, 4, '#f4f0e6');
+      px(ctx, 2, B - 22, 2, 8, '#5a3a24'); px(ctx, W16 - 4, B - 22, 2, 8, '#5a3a24');
+      px(ctx, 1, B - 14, W16 - 2, 10, '#8a6034');              // counter
+      px(ctx, 1, B - 14, W16 - 2, 2, '#a5793f');
+      px(ctx, 4, B - 11, 4, 3, '#e8b830'); px(ctx, 10, B - 11, 4, 3, '#d44a4a'); // skewers & bowls
+      px(ctx, W16 - 9, B - 11, 5, 3, '#e8d49a');
+      break;
+    }
+    case 'shelf': {                               // artifact shelf: urns, relics, curios
+      px(ctx, 1, B - 28, W16 - 2, 25, '#5a3a24');
+      px(ctx, 2, B - 27, W16 - 4, 23, '#3a2a18');
+      for (const sy2 of [B - 25, B - 17, B - 9]) {
+        px(ctx, 2, sy2 + 5, W16 - 4, 2, '#6d4a28');            // shelf boards
+        for (let ox = 4; ox < W16 - 6; ox += 7) {
+          const kind2 = ((ox + sy2 + v) >> 2) % 3;
+          if (kind2 === 0) { px(ctx, ox, sy2, 4, 5, '#b8763a'); px(ctx, ox + 1, sy2 - 1, 2, 1, '#8a5a2a'); } // urn
+          else if (kind2 === 1) px(ctx, ox, sy2 + 1, 5, 4, '#f0c040');   // gold relic
+          else { px(ctx, ox, sy2, 4, 5, '#3fb0a0'); px(ctx, ox + 1, sy2 + 1, 2, 2, '#8fd8c8'); } // jade
+        }
+      }
+      break;
+    }
+    case 'armor': {                               // standing suit of armour
+      px(ctx, W16 / 2 - 4, B - 5, 8, 3, '#5a3a24');            // base
+      px(ctx, W16 / 2 - 3, B - 18, 6, 10, '#b8bcc0');          // cuirass
+      px(ctx, W16 / 2 - 3, B - 18, 2, 10, '#d8dce4');
+      px(ctx, W16 / 2 - 2, B - 23, 4, 5, '#9aa0ac');           // helm
+      px(ctx, W16 / 2 - 2, B - 21, 4, 1, '#26202c');           // visor
+      px(ctx, W16 / 2 - 5, B - 17, 2, 6, '#9aa0ac'); px(ctx, W16 / 2 + 3, B - 17, 2, 6, '#9aa0ac');
+      px(ctx, W16 / 2 + 4, B - 22, 2, 14, '#8a6034');          // halberd
+      px(ctx, W16 / 2 + 3, B - 24, 4, 3, '#c8ccd8');
+      break;
+    }
+    case 'treasure': {                            // heaped riches
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 8, W16 - 4, 5, '#e8b830');                // gold heap
+      px(ctx, 4, B - 11, W16 - 8, 4, '#f0c040');
+      px(ctx, 7, B - 14, W16 - 14, 3, '#ffe066');
+      px(ctx, 3, B - 10, 2, 2, '#d44a4a'); px(ctx, W16 - 6, B - 9, 2, 2, '#3fb0a0'); // gems
+      px(ctx, W16 / 2 - 1, B - 16, 3, 3, '#5eeaff');
+      px(ctx, 1, B - 16, 6, 8, '#8a6034'); px(ctx, 2, B - 16, 4, 2, '#a5793f');      // tipped chest
+      break;
+    }
+    case 'zenrock': {                             // raked-sand rock cluster
+      px(ctx, 2, B - 6, W16 - 4, 2, 'rgba(0,0,0,0.12)');
+      px(ctx, 3, B - 12, 9, 8, '#8a8478'); px(ctx, 4, B - 13, 6, 3, '#a8a29e');
+      px(ctx, W16 - 10, B - 9, 6, 5, '#6d6860');
+      px(ctx, W16 / 2 - 1, B - 8, 4, 4, '#9a948a');
+      px(ctx, 4, B - 11, 2, 2, '#7d9a52');                     // moss
+      break;
+    }
+    case 'incense': {                             // burner with drifting smoke
+      px(ctx, W16 / 2 - 4, B - 6, 8, 4, '#8a6a42');            // bronze bowl
+      px(ctx, W16 / 2 - 3, B - 8, 6, 3, '#c49038');
+      px(ctx, W16 / 2 - 1, B - 10, 2, 2, '#e05a30');           // embers
+      for (let k = 0; k < 5; k++) {
+        px(ctx, W16 / 2 - 1 + ((k + v) % 3) - 1, B - 13 - k * 4, 2, 2, `rgba(216,216,224,${0.55 - k * 0.09})`);
+      }
+      break;
+    }
+    case 'teacorner': {                           // low table, cushions, tea set
+      px(ctx, 1, B - 4, W16 - 2, 3, 'rgba(140,40,40,0.4)');    // carpet edge
+      px(ctx, 3, B - 12, W16 - 6, 8, '#5a3a24');               // low table
+      px(ctx, 3, B - 12, W16 - 6, 2, '#8a6034');
+      px(ctx, 6, B - 15, 4, 4, '#3fb0a0'); px(ctx, 7, B - 17, 2, 2, '#8fd8c8');   // teapot
+      px(ctx, W16 - 10, B - 14, 3, 3, '#e8d49a'); px(ctx, W16 / 2, B - 14, 3, 3, '#e8d49a'); // cups
+      px(ctx, 1, B - 8, 3, 4, '#c04a4a'); px(ctx, W16 - 4, B - 8, 3, 4, '#3f6ac8');          // cushions
+      break;
+    }
+    case 'tvwall': {                              // bank of race screens
+      px(ctx, 0, 1, W16, B - 4, '#16121e');
+      for (let c2 = 0; c2 < Math.floor(W16 / 15); c2++) for (let r2 = 0; r2 < 2; r2++) {
+        const ox = 2 + c2 * 15, oy = 3 + r2 * ((B - 8) / 2);
+        px(ctx, ox, oy, 12, (B - 12) / 2, ((c2 + r2 + v) % 2) ? '#1a2c1e' : '#2a1a30');
+        px(ctx, ox + 1, oy + 2, 7, 1, '#8dff6b');              // odds lines
+        px(ctx, ox + 1, oy + 4, 5, 1, '#ffe066');
+        px(ctx, ox + 1, oy + 6, 8, 1, '#5eeaff');
+      }
+      break;
+    }
+    case 'longtable': {                           // feast table groaning with food
+      sh2(ctx, W16, B);
+      px(ctx, 1, B - 18, W16 - 2, 13, '#6d4a28');              // table
+      px(ctx, 0, B - 20, W16, 4, '#8a6034');
+      px(ctx, 1, B - 19, W16 - 2, 1, '#a5793f');
+      for (let ox = 3; ox < W16 - 5; ox += 8) {
+        const k2 = ((ox + v) >> 3) % 4;
+        if (k2 === 0) { px(ctx, ox, B - 24, 5, 4, '#c46a3a'); px(ctx, ox + 1, B - 25, 3, 1, '#8a5a2a'); }  // roast
+        else if (k2 === 1) { px(ctx, ox + 1, B - 25, 3, 5, '#d9a545'); }                                   // flagon
+        else if (k2 === 2) { px(ctx, ox, B - 23, 5, 3, '#e8d49a'); }                                       // bread
+        else { px(ctx, ox + 1, B - 24, 3, 4, '#8a2030'); }                                                 // wine
+      }
+      px(ctx, 2, B - 5, 3, 2, '#5a3a24'); px(ctx, W16 - 5, B - 5, 3, 2, '#5a3a24'); // legs
+      break;
+    }
+    case 'scrolls': {                             // pigeonhole scroll rack
+      px(ctx, 1, B - 28, W16 - 2, 25, '#8a6034');
+      for (let r2 = 0; r2 < 3; r2++) for (let c2 = 0; c2 < Math.floor((W16 - 6) / 7); c2++) {
+        const ox = 3 + c2 * 7, oy = B - 26 + r2 * 8;
+        px(ctx, ox, oy, 6, 6, '#5a3a24');
+        px(ctx, ox + 1, oy + 1, 4, 4, '#e8d49a');              // rolled scroll end
+        px(ctx, ox + 2, oy + 2, 2, 2, '#c4ae7c');
+      }
+      break;
+    }
   }
 }
+
+/* small shared shadow for decor pieces */
+function sh2(ctx, W16, B) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(2, B - 3, W16 - 4, 3); }
 
 /* 16x16 decorative street props, styled per province. */
 function drawProp(ctx, prov, v) {

@@ -97,6 +97,25 @@ export const GAME_DEFS = {
       { m: 60, w: 1, sym: '👑', text: 'TYCHE HERSELF SPEAKS!' },
     ],
   },
+  coliseumbets: {
+    name: 'The Editor\'s Book', ico: '🏟️', prov: 'TF',
+    desc: 'Games all day on the sand — chariots, gladiators, glory. Name your wager.',
+    mech: 'props',
+    eventName: 'the games',
+    props: [
+      { label: 'Blues chariot wins', ico: '🔵', p: 0.47 },
+      { label: 'Greens chariot wins', ico: '🟢', p: 0.43 },
+      { label: 'Crash on the turns', ico: '💥', p: 0.22 },
+      { label: 'Champion keeps his laurels', ico: '🏆', p: 0.55 },
+      { label: 'Bout ends in mercy', ico: '🤝', p: 0.38 },
+      { label: 'Upset of the day', ico: '😱', p: 0.16 },
+    ],
+    ticker: [
+      'The gates crash open!', 'Whips crack down the straight!', 'Wheel to wheel into the turn!',
+      'The crowd is on its feet!', 'Sand flies from the hooves!', 'A shield splinters!',
+      'The editor raises his hand…', 'Laurels glint in the sun!',
+    ],
+  },
 
   /* ---------------- Four Leaf Republic ---------------- */
   roadbowls: {
@@ -148,6 +167,19 @@ export const GAME_DEFS = {
       { name: 'Dusty Belle', ico: '🎠', p: 0.19 },
       { name: 'Sidewinder', ico: '🦄', p: 0.15 },
       { name: 'Old Biscuit', ico: '🫏', p: 0.12 },
+    ],
+  },
+  downsrace: {
+    name: 'The Lucklian Stakes', ico: '🏁', prov: 'HV',
+    desc: "The Downs' famous courser races — backed by the paddock's finest.",
+    mech: 'race',
+    runners: [
+      { name: 'Voltjack', ico: '⚡', p: 0.28 },
+      { name: 'Deadlight Courser', ico: '🔥', p: 0.22 },
+      { name: 'Whitewraith', ico: '❄️', p: 0.18 },
+      { name: 'Blackspur', ico: '🦌', p: 0.14 },
+      { name: 'Coppergrin', ico: '🦊', p: 0.11 },
+      { name: 'Old Bristlejack', ico: '🐇', p: 0.07 },
     ],
   },
   fivecard: {
@@ -205,6 +237,25 @@ export const GAME_DEFS = {
       { name: 'The Challenger', ico: '🥋', p: 0.42 },
     ],
     raceStyle: 'clash',
+  },
+  muaythaibout: {
+    name: 'Ringside Book', ico: '🥊', prov: 'EP',
+    desc: 'The bouts never stop. Pick your prop, the ring provides.',
+    mech: 'props',
+    eventName: 'the bout',
+    props: [
+      { label: 'Red corner wins', ico: '🔴', p: 0.52 },
+      { label: 'Blue corner wins', ico: '🔵', p: 0.48 },
+      { label: 'Finish by knockout', ico: '💥', p: 0.34 },
+      { label: 'Goes the distance', ico: '🛎️', p: 0.44 },
+      { label: 'Round 1 finish', ico: '1️⃣', p: 0.14 },
+      { label: 'Both fighters dropped', ico: '🤕', p: 0.09 },
+    ],
+    ticker: [
+      'The fighters touch gloves…', 'A vicious low kick lands!', 'Clinch against the ropes — knees flying!',
+      'The crowd roars for blood!', 'An elbow opens a cut!', 'The ref steps in for a count!',
+      'Spinning back-fist just misses!', 'The corner screams instructions!',
+    ],
   },
   /* ============================================================
      Roadside attractions — each of these has a hand-drawn prop
@@ -719,6 +770,65 @@ async function runRace(def, provCode) {
     const again = document.createElement('button');
     again.className = 'btn secondary';
     again.textContent = 'New race';
+    again.addEventListener('click', board);
+    ui.stage.appendChild(again);
+  }
+  board();
+}
+
+/* ------------------------------------------------------------
+   Mechanic: props — live-event prop betting. Each prop is an
+   independent yes/no wager with stated probability p; a hit
+   pays RTP / p, so every prop returns exactly the configured
+   RTP no matter which one the punter fancies.
+   ------------------------------------------------------------ */
+async function runProps(def, provCode) {
+  const ui = baseModal(def, provCode);
+  let bet = state.lastBet;
+  buildBetRow(ui.betBox, (v) => { bet = v; });
+
+  function board() {
+    const rtp = effectiveRTP(gameIdOf(def), provCode);
+    ui.stage.innerHTML = `<div class="flavor" style="margin-bottom:6px">Pick a prop on ${escapeHtml(def.eventName)} — tap to bet!</div>`;
+    def.props.forEach((pr, i) => {
+      const row = document.createElement('div');
+      row.className = 'race-lane race-pick-btn';
+      row.innerHTML = `<span style="flex:1;text-align:left">${pr.ico} ${escapeHtml(pr.label)}</span>
+        <span class="odds">${fmtMult(rtp / pr.p)}x</span>`;
+      row.addEventListener('click', () => start(i));
+      ui.stage.appendChild(row);
+    });
+  }
+
+  async function start(pickIdx) {
+    const s = session;
+    if (!playGuard(bet)) return;
+    const rtp = effectiveRTP(gameIdOf(def), provCode);
+    const pr = def.props[pickIdx];
+    const hit = roll() < pr.p;
+
+    ui.stage.innerHTML = `<div class="flavor" style="margin-bottom:4px">${pr.ico} Riding on: <b>${escapeHtml(pr.label)}</b> (${fmtMult(rtp / pr.p)}x)</div>
+      <div id="props-ticker" style="min-height:84px;text-align:left;font-size:12.5px;line-height:1.7"></div>`;
+    const tick = document.getElementById('props-ticker');
+    const lines = [...def.ticker].sort(() => roll() - 0.5).slice(0, 4);
+    for (const line of lines) {
+      await wait(650);
+      if (!alive(s)) return;
+      const el = document.createElement('div');
+      el.textContent = `📣 ${line}`;
+      tick.appendChild(el);
+    }
+    await wait(500);
+    if (!alive(s)) return;
+    const el = document.createElement('div');
+    el.innerHTML = hit ? `${pr.ico} <b>IT LANDS — ${escapeHtml(pr.label)}!</b>` : `❌ Not this time — <b>${escapeHtml(pr.label)}</b> misses.`;
+    tick.appendChild(el);
+    await wait(350);
+    if (!alive(s)) return;
+    settle(bet, hit ? rtp / pr.p : 0, ui.stage, hit ? 'The book pays out with a grimace.' : 'The book keeps your coin.');
+    const again = document.createElement('button');
+    again.className = 'btn secondary';
+    again.textContent = 'Next event';
     again.addEventListener('click', board);
     ui.stage.appendChild(again);
   }
@@ -1250,6 +1360,7 @@ export function openGame(gameId, provCode) {
     case 'paytable': runPaytable(def, provCode); break;
     case 'pick': runPick(def, provCode); break;
     case 'race': runRace(def, provCode); break;
+    case 'props': runProps(def, provCode); break;
     case 'hilo': runHilo(def, provCode); break;
     case 'standoff': runStandoff(def, provCode); break;
     case 'wheel': runWheel(def, provCode); break;

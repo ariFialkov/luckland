@@ -73,12 +73,20 @@ roadside attractions and roaming characters:
 | **Maneki-Neko (MN)** | Neon-Japan archipelago, northeast | Downtown/North/East Maneki (Magic Mushroom Casino, Sumo Arena, Central Park), Koban Row, Neko Town | Pachinko |
 
 **Landmark halls:** every landmark door leads inside, Pokémon style — a quick
-fade to black, and you're standing in a walkable hall themed to the place:
-slot banks, neon signs and smoking patrons in the Magic Mushroom Casino, a
-bar, piano and card tables in the Grand Saloon, lacquered pillars and
-lanterns in the Golden Tiger Hall, banners in Ballyclover Castle. Each of
-the hall's games is a physical station — walk into one to play — and the
-doorway mat leads back out.
+fade to black, and you're standing in a walkable hall themed to the place.
+Each hall's games are physical stations — walk into one to play — and the
+doorway mat leads back out. The great set-pieces are alive: the Roaring
+Elephant Arena has bleachers roaring around a live ring (fighters trading
+blows, ref circling, corner teams) where the **Ringside Book** takes prop
+bets on the bouts; Horseshoe Downs has a paddock of horse-like Lucklians, a
+track with racers pounding laps, a TV-lined bookie hall running **The
+Lucklian Stakes**; the Coliseum's marble stands scream over chariots and
+gladiators on the sand while **The Editor's Book** takes wagers on the
+games; the Panhellenium hosts a philosophers' debate in its amphitheatre;
+Ballyclover Castle throws a permanent feast (nobles, servants, jesters with
+games); the Shady Temple hides treasure, synchronized tai chi and tea
+corners; EP's temples are zen gardens with meditating monks and incense;
+and the Magic Mushroom Casino is wall-to-wall slots, neon and smoke.
 
 **Getting around:** shore shallows and small rivers are wadeable at reduced
 speed; deep water is not. The **Paradise Ferry** (fare in `src/config.js`)

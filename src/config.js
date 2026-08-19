@@ -90,6 +90,9 @@ export const GAME_RTP = {
   horseshoetoss:  0.94,  // ringers and leaners
   goldencorral:   0.93,  // miniature horse race
   prospector:     0.95,  // dig up a buried horseshoe
+  muaythaibout:   0.94,  // EP — ringside prop book (live bouts)
+  downsrace:      0.93,  // HV — the Lucklian courser stakes
+  coliseumbets:   0.94,  // TF — the editor's book (arena events)
   // Celtic clovers (FL)
   cloverbloom:    0.94,  // count the leaves
   faeriering:     0.95,  // the mushroom ring stops

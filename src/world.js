@@ -664,7 +664,7 @@ export function generateWorld() {
 
   /* prov, name, icon, description, x, y, w, h, games */
   const LM = [
-    ['TF', 'Coliseum of Pontium', '🏟️', 'Chariots thunder for your denarii', 168, 44, 8, 5, ['chariots', 'tali', 'wheeltyche']],
+    ['TF', 'Coliseum of Pontium', '🏟️', 'Chariots thunder for your denarii', 168, 44, 8, 5, ['coliseumbets', 'chariots', 'tali', 'wheeltyche']],
     ['TF', 'Temple of Tyche', '🏛️', 'Marble halls above the western cape', 117, 51, 6, 4, ['oracle', 'wheeltyche', 'fatesthread']],
     ['TF', 'Temple of Fortuna', '🏛️', 'Gilded seat of the eastern court', 233, 30, 6, 4, ['oracle', 'amphorae', 'fatesthread']],
     ['TF', 'Epineion Harbourhouse', '⚓', 'Sailors bet the tide here', 236, 58, 5, 4, ['tali', 'cointoss', 'amphorae']],
@@ -672,7 +672,7 @@ export function generateWorld() {
     ['FL', 'Ballyclover Castle', '🏰', 'Ancient keep of the Four Leaf kings', 112, 101, 8, 6, ['cointoss', 'roadbowls', 'cloverbloom', 'grovereels']],
     ['FL', 'Kilfenny Bookmakers', '📓', 'Odds on anything that moves', 22, 124, 5, 4, ['roadbowls', 'cointoss']],
     ['FL', 'Puffin Point Light', '🗼', 'The luckiest lighthouse in the Republic', 22, 85, 4, 4, ['rainbow']],
-    ['HV', 'Horseshoe Downs', '🏇', 'The dustiest derby in the west', 36, 199, 9, 5, ['ponies', 'fivecard', 'goldencorral']],
+    ['HV', 'Horseshoe Downs', '🏇', 'The dustiest derby in the west', 36, 199, 9, 5, ['downsrace', 'ponies', 'fivecard', 'goldencorral']],
     ['HV', 'The Grand Saloon', '🤠', 'Swing the doors, draw your luck', 85, 163, 7, 5, ['fivecard', 'standoff', 'horseshoetoss']],
     ['DG', 'Flat Palace', '🏯', 'Broad courts of the western dragon lords', 132, 170, 8, 5, ['mahjong', 'sicbo', 'pearldrop']],
     ['DG', 'Golden Tiger Hall', '🏯', "Tiger City's roaring gambling court", 152, 183, 9, 6, ['mahjong', 'sicbo', 'ninegates']],
@@ -681,7 +681,7 @@ export function generateWorld() {
     ['DG', 'Shady Temple', '⛩️', 'High stakes in low light', 222, 145, 6, 4, ['sicbo', 'teahouse']],
     ['DG', 'Peekaboo Palace', '🏯', 'Now you see your winnings…', 236, 153, 7, 5, ['mahjong', 'teahouse', 'dragonhoard']],
     ['EP', 'The Golden Temple', '🛕', 'Bells, bells, and blessed bells', 233, 164, 7, 5, ['spirits', 'haiko', 'spiritlanterns', 'banyan']],
-    ['EP', 'Roaring Elephant Arena', '🥊', "Khrueang's ring of glory", 333, 178, 8, 6, ['muaythai', 'haiko', 'nagariver']],
+    ['EP', 'Roaring Elephant Arena', '🥊', "Khrueang's ring of glory", 333, 178, 8, 6, ['muaythaibout', 'muaythai', 'haiko', 'nagariver']],
     ['EP', 'Waterfall Park Pavilion', '⛲', 'Wager to the sound of falling water', 297, 211, 5, 4, ['haiko', 'spirits', 'nagariver']],
     ['MN', 'Magic Mushroom Casino', '🍄', 'Neon towers of endless pachinko', 293, 68, 8, 6, ['pachinko', 'slots', 'neonneko', 'coincascade']],
     ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumo', 'pachinko', 'catparade']],

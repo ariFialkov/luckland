@@ -469,8 +469,22 @@ function interiorTick(dt, now) {
       spr.width * zoom, spr.height * zoom);
   }
 
-  /* patrons + player, y-sorted */
-  const list = [player, ...it.patrons].sort((a, b) => a.y - b.y);
+  /* Lucklian performers first (racers circle behind the crowd) */
+  for (const a of it.actors) {
+    if (!a.lk) continue;
+    const spr = getLucklianSprite(a.lk);
+    ctx.drawImage(spr,
+      Math.round((a.x - 12 - camX) * zoom),
+      Math.round((a.y - 18 + (a.bob || 0) - camY) * zoom),
+      spr.width * zoom, spr.height * zoom);
+    if (a.type === 'racer') {   // dust kicked up behind
+      ctx.fillStyle = 'rgba(200,170,120,0.4)';
+      ctx.fillRect(Math.round((a.x - 16 - camX) * zoom), Math.round((a.y - camY) * zoom), zoom * 2, zoom);
+    }
+  }
+
+  /* patrons + player + performing figures, y-sorted */
+  const list = [player, ...it.patrons, ...it.actors.filter((a) => a.sprite)].sort((a, b) => a.y - b.y);
   for (const e of list) {
     const { sx, sy } = drawSprite(e, camX, camY);
     if (e.smokes) {
@@ -481,6 +495,19 @@ function interiorTick(dt, now) {
       ctx.fillRect(sx + (CHAR_W - 2) * zoom, sy - ph * 3.2 * zoom, zoom, zoom);
     }
     if (e.cheerT > 0) drawEmoji('🎉', e.x, e.y - 20, camX, camY, 9, Math.sin(now / 90) * 2);
+    if (e.emote) drawEmoji(e.emote.ico, e.x, e.y - 20, camX, camY, 9, Math.sin(now / 120) * 1.5);
+  }
+
+  /* emoji performers + crowd roar */
+  for (const a of it.actors) {
+    if (a.type === 'chariot') {
+      drawEmoji(a.ico, a.x, a.y, camX, camY, 13, Math.sin(a.ang * 6) * 1.2);
+      ctx.fillStyle = 'rgba(200,170,120,0.4)';
+      ctx.fillRect(Math.round((a.x - 14 - camX) * zoom), Math.round((a.y - 2 - camY) * zoom), zoom * 3, zoom);
+    } else if (a.type === 'cheer') {
+      const h = hash2(a.x | 0, ((now / 450) | 0), 13);
+      if (h > 0.55) drawEmoji(h > 0.85 ? '🎉' : h > 0.7 ? '📣' : '🙌', a.x, a.y, camX, camY, 8, Math.sin(now / 100 + a.x) * 2);
+    }
   }
 
   /* room ambience tint + gentle lamplight */
