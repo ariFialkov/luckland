@@ -439,12 +439,6 @@ function frame(now) {
 
   ctx.textBaseline = 'alphabetic';
 
-  /* landmark signs floating over the entrance */
-  for (const lm of world.landmarks) {
-    if (lm.doorX < x0 - 2 || lm.doorX > x1 + 2 || lm.doorY < y0 - 5 || lm.doorY > y1 + 2) continue;
-    drawEmoji(lm.ico, lm.doorX * TILE + 8, lm.y * TILE - 2, camX, camY, 12);
-  }
-
   /* ferry docks */
   for (const f of world.ferries) {
     for (const dock of [f.a, f.b]) {
