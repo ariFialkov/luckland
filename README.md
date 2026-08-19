@@ -70,6 +70,29 @@ from *common* to *mythic*; opening ceremonies get flashier with rarity, and item
 can carry add-ons (luck buffs, bonus coin, Tide Sight). Unique finds go in your
 collection ledger.
 
+## Lucklians
+
+**120 native creatures** hide across the provinces, from 27%-common prairie
+hoppers to the 0.01% Mugenrai. Walking through habitat — especially the
+**tall grass and brush** tiles — can spring a hidden patch: a wild Lucklian
+appears on (walkable types: grass, dust, dirt, sand, streets) or peering out
+of (solid types: forest, jungle, rock, mountain, cliff, snow, water) terrain
+matching its type, filtered to its native province. Encounters are
+frequency-based per step, Pokémon-style, not tied to fixed spots.
+
+Catching costs a **snare** — Copper (15) up to the Fatebinder Veil (4,000) —
+and the odds are honest: every species has its own catch RTP (0.92–0.98 band,
+tunable in `src/config.js` → `LUCKLIAN`), so a throw's expected return is
+always `snare cost × species RTP`; rarer species are worth more and are
+proportionally harder to hold. Failed throws risk the creature bolting.
+
+Captures live in the **Lucklipedia** (🧿 / L key): an encyclopedia of all 120
+species — unknown, seen (silhouette), or caught — where creatures can be sold
+at face value, capped at **8 open-market sales a day**. Wandering traders
+periodically offer off-market deals at 0.62–1.38× face value that *don't*
+count against the cap — which is exactly why a lowball is sometimes worth
+taking.
+
 ## Tuning the economy (RTP)
 
 Everything lives in **`src/config.js`**:
@@ -121,6 +144,7 @@ src/world.js                seeded worldgen: provinces, landmarks, roads, tides
 src/sprites.js              procedural pixel-art tiles & character sprites
 src/games.js                wager engine (paytable/pick/race/hi-lo) + 18 games
 src/concealers.js           chest spawning, loot rolls, opening ceremonies
+src/lucklians.js            120 creatures: encounters, snares, Lucklipedia, traders
 src/npcs.js                 named characters, dialogue, bot crowd
 src/ui.js                   HUD, modals, toasts, joystick, map/stats screens
 src/state.js                wallet, stats, buffs, localStorage saves

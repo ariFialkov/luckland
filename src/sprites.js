@@ -12,7 +12,7 @@ import { T } from './world.js';
 import { hash2 } from './rng.js';
 
 export const CELL = 16;
-const ATLAS_ROWS = 33;
+const ATLAS_ROWS = 35;
 
 /* px helper */
 function px(ctx, x, y, w, h, c) { ctx.fillStyle = c; ctx.fillRect(x, y, w, h); }
@@ -98,6 +98,31 @@ export function buildTileAtlas(seed) {
       }
     }
     { const [x, y] = o(T.DUST);    speckle(x, y, '#d0a86a', ['#c09858', '#dcb87c'], 0.28, T.DUST, v); }
+    { // TALLGRASS: rustling blades over grass — walkable habitat cover
+      const [x, y] = o(T.TALLGRASS);
+      speckle(x, y, '#5aa84f', ['#4f9845'], 0.2, T.TALLGRASS, v);
+      for (let bx = 0; bx < CELL; bx += 2) {
+        const h = 5 + ((hash2(bx + v * 11, 3, seed + 44) * 7) | 0);
+        const lean = hash2(bx, v, seed + 45) > 0.5 ? 1 : 0;
+        px(ctx, x + bx, y + CELL - h, 1, h, '#2f7a34');
+        px(ctx, x + bx + lean, y + CELL - h, 1, 2, '#3d9440');
+        if (hash2(bx, v + 3, seed + 46) > 0.6) px(ctx, x + bx + 1, y + CELL - h + 2, 1, h - 4, '#358a3a');
+      }
+      for (let i = 0; i < 3; i++) {
+        const tx2 = (hash2(i, v, seed + 47) * 14) | 0;
+        px(ctx, x + tx2, y + 3 + ((hash2(v, i, seed + 48) * 4) | 0), 1, 1, '#7ac86a');
+      }
+    }
+    { // BUSH: low walkable brush — round leafy tufts on grass
+      const [x, y] = o(T.BUSH);
+      speckle(x, y, '#5aa84f', ['#4f9845'], 0.2, T.BUSH, v);
+      blob(x, y, 5 + (v % 2) * 2, 6, 4.5, '#2f6a30', T.BUSH, v);
+      blob(x, y, 11, 10 + (v % 2), 4, '#356e34', T.BUSH, v + 5);
+      blob(x, y, 4, 12, 3, '#2b6230', T.BUSH, v + 9);
+      blob(x, y, 6 + (v % 2) * 2, 5, 2, '#4f8a44', T.BUSH, v + 13);
+      blob(x, y, 12, 9, 1.8, '#568e4a', T.BUSH, v + 17);
+      if (v % 2) px(ctx, x + 8, y + 8, 2, 2, '#d44a6a');   // the odd berry
+    }
     { const [x, y] = o(T.SCRUB);
       speckle(x, y, '#d0a86a', ['#c09858', '#b08850'], 0.3, T.SCRUB, v);
       blob(x, y, 4 + v, 10, 2.5, '#6d8a46', T.SCRUB, v);       // dry brush tuft
@@ -1189,6 +1214,333 @@ function drawEventProp(ctx, game, W16, BH, v) {
       // solid band above it, so draw nothing and say so loudly instead.
       console.warn(`[luckland] no world prop drawn for game "${game}" — remove it from EVENT_TYPES`);
       break;
+  }
+}
+
+/* ============================================================
+   Lucklian sprites — 24x24 side-view creatures, one archetype
+   painter per body plan, coloured per species. Silhouette
+   variants back the "seen but never caught" Lucklipedia cards.
+   ============================================================ */
+const LK_SIZE = 24;
+const lkCache = new Map();
+
+export function getLucklianSprite(def, sil = false) {
+  const key = `${def.id}:${sil ? 's' : 'c'}`;
+  let cv = lkCache.get(key);
+  if (!cv) {
+    cv = document.createElement('canvas');
+    cv.width = LK_SIZE; cv.height = LK_SIZE;
+    const ctx = cv.getContext('2d');
+    drawLucklian(ctx, def);
+    outlinePass(ctx);
+    if (sil) {
+      ctx.globalCompositeOperation = 'source-in';
+      ctx.fillStyle = '#20242e';
+      ctx.fillRect(0, 0, LK_SIZE, LK_SIZE);
+      ctx.globalCompositeOperation = 'source-over';
+    }
+    lkCache.set(key, cv);
+  }
+  return cv;
+}
+
+/* dark contour around every painted pixel — makes small pixel
+   creatures read as one connected body instead of loose rects */
+function outlinePass(ctx) {
+  const img = ctx.getImageData(0, 0, LK_SIZE, LK_SIZE);
+  const d = img.data;
+  const solid = (x, y) => x >= 0 && y >= 0 && x < LK_SIZE && y < LK_SIZE && d[(y * LK_SIZE + x) * 4 + 3] > 40;
+  const out = [];
+  for (let y = 0; y < LK_SIZE; y++) for (let x = 0; x < LK_SIZE; x++) {
+    if (solid(x, y)) continue;
+    if (solid(x + 1, y) || solid(x - 1, y) || solid(x, y + 1) || solid(x, y - 1)) out.push([x, y]);
+  }
+  for (const [x, y] of out) {
+    const i = (y * LK_SIZE + x) * 4;
+    d[i] = 24; d[i + 1] = 20; d[i + 2] = 32; d[i + 3] = 210;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
+function drawLucklian(ctx, def) {
+  const [A, B2, C] = def.c;
+  const P = (x, y, w, h, c) => px(ctx, x, y, w, h, c);
+  const eye = (x, y) => { P(x, y, 2, 2, '#181420'); P(x + 1, y, 1, 1, '#f8f8ff'); };
+  // soft ground shadow (below the outline threshold, so it stays soft)
+  ctx.fillStyle = 'rgba(0,0,0,0.14)'; ctx.fillRect(4, LK_SIZE - 3, LK_SIZE - 8, 2);
+
+  // rounded horizontal capsule — the workhorse body mass
+  const capsule = (x, y, w, h, c) => {
+    P(x + 1, y, w - 2, h, c);
+    P(x, y + 1, w, h - 2, c);
+  };
+
+  switch (def.a) {
+    case 'quad': // hooved walker: one connected mass, head raised left
+      capsule(6, 9, 13, 8, A);
+      P(4, 4, 5, 9, A);                            // neck up
+      capsule(2, 2, 7, 5, A);                      // head
+      P(2, 0, 2, 3, A); P(6, 0, 2, 3, A);          // ears
+      P(7, 15, 2, 6, A); P(16, 15, 2, 6, A);       // outer legs
+      P(10, 16, 2, 5, B2); P(13, 16, 2, 5, B2);    // inner legs
+      P(7, 20, 2, 1, C); P(16, 20, 2, 1, C);       // hooves
+      P(7, 9, 12, 2, B2);                          // dorsal saddle
+      P(18, 11, 3, 2, B2);                         // tail
+      P(8, 15, 9, 2, B2);                          // belly
+      eye(3, 4);
+      break;
+    case 'hare': // sitting upright, big ears
+      capsule(6, 11, 12, 9, A);                    // haunches
+      capsule(5, 6, 8, 8, A);                      // head/chest
+      P(5, 0, 3, 8, A); P(10, 0, 3, 8, A);         // tall ears
+      P(6, 1, 1, 6, C); P(11, 1, 1, 6, C);         // ear insides
+      P(7, 16, 4, 3, B2);                          // belly
+      P(16, 12, 4, 4, B2);                         // puff tail
+      P(6, 19, 4, 2, A); P(12, 19, 4, 2, A);       // feet
+      eye(6, 8);
+      break;
+    case 'deer': // standing cervid with antler rack
+      capsule(7, 9, 12, 7, A);
+      P(5, 4, 4, 8, A);                            // neck
+      capsule(3, 2, 7, 5, A);                      // head
+      P(8, 15, 2, 6, A); P(16, 15, 2, 6, A);       // legs
+      P(11, 16, 2, 5, B2); P(14, 16, 2, 5, B2);
+      P(3, 0, 1, 3, C); P(1, 0, 3, 1, C); P(5, 0, 1, 2, C);   // left antler
+      P(8, 0, 1, 3, C); P(8, 0, 3, 1, C); P(10, 1, 1, 2, C);  // right antler
+      P(8, 9, 10, 2, B2);                          // mantle
+      P(18, 10, 2, 2, B2);                         // tail
+      eye(4, 4);
+      break;
+    case 'feline': // crouched cat, tail up
+      capsule(5, 11, 14, 7, A);
+      capsule(3, 6, 8, 7, A);                      // head
+      P(3, 4, 2, 3, A); P(9, 4, 2, 3, A);          // pointed ears
+      P(18, 5, 3, 8, A); P(19, 3, 2, 4, A);        // raised tail
+      P(6, 17, 3, 4, A); P(15, 17, 3, 4, A);       // legs
+      P(4, 11, 6, 2, B2);                          // chest ruff
+      P(8, 12, 2, 2, C); P(12, 13, 2, 2, C); P(15, 12, 2, 2, C); // markings
+      eye(4, 8);
+      break;
+    case 'fox': // perky ears, brush tail
+      capsule(6, 12, 12, 6, A);
+      capsule(3, 7, 8, 6, A);                      // head
+      P(2, 10, 3, 3, B2);                          // muzzle
+      P(3, 3, 3, 5, A); P(8, 3, 3, 5, A);          // big ears
+      P(4, 4, 1, 3, C); P(9, 4, 1, 3, C);
+      P(16, 9, 6, 6, A); P(20, 8, 2, 3, B2);       // brush tail + pale tip
+      P(7, 17, 2, 4, A); P(14, 17, 2, 4, A);       // legs
+      P(7, 16, 10, 2, B2);                         // belly
+      eye(4, 9);
+      break;
+    case 'rodent': // plump sitter, upright tail
+      capsule(6, 10, 12, 10, A);
+      capsule(4, 7, 8, 8, A);                      // head merged in
+      P(4, 4, 3, 4, B2); P(9, 4, 3, 4, B2);        // round ears
+      P(3, 12, 2, 2, B2);                          // muzzle
+      P(7, 16, 9, 3, B2);                          // belly
+      P(17, 6, 3, 8, C); P(18, 3, 3, 4, C);        // upright tail
+      P(6, 19, 3, 2, A); P(13, 19, 3, 2, A);       // feet
+      eye(5, 9);
+      break;
+    case 'mole': // low wedge digger with claws
+      capsule(3, 11, 18, 9, A);
+      P(1, 13, 4, 5, A); P(1, 15, 2, 2, B2);       // shovel snout
+      P(4, 16, 16, 3, B2);                         // belly plates
+      P(6, 18, 4, 3, C); P(14, 18, 4, 3, C);       // huge claws
+      P(5, 11, 14, 2, B2);                         // armor seam
+      P(9, 13, 2, 1, C); P(13, 13, 2, 1, C);       // plate studs
+      eye(3, 13);
+      break;
+    case 'beetle': // domed carapace, mandibles
+      capsule(5, 9, 16, 10, A);
+      P(6, 10, 14, 3, B2);                         // shell sheen
+      P(12, 9, 1, 10, '#26202c');                  // wing seam
+      capsule(2, 12, 6, 5, A);                     // head
+      P(1, 11, 2, 2, C); P(1, 16, 2, 2, C);        // mandibles
+      for (let i = 0; i < 3; i++) P(8 + i * 4, 18, 2, 3, '#26202c'); // legs
+      eye(3, 13);
+      break;
+    case 'moth': // four broad wings, fuzzy body
+      P(3, 5, 8, 8, B2); P(2, 6, 8, 6, B2);        // upper-left wing
+      P(13, 5, 8, 8, B2); P(14, 6, 8, 6, B2);      // upper-right
+      P(4, 13, 7, 6, B2); P(13, 13, 7, 6, B2);     // lower pair
+      P(5, 7, 3, 3, C); P(16, 7, 3, 3, C);         // eyespots
+      P(5, 15, 2, 2, A); P(17, 15, 2, 2, A);
+      capsule(10, 6, 4, 13, A);                    // furry body
+      P(9, 3, 2, 4, A); P(13, 3, 2, 4, A);         // antennae
+      eye(10, 7);
+      break;
+    case 'bird': // plump songbird
+      capsule(6, 9, 13, 8, A);
+      capsule(4, 4, 8, 7, A);                      // head merged
+      P(1, 7, 4, 2, C);                            // beak
+      P(9, 11, 7, 4, B2);                          // folded wing
+      P(18, 6, 4, 3, C); P(20, 4, 3, 3, C);        // tail plumes
+      P(9, 17, 2, 4, '#26202c'); P(13, 17, 2, 4, '#26202c'); // legs
+      P(7, 14, 8, 2, B2);                          // breast
+      eye(5, 6);
+      break;
+    case 'raptor': // broad-winged hunter
+      capsule(6, 7, 12, 9, A);
+      capsule(2, 3, 7, 6, A);                      // head
+      P(0, 6, 3, 2, C);                            // hooked beak
+      P(8, 5, 9, 4, B2); P(12, 3, 6, 4, B2);       // wing over back
+      P(17, 5, 5, 4, B2); P(20, 3, 3, 3, B2);      // spread tail
+      P(8, 15, 3, 5, '#26202c'); P(13, 15, 3, 5, '#26202c'); // talons
+      P(7, 12, 10, 3, B2);                         // breast band
+      eye(3, 4);
+      break;
+    case 'owl': // upright disc-faced owl
+      capsule(6, 10, 12, 11, A);
+      capsule(5, 2, 14, 10, A);                    // big head
+      P(7, 4, 4, 5, B2); P(13, 4, 4, 5, B2);       // facial disks
+      P(5, 0, 3, 3, A); P(16, 0, 3, 3, A);         // ear tufts
+      P(11, 7, 2, 3, C);                           // beak
+      P(7, 14, 10, 4, B2);                         // breast
+      P(8, 20, 3, 2, C); P(13, 20, 3, 2, C);       // talons
+      eye(8, 5); eye(14, 5);
+      break;
+    case 'serpent': // coiled, head raised
+      capsule(3, 15, 18, 5, A);                    // ground coil
+      capsule(4, 10, 14, 5, A);                    // middle coil
+      P(3, 4, 6, 8, A);                            // neck up
+      capsule(2, 2, 8, 5, A);                      // head
+      P(4, 0, 3, 2, C);                            // crest
+      P(5, 16, 14, 2, B2); P(6, 11, 10, 2, B2);    // belly bands
+      P(19, 13, 3, 4, C);                          // tail tip
+      eye(3, 3);
+      break;
+    case 'lizard': // low reptile, curling tail
+      capsule(4, 11, 15, 7, A);
+      capsule(1, 9, 7, 6, A);                      // head
+      P(6, 17, 3, 4, A); P(14, 17, 3, 4, A);       // legs
+      P(18, 9, 4, 4, A); P(20, 6, 3, 4, A);        // curling tail
+      P(6, 9, 11, 2, C);                           // dorsal fins
+      P(5, 15, 13, 2, B2);                         // belly
+      eye(2, 10);
+      break;
+    case 'tortoise': // domed shell, head out
+      capsule(5, 6, 15, 11, A);                    // dome
+      P(6, 8, 13, 4, B2);                          // shell band
+      P(8, 6, 2, 11, A); P(14, 6, 2, 11, A);       // ridges
+      capsule(1, 12, 6, 5, C);                     // head + neck
+      P(6, 17, 4, 3, C); P(15, 17, 4, 3, C);       // legs
+      eye(2, 13);
+      break;
+    case 'toad': // squat wide toad
+      capsule(4, 10, 17, 10, A);
+      P(4, 7, 6, 5, A); P(14, 7, 6, 5, A);         // brow ridges
+      P(6, 15, 13, 4, B2);                         // throat sac
+      P(3, 18, 5, 3, A); P(17, 18, 5, 3, A);       // splayed legs
+      P(9, 12, 2, 1, C); P(14, 12, 2, 1, C);       // warts
+      eye(5, 8); eye(15, 8);
+      break;
+    case 'fish': // side-view swimmer
+      capsule(4, 8, 14, 9, A);
+      P(2, 10, 4, 5, A);                           // face taper
+      P(8, 5, 6, 4, C);                            // dorsal fin
+      P(17, 6, 4, 5, C); P(18, 12, 4, 5, C);       // forked tail
+      P(9, 16, 4, 3, C);                           // pelvic fin
+      P(5, 12, 12, 3, B2);                         // belly
+      P(7, 10, 10, 1, C);                          // lateral stripe
+      eye(3, 10);
+      break;
+    case 'ray': // broad diamond glider
+      P(9, 5, 6, 3, A);
+      P(5, 8, 14, 3, A); P(2, 11, 20, 4, A);       // wingspan
+      P(6, 15, 12, 3, A); P(9, 18, 6, 2, A);
+      P(10, 8, 4, 10, B2);                         // mantle
+      P(19, 15, 4, 2, C); P(22, 13, 1, 3, C);      // whip tail
+      P(5, 12, 2, 2, C); P(17, 12, 2, 2, C);       // wing spots
+      eye(9, 9); eye(13, 9);
+      break;
+    case 'ceph': // shelled cephalopod
+      capsule(6, 2, 12, 9, B2);                    // spiral shell
+      P(8, 4, 8, 5, A); P(10, 5, 4, 3, B2);        // spiral bands
+      capsule(5, 10, 14, 6, A);                    // mantle/face
+      for (let i = 0; i < 5; i++) P(5 + i * 3, 15, 2, 5 + (i % 2) * 2, A); // tentacles
+      for (let i = 0; i < 5; i++) P(5 + i * 3, 19 + (i % 2) * 2, 2, 2, C); // lit tips
+      eye(7, 11); eye(14, 11);
+      break;
+    case 'seal': // lounging seal
+      capsule(3, 10, 17, 8, A);
+      capsule(2, 7, 8, 7, A);                      // head merged
+      P(0, 11, 3, 1, C); P(0, 13, 3, 1, C);        // whiskers
+      P(19, 10, 3, 4, A); P(20, 8, 3, 3, A);       // tail flukes
+      P(5, 15, 13, 3, B2);                         // belly
+      P(11, 10, 3, 2, B2); P(15, 12, 2, 2, B2);    // mottling
+      P(8, 17, 4, 3, A);                           // fore flipper
+      eye(3, 9);
+      break;
+    case 'crab': // wide crab with claws up
+      capsule(6, 10, 12, 8, A);
+      P(7, 11, 10, 4, B2);                         // shell glow
+      P(2, 6, 4, 4, C); P(18, 6, 4, 4, C);         // raised claws
+      P(4, 9, 2, 3, A); P(18, 9, 2, 3, A);         // arms
+      for (let i = 0; i < 3; i++) { P(5 + i * 2, 17, 2, 4, A); P(13 + i * 2, 17, 2, 4, A); } // legs
+      eye(9, 11); eye(13, 11);
+      break;
+    case 'bat': // spread membrane wings
+      P(1, 6, 9, 7, B2); P(2, 12, 6, 3, B2);       // left wing
+      P(14, 6, 9, 7, B2); P(16, 12, 6, 3, B2);     // right wing
+      P(2, 7, 8, 1, A); P(14, 7, 8, 1, A);         // wing fingers
+      capsule(9, 7, 6, 11, A);                     // body
+      P(8, 3, 3, 5, A); P(13, 3, 3, 5, A);         // ears
+      P(10, 14, 4, 2, B2);
+      P(4, 9, 2, 2, C); P(18, 9, 2, 2, C);         // shimmer
+      eye(10, 9);
+      break;
+    case 'primate': // seated ape, long arms
+      capsule(7, 9, 11, 10, A);
+      capsule(6, 2, 10, 8, A);                     // head
+      P(8, 5, 7, 4, B2);                           // face patch
+      P(4, 9, 3, 9, A); P(17, 9, 3, 9, A);         // long arms
+      P(4, 17, 3, 3, B2); P(17, 17, 3, 3, B2);     // hands
+      P(9, 13, 7, 4, B2);                          // chest
+      P(8, 19, 3, 2, A); P(13, 19, 3, 2, A);       // feet
+      eye(9, 5);
+      break;
+    case 'dragon': // winged serpent-dragon
+      capsule(3, 12, 17, 5, A);                    // long body
+      P(2, 6, 6, 8, A);                            // neck
+      capsule(1, 3, 8, 5, A);                      // head
+      P(2, 1, 2, 3, C); P(6, 1, 2, 3, C);          // horns
+      P(9, 4, 8, 7, B2); P(14, 2, 7, 7, B2);       // big wings
+      P(19, 9, 3, 5, A); P(21, 6, 2, 4, C);        // tail + tip
+      P(5, 16, 3, 4, A); P(13, 16, 3, 4, A);       // legs
+      P(5, 15, 13, 2, C);                          // belly scutes
+      eye(2, 4);
+      break;
+    case 'ram': // shaggy mountain goat, curled horns
+      capsule(6, 9, 13, 8, A);
+      P(7, 9, 11, 3, B2);                          // shaggy mantle
+      P(4, 5, 5, 8, A);                            // neck
+      capsule(2, 3, 7, 5, A);                      // head
+      P(1, 6, 2, 3, B2);                           // beard
+      P(2, 0, 3, 4, C); P(0, 1, 3, 3, C); P(1, 3, 2, 2, C);   // curled horn
+      P(7, 0, 2, 3, C); P(8, 2, 2, 2, C);          // second horn
+      P(7, 15, 2, 6, A); P(16, 15, 2, 6, A);       // legs
+      P(10, 16, 2, 5, B2); P(13, 16, 2, 5, B2);
+      P(7, 20, 2, 1, '#26202c'); P(16, 20, 2, 1, '#26202c'); // hooves
+      P(18, 10, 2, 2, B2);                         // tail
+      eye(4, 5);
+      break;
+    case 'wisp': // luminous core with wings
+      P(8, 7, 8, 8, C);                            // core
+      P(9, 8, 6, 6, B2); P(10, 9, 4, 4, '#ffffff');
+      P(2, 4, 6, 5, B2); P(16, 4, 6, 5, B2);       // upper wings
+      P(3, 11, 5, 5, B2); P(16, 11, 5, 5, B2);     // lower wings
+      P(6, 2, 2, 2, C); P(16, 2, 2, 2, C);         // motes
+      P(11, 15, 2, 6, B2); P(10, 19, 1, 2, C);     // trailing filament
+      break;
+    default:
+      capsule(5, 7, 14, 12, A); eye(8, 11);
+      break;
+  }
+  if (def.glow) { // neon species carry running lights
+    for (let i = 0; i < 4; i++) px(ctx, 6 + i * 4, 13 + (i % 2), 1, 1, C);
+    px(ctx, 11, 4, 1, 1, C); px(ctx, 18, 8, 1, 1, C);
   }
 }
 

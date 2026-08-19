@@ -14,6 +14,8 @@ import * as UI from './ui.js';
 import { openGame, openHub, GAME_DEFS } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
+import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
+import { getLucklianSprite } from './sprites.js';
 
 /* ---------------- boot ---------------- */
 const canvas = document.getElementById('game');
@@ -63,6 +65,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && UI.isModalOpen()) UI.closeModal();
   if (e.key.toLowerCase() === 'm' && !UI.isModalOpen()) UI.openMapModal(world, playerTilePos());
   if (e.key.toLowerCase() === 'p' && !UI.isModalOpen()) UI.openStatsModal();
+  if (e.key.toLowerCase() === 'l' && !UI.isModalOpen()) openLucklipedia();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear());
@@ -71,6 +74,7 @@ UI.setupJoystick();
 UI.els.actBtn.addEventListener('click', () => { if (!UI.isModalOpen()) doInteract(); });
 UI.els.statsBtn.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openStatsModal(); });
 UI.els.mapBtn.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openMapModal(world, playerTilePos()); });
+document.getElementById('btn-dex').addEventListener('click', () => { if (!UI.isModalOpen()) openLucklipedia(); });
 
 function playerTilePos() {
   return { tx: Math.floor(player.x / TILE), ty: Math.floor(player.y / TILE) };
@@ -260,6 +264,8 @@ function emitWorldWin(bot, what, amount) {
 }
 
 let botToastTimer = 4;
+let traderTimer = 90;   // wandering Lucklian trader offers
+let lastStepTile = { tx: -1, ty: -1 };
 let currentProv = 'TF'; // refreshed each frame; city membership overrides border tiles
 
 /* ---------------- welcome ---------------- */
@@ -347,7 +353,19 @@ function frame(now) {
       else player.dir = dy < 0 ? 3 : 0;
       player.animT += dt;
       if (player.animT > 0.14) { player.animT = 0; player.frame = 1 - player.frame; }
+      // stepping onto a fresh tile can spring a hidden Lucklian patch
+      const ntx = Math.floor(player.x / TILE), nty = Math.floor(player.y / TILE);
+      if (ntx !== lastStepTile.tx || nty !== lastStepTile.ty) {
+        lastStepTile = { tx: ntx, ty: nty };
+        maybeEncounter(world, ntx, nty, currentProv);
+      }
     } else player.frame = 0;
+  }
+  tickEncounterCooldown(dt);
+  traderTimer -= dt;
+  if (traderTimer <= 0) {
+    traderTimer = CONFIG.LUCKLIAN.TRADER_MIN_S + roll() * (CONFIG.LUCKLIAN.TRADER_MAX_S - CONFIG.LUCKLIAN.TRADER_MIN_S);
+    if (roll() < CONFIG.LUCKLIAN.TRADER_CHANCE) maybeTraderOffer();
   }
   resolveTideStranding();
   state.px = player.x; state.py = player.y;
@@ -449,6 +467,18 @@ function frame(now) {
     ctx.drawImage(spr,
       Math.round((b.x * TILE - camX) * zoom),
       Math.round((b.y * TILE - camY) * zoom),
+      spr.width * zoom, spr.height * zoom);
+  }
+
+  /* a wild Lucklian mid-encounter, peeking from its habitat tile */
+  const enc = getActiveEncounter();
+  if (enc) {
+    enc.t = (enc.t || 0) + dt;
+    const bob = Math.round(Math.sin(enc.t * 5) * 1.5);
+    const spr = getLucklianSprite(enc.def);
+    ctx.drawImage(spr,
+      Math.round((enc.x * TILE - 4 - camX) * zoom),
+      Math.round((enc.y * TILE - 8 + bob - camY) * zoom),
       spr.width * zoom, spr.height * zoom);
   }
 

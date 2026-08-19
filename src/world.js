@@ -25,6 +25,8 @@ export const T = {
   TRAIL: 24, PEAK: 25, WALL_MARBLE: 26, WALL_STONE: 27,
   ROOF_GOLD: 28, ROOF_SLATE: 29, ROOF_LEAF: 30, SHALLOW: 31,
   FOUNDATION: 32,   // solid ground under a building sprite
+  TALLGRASS: 33,    // walkable rustling grass — prime Lucklian habitat
+  BUSH: 34,         // walkable low brush — prime Lucklian habitat
 };
 
 export const PROV_LIST = ['SEA', 'TF', 'FL', 'HV', 'DG', 'EP', 'MN'];
@@ -893,6 +895,29 @@ export function generateWorld() {
     trail([[cx + r - 3, cy], [cx + r + 2, cy]]);   // east gate (toward East Maneki)
     trail([[cx, cy - r + 3], [cx, cy - r - 2]]);   // north gate (toward North Maneki)
   })(306, 42, 9);
+
+  /* ============================================================
+     Tall grass & brush — walkable habitat cover, Pokémon-style.
+     Rustling clumps scattered through open country and along
+     treelines; hidden Lucklian patches favour these tiles.
+     ============================================================ */
+  {
+    const nearWood = (x, y) => {
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+        const t2 = get(x + dx, y + dy);
+        if (t2 === T.FOREST || t2 === T.JUNGLE) return true;
+      }
+      return false;
+    };
+    for (let y = 2; y < H - 2; y++) for (let x = 2; x < W - 2; x++) {
+      const t = get(x, y);
+      const n = fbm(x, y, 6, seed + 140);
+      if ((t === T.GRASS || t === T.MEADOW || t === T.HILL) && n > 0.66) set(x, y, T.TALLGRASS);
+      else if (t === T.SCRUB && n > 0.6) set(x, y, T.BUSH);
+      else if ((t === T.GRASS || t === T.MEADOW) && nearWood(x, y) &&
+               hash2(x, y, seed + 141) > 0.55) set(x, y, T.BUSH);
+    }
+  }
 
   /* ============================================================
      Roadside attractions — each game has a physical prop that

@@ -36,6 +36,21 @@ export const CONFIG = {
   // Concealer spawning.
   CONCEALER_MAX_ACTIVE: 46,     // chests alive on the map at once
   CONCEALER_RESPAWN_S: 9,       // avg seconds between respawn attempts
+
+  // Lucklians — native creatures.
+  LUCKLIAN: {
+    RTP_MIN: 0.92,              // per-species catch RTP band —
+    RTP_MAX: 0.98,              //   each species rolls its own inside it
+    MAX_CATCH: 0.92,            // no snare is ever a guaranteed catch
+    FLEE_CHANCE: 0.4,           // odds a Lucklian bolts after a failed throw
+    DAILY_SALES: 8,             // open-market sales allowed per day
+    RATE_BRUSH: 1 / 11,         // hidden-patch odds per step: tall grass & bushes
+    RATE_WILD: 1 / 45,          //   ...open country, shores, trails
+    RATE_URBAN: 1 / 85,         //   ...city streets (neon species prowl here)
+    TRADER_MIN_S: 75,           // wandering trader offer cadence
+    TRADER_MAX_S: 170,
+    TRADER_CHANCE: 0.55,        // odds an offer actually happens each cycle
+  },
 };
 
 /* ------------------------------------------------------------

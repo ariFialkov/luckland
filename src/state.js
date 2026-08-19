@@ -22,6 +22,7 @@ export const state = {
   },
   collection: [],            // unique item names discovered
   metNpcs: [],               // npc ids greeted at least once
+  lk: { caught: {}, seen: {}, sales: 0, salesDay: '' },   // Lucklians
   buffs: {
     luckUntil: 0,            // epoch ms; while active, +rtp bonus
     luckBonus: 0,
@@ -99,6 +100,7 @@ export function saveGame() {
       collection: state.collection,
       metNpcs: state.metNpcs,
       lastBet: state.lastBet,
+      lk: state.lk,
     }));
   } catch { /* storage full / private mode — play on without saving */ }
 }
@@ -115,6 +117,9 @@ export function loadGame() {
     state.metNpcs = d.metNpcs || [];
     state.stats.npcsMet = state.metNpcs.length;
     if (typeof d.lastBet === 'number') state.lastBet = d.lastBet;
+    if (d.lk && typeof d.lk === 'object') {
+      state.lk = { caught: d.lk.caught || {}, seen: d.lk.seen || {}, sales: d.lk.sales || 0, salesDay: d.lk.salesDay || '' };
+    }
     return true;
   } catch { return false; }
 }
