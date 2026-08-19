@@ -299,148 +299,149 @@ export function getBuildingSprite(b) {
 }
 
 function drawBuilding(b) {
+  /* Pokemon-style: the sprite is EXACTLY the solid footprint (w*16 x h*16).
+     Depth comes from the roof slab drawn into the top of the sprite —
+     nothing overhangs, so no walkable tile is ever hidden. */
   const W16 = b.w * CELL, BH = b.h * CELL;
   const lm = b.kind === 'landmark';
   const rnd = (i) => hash2(b.v, i * 37, 91);
-  // extra height above the footprint (roofline / tower floors)
-  let OH = 10;
-  if (b.kind === 'tower') OH = 14 + ((b.v % 3) * 8);
-  if (lm) OH = 14;
   const cv = document.createElement('canvas');
-  cv.width = W16; cv.height = BH + OH;
+  cv.width = W16; cv.height = BH;
   const ctx = cv.getContext('2d');
-  const CH = cv.height;
   const doorCx = b.doorPx ?? (W16 >> 1);
-
-  const drawDoor = (wD, hD, frame, leaf) => {
-    const dx = doorCx - (wD >> 1);
-    px(ctx, dx - 1, CH - hD - 1, wD + 2, hD + 1, frame);
-    px(ctx, dx, CH - hD, wD, hD, leaf);
-    px(ctx, dx + wD - 3, CH - (hD >> 1), 2, 2, '#ffd75e');
-  };
-  const windows = (x0, y0, x1, y1, wW, wH, gapX, gapY, colFn) => {
-    let i = 0;
-    for (let wy = y0; wy + wH <= y1; wy += wH + gapY) {
-      for (let wx = x0; wx + wW <= x1; wx += wW + gapX) {
-        px(ctx, wx, wy, wW, wH, colFn(i++));
-      }
-    }
-  };
-
-  const style = b.kind === 'landmark'
-    ? { TF: 'villa', FL: 'cottage', HV: 'saloon', DG: 'hall', EP: 'hut', MN: 'tower' }[b.prov] || 'villa'
+  const style = lm
+    ? ({ TF: 'villa', FL: 'cottage', HV: 'saloon', DG: 'hall', EP: 'hut', MN: 'tower' }[b.prov] || 'villa')
     : b.kind;
 
+  const roofH = Math.max(12, Math.min(40, Math.round(BH * (style === 'tower' ? 0.3 : 0.45))));
+  const wallY = roofH;
+  const doorH = Math.min(12, BH - wallY - 2);
+  const doorW = lm ? 10 : 8;
+
+  const roofSlab = (base, dark, light, grooves = 'v') => {
+    px(ctx, 0, 0, W16, roofH, base);
+    px(ctx, 1, 1, W16 - 2, 2, light);                       // lit top edge
+    if (grooves === 'v') {
+      for (let gx = 5; gx < W16 - 3; gx += 6) px(ctx, gx, 3, 1, roofH - 6, dark);
+    } else {
+      for (let gy = 4; gy < roofH - 3; gy += 3) px(ctx, 2, gy, W16 - 4, 1, dark);
+    }
+    px(ctx, 0, roofH - 3, W16, 1, dark);
+    px(ctx, 0, roofH - 2, W16, 2, shade2(dark, -18));       // eave shadow onto the wall
+  };
+  const wallBase = (base, dark) => {
+    px(ctx, 0, wallY, W16, BH - wallY, base);
+    px(ctx, 0, wallY, 1, BH - wallY, dark);
+    px(ctx, W16 - 1, wallY, 1, BH - wallY, dark);
+  };
+  const drawDoor = (frame, leaf) => {
+    const dx = doorCx - (doorW >> 1);
+    px(ctx, dx - 1, BH - doorH - 1, doorW + 2, doorH + 1, frame);
+    px(ctx, dx, BH - doorH, doorW, doorH, leaf);
+    px(ctx, dx + doorW - 3, BH - (doorH >> 1) - 1, 2, 2, '#ffd75e');
+  };
+  const windowRow = (wW, wH, colFn, frame = null) => {
+    let i = 0;
+    for (let yTop = wallY + 3; yTop + wH <= BH - doorH - 3; yTop += wH + 5) {
+      for (let wx = 4; wx + wW <= W16 - 4; wx += wW + 4) {
+        if (frame) px(ctx, wx - 1, yTop - 1, wW + 2, wH + 2, frame);
+        px(ctx, wx, yTop, wW, wH, colFn(i++));
+      }
+    }
+  };
+  const outline = () => {
+    ctx.fillStyle = 'rgba(24, 18, 14, 0.55)';
+    ctx.fillRect(0, 0, W16, 1); ctx.fillRect(0, BH - 1, W16, 1);
+    ctx.fillRect(0, 0, 1, BH); ctx.fillRect(W16 - 1, 0, 1, BH);
+  };
+
   if (style === 'villa') {
-    // marble body, terracotta hip roof, columns
-    const roofH = 8;
-    px(ctx, 1, OH, W16 - 2, CH - OH, '#e8e2d4');
-    px(ctx, 1, OH, 1, CH - OH, '#c8c0ac'); px(ctx, W16 - 2, OH, 1, CH - OH, '#c8c0ac');
-    // columns
-    for (let cx2 = 3; cx2 < W16 - 3; cx2 += 6) {
-      px(ctx, cx2, OH + roofH, 2, CH - OH - roofH - 1, '#d8d2c0');
-      px(ctx, cx2, OH + roofH, 1, CH - OH - roofH - 1, '#f4f0e6');
+    roofSlab('#c05a48', '#8a3d30', '#d97a63');
+    wallBase('#e8e2d4', '#c8c0ac');
+    for (let cx2 = 2; cx2 < W16 - 2; cx2 += 8) px(ctx, cx2, wallY + 2, 2, BH - wallY - 3, '#d8d2c0');
+    windowRow(4, 5, () => '#3a4a6a', '#c8c0ac');
+    if (lm) { // grand columns flanking the entrance
+      px(ctx, doorCx - (doorW >> 1) - 4, wallY + 2, 3, BH - wallY - 2, '#f4f0e6');
+      px(ctx, doorCx + (doorW >> 1) + 1, wallY + 2, 3, BH - wallY - 2, '#f4f0e6');
     }
-    windows(5, OH + roofH + 2, W16 - 4, CH - 8, 3, 4, 5, 4, () => '#3a4a6a');
-    // hip roof with eaves wider than the body
-    for (let r = 0; r < roofH; r++) {
-      const inset = Math.max(0, Math.round((roofH - r) * 0.8) - 3);
-      px(ctx, inset, OH - 4 + r, W16 - inset * 2, 1, r % 3 === 2 ? '#8a3d30' : '#c05a48');
-    }
-    px(ctx, 2, OH + roofH - 4, W16 - 4, 1, '#7d3628');
-    if (lm) {
-      // pediment: a proper pyramid over the entrance
-      for (let r2 = 0; r2 < 6; r2++) {
-        px(ctx, doorCx - 2 - r2 * 2, OH + roofH - 8 + r2, 4 + r2 * 4, 1, '#f4f0e6');
-      }
-      px(ctx, doorCx - 12, OH + roofH - 2, 24, 1, '#c8c0ac');
-      drawDoor(10, 12, '#b8a878', '#5a3a1e');
-    } else drawDoor(6, 9, '#c8c0ac', '#6d4a28');
+    drawDoor('#b8a878', '#5a3a1e');
   } else if (style === 'cottage') {
-    // stone body, slate gable roof, chimney, warm windows
-    const roofH = 9;
-    px(ctx, 1, OH + 2, W16 - 2, CH - OH - 2, '#9a948a');
-    for (let yy = OH + 4; yy < CH; yy += 4)
-      for (let xx = (yy % 8 === 0 ? 2 : 5); xx < W16 - 3; xx += 7) px(ctx, xx, yy, 5, 2, '#8a847a');
-    for (let r = 0; r < roofH; r++) {
-      const inset = Math.max(0, Math.round((roofH - r) * (W16 / 2) / roofH) - 2);
-      px(ctx, inset, OH - 6 + r, W16 - inset * 2, 1, r % 3 === 1 ? '#46525f' : '#5a6a7e');
-    }
-    px(ctx, W16 - 7, Math.max(0, OH - 9), 4, 8, '#7a746a'); // chimney
-    px(ctx, W16 - 8, Math.max(0, OH - 10), 6, 2, '#8a847a');
-    windows(4, OH + 6, W16 - 3, CH - 6, 4, 4, 6, 5, () => '#ffd75e');
-    drawDoor(lm ? 9 : 6, lm ? 11 : 8, '#6d5f47', '#5a3a1e');
+    roofSlab('#5a6a7e', '#46525f', '#74869c');
+    px(ctx, W16 - 10, 1, 5, roofH - 5, '#7a746a');           // chimney on the roof
+    px(ctx, W16 - 11, 1, 7, 2, '#8a847a');
+    wallBase('#9a948a', '#7a746a');
+    for (let yy = wallY + 4; yy < BH - 2; yy += 4)
+      for (let xx = (yy % 8 === 0 ? 3 : 6); xx < W16 - 4; xx += 7) px(ctx, xx, yy, 5, 1, '#8a847a');
+    windowRow(4, 4, () => '#ffd75e', '#6d5f47');
+    drawDoor('#6d5f47', '#5a3a1e');
   } else if (style === 'saloon') {
-    // false-front western building with parapet, awning and sign
-    px(ctx, 1, OH - 6, W16 - 2, CH - OH + 6, '#b08850');
-    for (let xx = 3; xx < W16 - 1; xx += 3) px(ctx, xx, OH - 4, 1, CH - OH + 4, '#9a743e');
-    px(ctx, 0, OH - 8, W16, 3, '#8a6034');           // parapet cornice
-    px(ctx, 0, OH - 6, W16, 1, '#c89a5e');
-    // painted sign
-    px(ctx, 4, OH - 3, W16 - 8, 6, '#5a3a24');
-    px(ctx, 5, OH - 2, W16 - 10, 4, '#e8d49a');
-    for (let sx2 = 7; sx2 < W16 - 8; sx2 += 4) px(ctx, sx2, OH, 2, 1, '#5a3a24');
-    // awning
-    px(ctx, 0, OH + 6, W16, 2, '#8a3d30');
-    for (let ax = 0; ax < W16; ax += 4) px(ctx, ax, OH + 8, 2, 1, '#c05a48');
-    windows(4, OH + 11, W16 - 3, CH - 7, 4, 5, 5, 6, () => '#3a3226');
-    drawDoor(lm ? 9 : 7, lm ? 11 : 9, '#8a6034', '#4a3018');
-    px(ctx, doorCx - 4, CH - 6, 8, 1, '#8a6034'); // swing-door rail
+    // flat false front: parapet, painted sign, awning, plank wall
+    px(ctx, 0, 0, W16, roofH, '#b08850');
+    px(ctx, 0, 0, W16, 4, '#8a6034');
+    px(ctx, 1, 1, W16 - 2, 1, '#c89a5e');
+    px(ctx, 3, 6, W16 - 6, Math.max(6, roofH - 12), '#5a3a24');
+    px(ctx, 4, 7, W16 - 8, Math.max(4, roofH - 14), '#e8d49a');
+    for (let sx2 = 6, i = 0; sx2 < W16 - 7; sx2 += 4, i++) {
+      if (rnd(i) > 0.25) px(ctx, sx2, 8 + (i % 2), 2, Math.max(2, roofH - 17), '#5a3a24');
+    }
+    px(ctx, 0, roofH - 3, W16, 3, '#8a3d30');                // awning
+    for (let ax = 1; ax < W16; ax += 4) px(ctx, ax, roofH - 1, 2, 1, '#c05a48');
+    wallBase('#b08850', '#9a743e');
+    for (let xx = 3; xx < W16 - 1; xx += 3) px(ctx, xx, wallY, 1, BH - wallY, '#9a743e');
+    windowRow(4, 5, () => '#3a3226', '#8a6034');
+    drawDoor('#8a6034', '#4a3018');
+    px(ctx, doorCx - (doorW >> 1), BH - (doorH >> 1), doorW, 1, '#8a6034'); // swing-door rail
   } else if (style === 'hall') {
-    // dragon-court hall: red pillars, sweeping golden roof
-    px(ctx, 2, OH + 2, W16 - 4, CH - OH - 2, '#a03030');
-    for (let cx2 = 3; cx2 < W16 - 3; cx2 += 5) px(ctx, cx2, OH + 2, 2, CH - OH - 2, '#c04040');
-    windows(6, OH + 6, W16 - 5, CH - 6, 4, 4, 6, 5, () => '#f0d8a8');
-    for (let wy = OH + 6; wy < CH - 6; wy += 9) // lattice bars
-      for (let wx = 6; wx + 4 <= W16 - 5; wx += 10) px(ctx, wx + 1, wy, 1, 4, '#a03030');
-    // tiered golden roof, wider than the body, corners kicked up —
-    // the lowest tier always overlaps the body so nothing floats
-    const tiers = b.h >= 4 || lm ? 2 : 1;
-    for (let t2 = 0; t2 < tiers; t2++) {
-      const ry = OH + 3 - (t2 + 1) * 6;
-      const ext = 3 - t2;
-      for (let r = 0; r < 6; r++) {
-        const inset = -ext + r;
-        px(ctx, Math.max(0, inset), ry + r, Math.min(W16, W16 - inset * 2), 1, r === 0 ? '#f0c040' : r % 2 ? '#d4a018' : '#b8880c');
-      }
-      px(ctx, 0, ry + 1, 2, 2, '#f0c040'); px(ctx, W16 - 2, ry + 1, 2, 2, '#f0c040'); // upturned corners
-    }
-    px(ctx, doorCx - 1, Math.max(0, OH + 3 - tiers * 6 - 3), 2, 3, '#f0c040'); // ridge finial
-    drawDoor(lm ? 10 : 6, lm ? 11 : 8, '#f0c040', '#5a1a1a');
+    roofSlab('#d4a018', '#a87c10', '#f0c040');
+    px(ctx, doorCx - 3, 0, 6, 3, '#f0c040');                 // ridge crest
+    px(ctx, 0, roofH - 6, 3, 4, '#f0c040');                  // upturned eave corners
+    px(ctx, W16 - 3, roofH - 6, 3, 4, '#f0c040');
+    wallBase('#a03030', '#7a2020');
+    for (let cx2 = 2; cx2 < W16 - 2; cx2 += 6) px(ctx, cx2, wallY + 1, 2, BH - wallY - 2, '#c04040');
+    windowRow(4, 4, () => '#f0d8a8', '#7a2020');
+    drawDoor('#f0c040', '#5a1a1a');
   } else if (style === 'hut') {
-    // stilt hut with deep leaf roof
-    const stilts = 5;
-    px(ctx, 3, CH - stilts, 2, stilts, '#6d4726'); px(ctx, W16 - 5, CH - stilts, 2, stilts, '#6d4726');
-    px(ctx, doorCx - 1, CH - stilts, 2, stilts, '#6d4726');
-    px(ctx, 2, OH + 4, W16 - 4, CH - OH - stilts - 3, '#8a6a42');
-    for (let yy = OH + 6; yy < CH - stilts - 2; yy += 3) px(ctx, 2, yy, W16 - 4, 1, '#7a5a34');
-    windows(5, OH + 7, W16 - 4, CH - stilts - 4, 3, 3, 6, 4, () => '#2f2418');
-    for (let r = 0; r < 8; r++) { // wide layered leaf roof
-      const inset = Math.max(0, Math.round((8 - r) * (W16 / 2 + 3) / 8) - 3);
-      px(ctx, Math.max(0, inset - 3), OH - 4 + r, W16 - Math.max(0, inset - 3) * 2, 1, r % 3 === 1 ? '#556e2c' : '#6d8a3a');
-    }
-    if (lm) { // temple: golden spire
-      px(ctx, doorCx - 2, 0, 4, OH - 2, '#d4a018');
-      px(ctx, doorCx - 1, 0, 2, 3, '#f0c040');
-    }
-    drawDoor(lm ? 9 : 6, lm ? 10 : 7, '#556e2c', '#3f2f1c');
+    roofSlab('#6d8a3a', '#556e2c', '#82a04a', 'h');
+    wallBase('#8a6a42', '#6d5230');
+    for (let yy = wallY + 3; yy < BH - 4; yy += 3) px(ctx, 1, yy, W16 - 2, 1, '#7a5a34');
+    windowRow(3, 3, () => '#2f2418', '#6d5230');
+    // stilt shadows along the base
+    for (let sx2 = 3; sx2 < W16 - 2; sx2 += 6) px(ctx, sx2, BH - 3, 2, 3, '#5a4022');
+    if (lm) { px(ctx, doorCx - 2, 0, 4, 4, '#d4a018'); px(ctx, doorCx - 1, 0, 2, 2, '#f0c040'); } // gilt finial
+    drawDoor('#556e2c', '#3f2f1c');
   } else { // tower (Maneki-Neko)
-    const bodyC = ['#3a3a4e', '#343044', '#403a52'][b.v % 3];
-    px(ctx, 1, 2, W16 - 2, CH - 2, bodyC);
-    px(ctx, 1, 2, 1, CH - 2, '#55506a'); px(ctx, W16 - 2, 2, 1, CH - 2, '#242030');
     const neon = ['#ffe066', '#5eeaff', '#ff6be0', '#8dff6b'];
-    windows(3, 5, W16 - 2, CH - 6, 3, 3, 3, 3, (i) => (rnd(i) < 0.55 ? neon[(i + b.v) % 4] : '#262234'));
-    // rooftop: antenna + neon sign strip
-    px(ctx, 4, 0, W16 - 8, 2, neon[b.v % 4]);
-    px(ctx, W16 - 5, -0, 1, 4, '#8a8798');
-    if (lm) drawDoor(10, 11, neon[b.v % 4], '#1a1624');
-    else drawDoor(6, 8, '#55506a', '#1a1624');
+    const sign = neon[b.v % 4];
+    px(ctx, 0, 0, W16, roofH, '#242030');                    // rooftop cap
+    px(ctx, 2, 2, W16 - 4, 3, sign);                         // neon crown strip
+    px(ctx, 3, 6, 2, roofH - 8, '#8a8798');                  // vents
+    px(ctx, W16 - 6, 6, 2, roofH - 8, '#8a8798');
+    const bodyC = ['#3a3a4e', '#343044', '#403a52'][b.v % 3];
+    wallBase(bodyC, '#242030');
+    px(ctx, 1, wallY, 1, BH - wallY, '#55506a');
+    let i = 0;
+    for (let wy = wallY + 3; wy + 3 <= BH - doorH - 2; wy += 6) {
+      for (let wx = 3; wx + 3 <= W16 - 3; wx += 6) {
+        px(ctx, wx, wy, 3, 3, rnd(i++) < 0.55 ? neon[(i + b.v) % 4] : '#262234');
+      }
+    }
+    if (lm) { // vertical neon sign beside the door
+      px(ctx, W16 - 8, wallY + 2, 5, BH - wallY - 6, '#1a1624');
+      for (let sy2 = wallY + 4; sy2 < BH - 7; sy2 += 4) px(ctx, W16 - 7, sy2, 3, 2, sign);
+    }
+    drawDoor('#55506a', '#1a1624');
   }
 
-  // grounding shadow line along the base
-  ctx.fillStyle = 'rgba(0,0,0,0.3)';
-  ctx.fillRect(0, CH - 1, W16, 1);
+  outline();
   return cv;
+}
+
+function shade2(hex, amt) {
+  const n = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, Math.min(255, (n >> 16) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amt));
+  const bb = Math.max(0, Math.min(255, (n & 255) + amt));
+  return `rgb(${r},${g},${bb})`;
 }
 
 /* ------------------------------------------------------------

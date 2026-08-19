@@ -388,7 +388,23 @@ function frame(now) {
     }
   }
 
+  /* buildings — footprint-exact sprites drawn with the terrain */
+  for (const b of world.buildings) {
+    if (b.x > x1 + 1 || b.x + b.w < x0 - 1 || b.y > y1 + 1 || b.y + b.h < y0 - 1) continue;
+    const spr = getBuildingSprite(b);
+    ctx.drawImage(spr,
+      Math.round((b.x * TILE - camX) * zoom),
+      Math.round((b.y * TILE - camY) * zoom),
+      spr.width * zoom, spr.height * zoom);
+  }
+
   ctx.textBaseline = 'alphabetic';
+
+  /* landmark signs floating over the entrance */
+  for (const lm of world.landmarks) {
+    if (lm.doorX < x0 - 2 || lm.doorX > x1 + 2 || lm.doorY < y0 - 5 || lm.doorY > y1 + 2) continue;
+    drawEmoji(lm.ico, lm.doorX * TILE + 8, lm.y * TILE - 2, camX, camY, 12);
+  }
 
   /* ferry docks */
   for (const f of world.ferries) {
@@ -426,22 +442,10 @@ function frame(now) {
     }
   }
 
-  /* entities + buildings, y-sorted so structures occlude properly */
-  const drawList = [player, ...npcs, ...bots, ...citizens];
-  for (const b of world.buildings) {
-    if (b.x > x1 + 1 || b.x + b.w < x0 - 1 || b.y > y1 + 2 || b.y + b.h < y0 - 5) continue;
-    drawList.push({ bld: b, y: (b.y + b.h) * TILE - 0.01 });
-  }
-  drawList.sort((a, b) => a.y - b.y);
+  /* entities, y-sorted (buildings live in the static pass — their art
+     never leaves their solid footprint, so nothing can hide behind them) */
+  const drawList = [player, ...npcs, ...bots, ...citizens].sort((a, b) => a.y - b.y);
   for (const e of drawList) {
-    if (e.bld) {
-      const b = e.bld;
-      const spr = getBuildingSprite(b);
-      const bx = Math.round((b.x * TILE - camX) * zoom);
-      const by = Math.round(((b.y + b.h) * TILE - camY) * zoom) - spr.height * zoom;
-      ctx.drawImage(spr, bx, by, spr.width * zoom, spr.height * zoom);
-      continue;
-    }
     const { sx, sy } = drawSprite(e, camX, camY);
     if (e !== player && e.def) {
       // NPC badge
@@ -460,12 +464,6 @@ function frame(now) {
     if (e.celebrateT > 0) {
       drawEmoji('🎉', e.x, e.y - 22, camX, camY, 10, Math.sin(now / 90) * 2);
     }
-  }
-
-  /* landmark signs above the finished buildings */
-  for (const lm of world.landmarks) {
-    if (lm.doorX < x0 - 2 || lm.doorX > x1 + 2 || lm.doorY < y0 - 5 || lm.doorY > y1 + 2) continue;
-    drawEmoji(lm.ico, lm.doorX * TILE + 8, lm.y * TILE - 12, camX, camY, 12);
   }
 
   /* floaters */

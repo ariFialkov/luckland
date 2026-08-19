@@ -503,6 +503,16 @@ export function generateWorld() {
       const t = get(x + dx, y + dy);
       if (t === T.WATER || t === T.DEEP) return; // refuse to build in the sea
     }
+    // evict any city building the landmark would overlap (no overlapping sprites)
+    for (let i = buildings.length - 1; i >= 0; i--) {
+      const o = buildings[i];
+      if (o.x < x + w && o.x + o.w > x && o.y < y + h && o.y + o.h > y) {
+        for (let dy = 0; dy < o.h; dy++) for (let dx = 0; dx < o.w; dx++) {
+          if (get(o.x + dx, o.y + dy) === T.FOUNDATION) set(o.x + dx, o.y + dy, T.PLAZA);
+        }
+        buildings.splice(i, 1);
+      }
+    }
     for (let dy = 0; dy < h; dy++) for (let dx = 0; dx < w; dx++) {
       set(x + dx, y + dy, T.FOUNDATION);
     }
