@@ -22,6 +22,29 @@ python3 -m http.server 8000
 or `npx serve`, or enable **GitHub Pages** on the repo (a deploy workflow for the
 default branch is included in `.github/workflows/pages.yml`).
 
+## Build it for your own host
+
+There is no bundler — the game is plain ES modules — so a "build" just
+assembles the runtime files into a clean folder, leaving out git, CI config
+and dev scripts:
+
+```bash
+git clone https://github.com/ariFialkov/luckland.git
+cd luckland
+./scripts/build.sh
+cd build
+```
+
+`build/` is the deployable root. Upload its **contents** to your host (any
+static hosting works — S3, Netlify, nginx, a subfolder of an existing site).
+Every path in the app is relative, so it runs from a domain root or any
+subpath. The script also verifies that every file the service worker
+pre-caches is present, so the PWA installs cleanly offline.
+
+Two things your host must do for the PWA to work fully: serve over **HTTPS**
+(or localhost), and serve `.js` files as `text/javascript` — most hosts do
+both by default.
+
 **Controls**
 
 | | Desktop | Mobile |
