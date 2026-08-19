@@ -144,6 +144,46 @@ const D = [
   [118, 'Yorukage', 'Neon', 'MN', 0.07, 'feline', '#1c1c24', '#c8ccd8', '#5eeaff', 'Extremely long black feline with nine ribbonlike balancing tails, mirror-silver face and flowing cyan-magenta bioluminescence.'],
   [119, 'Moiravex', 'Neon', 'TF', 0.025, 'feline', '#d8d4c8', '#e8e0d0', '#f0c040', 'Mythically rare leonine predator with ivory wings, serpentine tail and three luminous filaments trailing several body lengths behind it.'],
   [120, 'Mugenrai', 'Neon', 'MN', 0.01, 'ray', '#16161e', '#3fd8e8', '#ff6be0', 'Colossal nocturnal glider with ink-black manta-feline body, translucent fins filled with moving rainbow photophores and a vast forked tail.'],
+  /* ---- v1.1: everyday Lucklians — common, low-value locals so the
+     same face doesn't greet every patch. One of each general type
+     per province, named in the local style. ---- */
+  [121, 'Ovistra', 'Grass', 'TF', 26, 'ram', '#d8d2c0', '#e8e2d4', '#c49038', 'Small dove-grey meadow sheep with a marble-white face, tightly curled cream fleece and amber hooves that click on warm limestone.'],
+  [122, 'Cindralis', 'Dust', 'TF', 22, 'rodent', '#b0a898', '#d8d2c0', '#c46a3a', 'Ash-grey scurrier with terracotta paws and a flat brush tail it drags to erase its own tracks from the dust.'],
+  [123, 'Litorin', 'Sand', 'TF', 24, 'crab', '#e8d49a', '#e8e2d4', '#2a5a9a', 'Thumbnail beach crab with a sun-bleached shell and lapis leg joints; skitters in crowds along the wave line at dusk.'],
+  [124, 'Petrapod', 'Rock', 'TF', 21, 'beetle', '#c8c0ac', '#a8a094', '#e8a020', 'Squat six-legged pebble-carrier whose chalky carapace is flecked with amber mineral grit from the cliffs it grazes.'],
+  [125, 'Capriole', 'Mountain', 'TF', 18, 'ram', '#e8e0d0', '#c8c0ac', '#8a6a4a', 'Knee-high mountain kid with stubby ridged horns and outsized rubbery hooves, forever bounding between ledges.'],
+  [126, 'Delphara', 'Sea', 'TF', 20, 'fish', '#8fb8c8', '#e8e0d0', '#2a5a9a', 'Palm-length silver darter with a cobalt back stripe that flickers through harbour shallows in quick schools.'],
+  [127, 'Meiling', 'Grass', 'DG', 25, 'hare', '#b5793f', '#e8dcc0', '#3d8a5c', 'Round river-meadow hare with cinnamon fur, jade-tinted ear rims and cheeks always packed with tall grass seed.'],
+  [128, 'Shatu', 'Dust', 'DG', 20, 'lizard', '#c49560', '#e8d49a', '#c43a2a', 'Finger-length dust skink with sandy scales and a vermilion throat dot, always basking on warm courtyard stones.'],
+  [129, 'Jinsha', 'Sand', 'DG', 22, 'beetle', '#d9b545', '#c49038', '#f0c040', 'Bright gold-shelled scarab that rolls beads of river sand; its polished back flashes like a dropped coin.'],
+  [130, 'Shiwei', 'Rock', 'DG', 19, 'tortoise', '#8a8478', '#6d6860', '#3d8a5c', 'Fist-sized pebble turtle with a jade-veined stone shell, common wherever mountain walls meet the paddies.'],
+  [131, 'Yunzu', 'Mountain', 'DG', 17, 'bird', '#d8dce4', '#e8e4dc', '#c43a2a', 'Chubby cloud-grey finch with a crimson chin who nests in trail-side cairns and scolds passing travellers.'],
+  [132, 'Haidan', 'Sea', 'DG', 21, 'fish', '#3fb0a0', '#e8dcc0', '#e8a020', 'Small turquoise bay fish with a golden eye ring, netted by the basketful along the Dragon\'s Bay shore.'],
+  [133, 'Tumbletuft', 'Grass', 'HV', 26, 'rodent', '#c4a878', '#e8dcc0', '#8a6a4a', 'Round prairie rodent that curls into a ball of dry grass and rolls with the wind between grazing spots.'],
+  [134, 'Puffquail', 'Dust', 'HV', 28, 'bird', '#c49560', '#e8d49a', '#5a3a24', 'Dumpy dust-bathing quail with a bobbing head plume; whole coveys erupt underfoot in a puff of ochre.'],
+  [135, 'Grittle', 'Sand', 'HV', 23, 'lizard', '#d0a86a', '#e8d49a', '#26202c', 'Stub-tailed sand lizard with grit-stuck scales and black eye bands, fond of napping in wagon ruts.'],
+  [136, 'Rockchuck', 'Rock', 'HV', 24, 'rodent', '#8a7258', '#c4a878', '#e08a2a', 'Whistling mesa marmot with stone-brown fur and orange incisors, sunning on every warm boulder in the west.'],
+  [137, 'Cragmutton', 'Mountain', 'HV', 18, 'ram', '#a5713f', '#8a6a4a', '#5a5652', 'Shaggy free-roaming range sheep with chipped grey horns and wool full of burrs and red trail dust.'],
+  [138, 'Sandsnapper', 'Sea', 'HV', 20, 'crab', '#c4a878', '#e8d49a', '#c43a2a', 'Mud-coloured coastal crab with one comically oversized claw it waves at anything that walks the shore.'],
+  [139, 'Cloverkit', 'Grass', 'FL', 27, 'rodent', '#7ab54f', '#a8d078', '#e8e070', 'Pocket-sized green-tinged vole that weaves clover stems into its fur; a lucky find that is not rare at all.'],
+  [140, 'Brynwren', 'Dust', 'FL', 19, 'bird', '#a5713f', '#e8dcc0', '#4f8a3d', 'Tiny russet moor wren with a moss-green tail flick, hopping the dry stone walls between pastures.'],
+  [141, 'Shorlin', 'Sand', 'FL', 22, 'bird', '#d9c49a', '#e8e4dc', '#26202c', 'Long-legged little sandpiper with pearl belly and ink-dipped beak, chasing every retreating wave.'],
+  [142, 'Mossclamber', 'Rock', 'FL', 20, 'tortoise', '#7d9a52', '#8a8478', '#4f8a3d', 'Slow round-shelled climber carpeted in living moss; often mistaken for a stone until it yawns.'],
+  [143, 'Bryncair', 'Mountain', 'FL', 16, 'ram', '#8a8478', '#6a8a5a', '#c8e8f0', 'Sturdy highland goat with slate wool, lichen stains and pale horn tips worn smooth on cairn stones.'],
+  [144, 'Selkin', 'Sea', 'FL', 21, 'seal', '#6a6058', '#b8bcc0', '#e8dcc0', 'Sleek little harbour seal with silver mottling and white whiskers, begging fish scraps off every pier.'],
+  [145, 'Chanthi', 'Grass', 'EP', 24, 'rodent', '#b5793f', '#e8dcc0', '#3d8a4c', 'Cheerful cinnamon grass rat with leaf-green ear tufts, threading tunnels through the wet meadow stems.'],
+  [146, 'Takrit', 'Dust', 'EP', 18, 'lizard', '#a5713f', '#c49560', '#3fb0a0', 'Quick ochre gecko with turquoise toe pads, chirping from sun-baked temple walls and dusty lanes.'],
+  [147, 'Pukhao', 'Sand', 'EP', 22, 'crab', '#e8d49a', '#c49038', '#e05a70', 'Pale ghost crab with rose-tipped claws that sculpts perfect sand spheres outside its burrow.'],
+  [148, 'Hinlok', 'Rock', 'EP', 20, 'beetle', '#5a5044', '#8a8478', '#3d8a4c', 'Stone-backed jungle beetle whose mossy shell blends into the boulders it polishes with its feet.'],
+  [149, 'Doiwan', 'Mountain', 'EP', 15, 'primate', '#8a7258', '#e8dcc0', '#e8a020', 'Small whiskered mountain macaque with a saffron face ring, picking berries along the mist-trail switchbacks.'],
+  [150, 'Plangi', 'Sea', 'EP', 21, 'fish', '#3f8ae8', '#e8dcc0', '#ffb060', 'Striped lagoon fish with apricot fins, schooling so thickly the shallows appear to boil at dawn.'],
+  [151, 'Kusanezu', 'Grass', 'MN', 25, 'rodent', '#6a6058', '#a8d078', '#ff8ac0', 'Grey park mouse with grass-stained paws and a pink nose, nesting under vending machines and hedges alike.'],
+  [152, 'Hokorin', 'Dust', 'MN', 19, 'moth', '#b0a898', '#d8d4c8', '#ffe066', 'Soft grey alley moth dusted with glowing motes; drawn to warm signage and shaken rugs.'],
+  [153, 'Sunahiki', 'Sand', 'MN', 23, 'crab', '#c8ccd8', '#e8d49a', '#5eeaff', 'Busy little beach crab with a chrome-flecked shell that rakes neat furrows across the tide flats.'],
+  [154, 'Ishimaru', 'Rock', 'MN', 21, 'tortoise', '#6d6860', '#8a8478', '#ff6be0', 'Round city turtle with a worn cobblestone shell, dozing in rock gardens and neon puddle light.'],
+  [155, 'Yamako', 'Mountain', 'MN', 16, 'fox', '#b0602a', '#e8dcc0', '#26202c', 'Compact island fox with soot-tipped ears and tail, trotting the shrine steps above the neon line.'],
+  [156, 'Shioneri', 'Sea', 'MN', 22, 'fish', '#8fb8c8', '#c8ccd8', '#ff8ac0', 'Slim tide-runner with a rosy lateral stripe that surges up the strait with every incoming flood.'],
+  [157, 'Glaslin', 'River', 'FL', 20, 'fish', '#3d8a5c', '#b8bcc0', '#4f8a3d', 'Little emerald stream trout with silver speckles, flickering between the stones of every highland beck.'],
 ];
 
 const LK = CONFIG.LUCKLIAN;
@@ -218,7 +258,14 @@ export function habitatTypes(world, tx, ty) {
   if (here === T.BUSH) { put('Grass', tx, ty); put('Forest', tx, ty); put('Jungle', tx, ty); }
   if (here === T.SHALLOW) put(waterKind(world, tx, ty), tx, ty);
   if (here === T.NEON || here === T.ROAD || here === T.PLAZA) put('Neon', tx, ty);
-  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+  // solid habitat radiates outward: being NEAR a mountain, treeline or
+  // shore is enough — closest matching tile hosts the creature visual
+  const RING = [
+    [1, 0], [-1, 0], [0, 1], [0, -1],
+    [1, 1], [1, -1], [-1, 1], [-1, -1], [2, 0], [-2, 0], [0, 2], [0, -2],
+    [2, 1], [2, -1], [-2, 1], [-2, -1], [1, 2], [1, -2], [-1, 2], [-1, -2],
+  ];
+  for (const [dx, dy] of RING) {
     const x = tx + dx, y = ty + dy;
     const t = world.get(x, y);
     if (t === T.FOREST) put('Forest', x, y);
@@ -351,7 +398,7 @@ export function openEncounter(def, sx, sy) {
 /* ------------------------------------------------------------
    Lucklipedia — the encyclopedia + market
    ------------------------------------------------------------ */
-export function openLucklipedia() {
+export function openLucklipedia(scrollTop = 0) {
   const lk = ensureLk();
   const discovered = LUCKLIANS.filter((l) => lk.seen[l.id]).length;
   const owned = LUCKLIANS.reduce((n, l) => n + (lk.caught[l.id] || 0), 0);
@@ -384,6 +431,8 @@ export function openLucklipedia() {
       · <b>${salesLeft()}</b> of ${LK.DAILY_SALES} market sales left today</div>
     <div class="lk-book">${sections}</div>
   `);
+  const book = m.querySelector('.lk-book');
+  if (scrollTop) book.scrollTop = scrollTop;
   m.querySelectorAll('.lk-sell').forEach((btn) => btn.addEventListener('click', () => {
     const def = BY_ID.get(+btn.dataset.id);
     if (!def || salesLeft() === 0 || (lk.caught[def.id] || 0) === 0) return;
@@ -392,7 +441,7 @@ export function openLucklipedia() {
     payout(def.value);
     renderBalance();
     toast(`🪙 Sold a ${escapeHtml(def.name)} for ${def.value.toLocaleString('en-US')} — ${salesLeft()} market sales left today`);
-    openLucklipedia(); // re-render
+    openLucklipedia(book.scrollTop); // re-render in place, keeping the reader's spot
   }));
 }
 
