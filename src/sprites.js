@@ -300,10 +300,8 @@ export function getBuildingSprite(b) {
 
 function drawBuilding(b) {
   /* Pokemon-style: the sprite is EXACTLY the solid footprint (w*16 x h*16).
-     Depth cues live inside the sprite: a two-tone roof slab (lit slope +
-     darker fascia) with bevelled corners overhanging a slightly inset
-     wall, and an eave shadow where they meet. Nothing overhangs the
-     footprint, so no walkable tile is ever hidden. */
+     Roof slopes taper into trapezoids for an isometric read; each
+     province draws several distinct architectural silhouettes. */
   const W16 = b.w * CELL, BH = b.h * CELL;
   const lm = b.kind === 'landmark';
   const rnd = (i) => hash2(b.v, i * 37, 91);
@@ -312,52 +310,54 @@ function drawBuilding(b) {
   const ctx = cv.getContext('2d');
   const doorCx = b.doorPx ?? (W16 >> 1);
 
-  /* ---------- 1x1 street props ---------- */
-  if (b.kind === 'prop') {
-    drawProp(ctx, b.prov, b.v);
-    return cv;
-  }
+  if (b.kind === 'prop') { drawProp(ctx, b.prov, b.v); return cv; }
 
-  const style = lm
-    ? ({ TF: 'villa', FL: 'cottage', HV: 'saloon', DG: 'hall', EP: 'hut', MN: 'tower4' }[b.prov] || 'villa')
-    : b.kind;
-  const tower = style === 'tower' || style === 'tower4';
+  const defaults = { TF: 'temple', FL: 'cottage', HV: 'saloon', DG: 'hall', EP: 'hut', MN: 'tower4' };
+  const style = lm ? (b.sub || defaults[b.prov] || 'villa') : b.kind;
 
-  const roofH = tower ? 10 : Math.max(11, Math.min(26, Math.round(BH * 0.4)));
+  const flatTop = ['saloon', 'tower', 'tower4', 'casino', 'warehouse', 'fortress', 'castle', 'redlight'].includes(style);
+  const roofH = flatTop ? Math.max(10, Math.round(BH * 0.3))
+    : Math.max(11, Math.min(28, Math.round(BH * 0.42)));
   const wallY = roofH;
   const doorH = Math.min(12, BH - wallY - 2);
   const doorW = lm ? 10 : 8;
-  const IN = 2; // wall inset: the roof reads as overhanging the wall
+  const IN = 2;
 
-  /* two-tone roof slab: lit slope on top, fascia below, bevelled corners */
-  const roofSlab = (base, dark, light) => {
-    const slope = Math.max(4, Math.round(roofH * 0.55));
-    px(ctx, 0, 0, W16, slope, light);
+  /* trapezoid roof: the slope face narrows toward the ridge */
+  const roofTrap = (base, dark, light, taper = Math.min(5, W16 >> 3), thatch = false) => {
+    const slope = Math.max(4, Math.round(roofH * 0.6));
+    for (let yy = 0; yy < slope; yy++) {
+      const ins = Math.round(taper * (slope - 1 - yy) / Math.max(1, slope - 1));
+      px(ctx, ins, yy, W16 - ins * 2, 1, yy < 2 ? light : base);
+      if (yy > 0) { px(ctx, ins, yy, 1, 1, dark); px(ctx, W16 - ins - 1, yy, 1, 1, dark); }
+    }
     px(ctx, 0, slope, W16, roofH - slope, base);
-    px(ctx, 0, slope, W16, 1, dark);                    // ridge break line
-    px(ctx, 0, roofH - 2, W16, 2, dark);                // eave edge
-    for (let gx = 5; gx < W16 - 3; gx += 6) px(ctx, gx, 1, 1, slope - 1, base); // slope grooves
-    // bevel the top corners so the slab doesn't read as a flat square
-    ctx.clearRect(0, 0, 3, 1); ctx.clearRect(0, 1, 1, 1);
-    ctx.clearRect(W16 - 3, 0, 3, 1); ctx.clearRect(W16 - 1, 1, 1, 1);
+    px(ctx, 0, slope, W16, 1, dark);
+    if (thatch) for (let gy = 1; gy < roofH - 2; gy += 3) {
+      const ins = Math.round(taper * Math.max(0, (slope - 1 - gy)) / Math.max(1, slope - 1));
+      px(ctx, ins + 1, gy, W16 - ins * 2 - 2, 1, dark);
+    } else {
+      for (let gx = 5; gx < W16 - 4; gx += 6) px(ctx, gx, 2, 1, roofH - 4, shade2(base, -16));
+    }
+    px(ctx, 0, roofH - 2, W16, 2, dark);
   };
-  const wallBase = (base, dark) => {
-    px(ctx, IN, wallY, W16 - IN * 2, BH - wallY, base);
-    px(ctx, IN, wallY, W16 - IN * 2, 2, shade2(dark, -14)); // eave shadow on the wall
-    px(ctx, IN, wallY, 1, BH - wallY, dark);
-    px(ctx, W16 - IN - 1, wallY, 1, BH - wallY, dark);
-    px(ctx, IN, BH - 1, W16 - IN * 2, 1, shade2(dark, -20)); // base line
+  const wallBase = (base, dark, y0 = wallY) => {
+    px(ctx, IN, y0, W16 - IN * 2, BH - y0, base);
+    px(ctx, IN, y0, W16 - IN * 2, 2, shade2(dark, -14));
+    px(ctx, IN, y0, 1, BH - y0, dark);
+    px(ctx, W16 - IN - 1, y0, 1, BH - y0, dark);
+    px(ctx, IN, BH - 1, W16 - IN * 2, 1, shade2(dark, -20));
   };
-  const drawDoor = (frame, leaf) => {
-    const dx = doorCx - (doorW >> 1);
-    px(ctx, dx - 1, BH - doorH - 1, doorW + 2, doorH + 1, frame);
-    px(ctx, dx, BH - doorH, doorW, doorH, leaf);
-    px(ctx, dx + doorW - 3, BH - (doorH >> 1) - 1, 2, 2, '#ffd75e');
+  const drawDoor = (frame, leaf, wD = doorW, hD = doorH, arch = false) => {
+    const dx = doorCx - (wD >> 1);
+    px(ctx, dx - 1, BH - hD - 1, wD + 2, hD + 1, frame);
+    px(ctx, dx, BH - hD, wD, hD, leaf);
+    if (arch) { px(ctx, dx, BH - hD, 1, 1, frame); px(ctx, dx + wD - 1, BH - hD, 1, 1, frame); }
+    px(ctx, dx + wD - 3, BH - (hD >> 1) - 1, 2, 2, '#ffd75e');
   };
-  /* windows fill each wall row, skipping the door column */
-  const windowsFill = (wW, wH, colFn, frame = null) => {
+  const windowsFill = (wW, wH, colFn, frame = null, y0 = wallY) => {
     let i = 0;
-    for (let yTop = wallY + 4; yTop + wH <= BH - 4; yTop += wH + 4) {
+    for (let yTop = y0 + 4; yTop + wH <= BH - 4; yTop += wH + 4) {
       const overDoorRow = yTop + wH > BH - doorH - 2;
       for (let wx = IN + 2; wx + wW <= W16 - IN - 2; wx += wW + 4) {
         if (overDoorRow && wx + wW >= doorCx - (doorW >> 1) - 2 && wx <= doorCx + (doorW >> 1) + 2) continue;
@@ -366,101 +366,369 @@ function drawBuilding(b) {
       }
     }
   };
+  const battlements = (color, dark, y0 = 0) => {
+    px(ctx, 0, y0, W16, 4, color);
+    for (let bx = 0; bx < W16; bx += 4) px(ctx, bx + 2, y0, 2, 2, 'rgba(0,0,0,0)');
+    for (let bx = 2; bx < W16; bx += 4) ctx.clearRect(bx, y0, 2, 2);
+    px(ctx, 0, y0 + 4, W16, 1, dark);
+  };
   const outline = () => {
     ctx.fillStyle = 'rgba(24, 18, 14, 0.5)';
-    ctx.fillRect(3, 0, W16 - 6, 1);
-    ctx.fillRect(0, 1, 1, roofH - 1); ctx.fillRect(W16 - 1, 1, 1, roofH - 1);
-    ctx.fillRect(IN - 1, roofH, 1, BH - roofH); ctx.fillRect(W16 - IN, roofH, 1, BH - roofH);
+    ctx.fillRect(IN - 1, wallY, 1, BH - wallY); ctx.fillRect(W16 - IN, wallY, 1, BH - wallY);
     ctx.fillRect(IN, BH - 1, W16 - IN * 2, 1);
   };
 
-  if (style === 'villa') {
-    roofSlab('#a84a3c', '#7d3628', '#d0685a');
-    wallBase('#e8e2d4', '#c8c0ac');
-    windowsFill(4, 5, () => '#3a4a6a', '#c8c0ac');
-    if (lm) {
-      px(ctx, doorCx - (doorW >> 1) - 4, wallY + 3, 3, BH - wallY - 3, '#f4f0e6');
-      px(ctx, doorCx + (doorW >> 1) + 1, wallY + 3, 3, BH - wallY - 3, '#f4f0e6');
-    }
-    drawDoor('#b8a878', '#5a3a1e');
-  } else if (style === 'cottage') {
-    roofSlab('#4c5a6d', '#3c4854', '#6d8098');
-    px(ctx, W16 - 9, 1, 4, roofH - 3, '#7a746a');   // chimney
-    px(ctx, W16 - 10, 1, 6, 2, '#8a847a');
-    wallBase('#9a948a', '#7a746a');
-    for (let yy = wallY + 5; yy < BH - 2; yy += 4)
-      for (let xx = (yy % 8 === 0 ? IN + 1 : IN + 4); xx < W16 - IN - 2; xx += 7) px(ctx, xx, yy, 5, 1, '#8a847a');
-    windowsFill(4, 4, () => '#ffd75e', '#6d5f47');
-    drawDoor('#6d5f47', '#5a3a1e');
-  } else if (style === 'saloon') {
-    // flat false front: parapet + painted sign as the "roof", awning below
-    px(ctx, 0, 0, W16, roofH, '#b08850');
-    px(ctx, 0, 0, W16, 3, '#8a6034');
-    px(ctx, 1, 1, W16 - 2, 1, '#c89a5e');
-    px(ctx, 3, 4, W16 - 6, roofH - 7, '#5a3a24');
-    px(ctx, 4, 5, W16 - 8, roofH - 9, '#e8d49a');
-    for (let sx2 = 6, i = 0; sx2 < W16 - 7; sx2 += 4, i++) {
-      if (rnd(i) > 0.25) px(ctx, sx2, 6, 2, Math.max(2, roofH - 11), '#5a3a24');
-    }
-    px(ctx, 0, roofH - 3, W16, 3, '#8a3d30');
-    for (let ax = 1; ax < W16; ax += 4) px(ctx, ax, roofH - 1, 2, 1, '#c05a48');
-    ctx.clearRect(0, 0, 2, 1); ctx.clearRect(W16 - 2, 0, 2, 1);
-    wallBase('#b08850', '#9a743e');
-    for (let xx = IN + 2; xx < W16 - IN - 1; xx += 3) px(ctx, xx, wallY + 2, 1, BH - wallY - 3, '#9a743e');
-    windowsFill(4, 5, () => '#3a3226', '#8a6034');
-    drawDoor('#8a6034', '#4a3018');
-    px(ctx, doorCx - (doorW >> 1), BH - (doorH >> 1), doorW, 1, '#8a6034');
-  } else if (style === 'hall') {
-    roofSlab('#c09018', '#96700c', '#ecc23c');
-    px(ctx, doorCx - 3, 0, 6, 2, '#f0c040');            // ridge crest
-    px(ctx, 0, roofH - 4, 2, 3, '#f0c040');             // upturned eave corners
-    px(ctx, W16 - 2, roofH - 4, 2, 3, '#f0c040');
-    wallBase('#a03030', '#7a2020');
-    for (let cx2 = IN + 1; cx2 < W16 - IN - 2; cx2 += 6) px(ctx, cx2, wallY + 2, 2, BH - wallY - 3, '#c04040');
-    windowsFill(4, 4, () => '#f0d8a8', '#7a2020');
-    drawDoor('#f0c040', '#5a1a1a');
-  } else if (style === 'hut') {
-    // deep layered leaf roof over a woven timber body
-    const slope = Math.max(4, Math.round(roofH * 0.55));
-    px(ctx, 0, 0, W16, slope, '#82a04a');
-    px(ctx, 0, slope, W16, roofH - slope, '#6d8a3a');
-    for (let gy = 2; gy < roofH - 2; gy += 3) px(ctx, 1, gy, W16 - 2, 1, '#556e2c');
-    px(ctx, 0, roofH - 2, W16, 2, '#485e24');
-    ctx.clearRect(0, 0, 3, 1); ctx.clearRect(W16 - 3, 0, 3, 1);
-    wallBase('#8a6a42', '#6d5230');
-    for (let yy = wallY + 4; yy < BH - 4; yy += 3) px(ctx, IN + 1, yy, W16 - IN * 2 - 2, 1, '#7a5a34');
-    windowsFill(3, 3, () => '#2f2418', '#6d5230');
-    for (let sx2 = IN + 1; sx2 < W16 - IN - 1; sx2 += 6) px(ctx, sx2, BH - 3, 2, 3, '#5a4022');
-    if (lm) { px(ctx, doorCx - 2, 0, 4, 4, '#d4a018'); px(ctx, doorCx - 1, 0, 2, 2, '#f0c040'); }
-    drawDoor('#556e2c', '#3f2f1c');
-  } else { // tower / tower4 (Maneki-Neko)
-    const neon = ['#ffe066', '#5eeaff', '#ff6be0', '#8dff6b'];
-    const sign = neon[b.v % 4];
-    px(ctx, 0, 0, W16, roofH, '#2c2838');
-    px(ctx, 0, 0, W16, 4, '#3c3850');                    // rooftop parapet
-    px(ctx, 2, 5, W16 - 4, 3, sign);                     // neon crown strip
-    px(ctx, 3, roofH - 2, 2, 2, '#8a8798'); px(ctx, W16 - 5, roofH - 2, 2, 2, '#8a8798');
-    ctx.clearRect(0, 0, 2, 1); ctx.clearRect(W16 - 2, 0, 2, 1);
-    const bodyC = ['#3a3a4e', '#343044', '#403a52'][b.v % 3];
-    wallBase(bodyC, '#242030');
-    px(ctx, IN + 1, wallY + 2, 1, BH - wallY - 3, '#55506a');
-    // window floors: tower4 packs 4 tight stories, tower reads as 2
-    const rows = style === 'tower4' ? 4 : 2;
-    const rowH = Math.floor((BH - wallY - 6) / rows);
-    let i = 0;
-    for (let r2 = 0; r2 < rows; r2++) {
-      const wy = wallY + 3 + r2 * rowH;
-      const overDoorRow = wy + 3 > BH - doorH - 2;
-      for (let wx = IN + 2; wx + 3 <= W16 - IN - 2; wx += 6) {
-        if (overDoorRow && wx + 3 >= doorCx - (doorW >> 1) - 2 && wx <= doorCx + (doorW >> 1) + 2) continue;
-        px(ctx, wx, wy, 3, 3, rnd(i++) < 0.55 ? neon[(i + b.v) % 4] : '#262234');
+  switch (style) {
+    /* ------------- Tyche & Fortuna ------------- */
+    case 'villa':
+      roofTrap('#a84a3c', '#7d3628', '#d0685a');
+      wallBase('#e8e2d4', '#c8c0ac');
+      windowsFill(4, 5, () => '#3a4a6a', '#c8c0ac');
+      drawDoor('#b8a878', '#5a3a1e');
+      break;
+    case 'temple': {
+      // full-width pediment gable over a colonnade
+      const slope2 = roofH - 2;
+      for (let yy = 0; yy < slope2; yy++) {
+        const ins = Math.round((W16 / 2 - 3) * (slope2 - 1 - yy) / Math.max(1, slope2 - 1));
+        px(ctx, ins, yy, W16 - ins * 2, 1, yy < 2 ? '#f4f0e6' : '#e0d8c4');
+        px(ctx, ins, yy, 1, 1, '#b8b09c'); px(ctx, W16 - ins - 1, yy, 1, 1, '#b8b09c');
       }
+      px(ctx, 0, slope2, W16, 2, '#b8a878');
+      wallBase('#e8e2d4', '#c8c0ac');
+      for (let cx2 = IN + 1; cx2 < W16 - IN - 2; cx2 += 5) {
+        px(ctx, cx2, wallY + 2, 3, BH - wallY - 3, '#f4f0e6');
+        px(ctx, cx2 + 2, wallY + 2, 1, BH - wallY - 3, '#c8c0ac');
+      }
+      drawDoor('#b8a878', '#5a3a1e', doorW, doorH, true);
+      break;
     }
-    if (lm) {
-      px(ctx, W16 - IN - 7, wallY + 3, 5, BH - wallY - 8, '#1a1624');
-      for (let sy2 = wallY + 5; sy2 < BH - 8; sy2 += 4) px(ctx, W16 - IN - 6, sy2, 3, 2, sign);
+    case 'dome': {
+      // rounded dome with a gilded finial
+      for (let yy = 0; yy < roofH; yy++) {
+        const t2 = (yy + 1) / roofH;
+        const half = Math.round((W16 / 2 - 1) * Math.sqrt(t2));
+        px(ctx, (W16 >> 1) - half, yy, half * 2, 1, yy < roofH * 0.4 ? '#7ea8c4' : '#5f8cab');
+      }
+      px(ctx, (W16 >> 1) - 1, 0, 2, 3, '#f0c040');
+      px(ctx, 0, roofH - 1, W16, 1, '#46688a');
+      wallBase('#e8e2d4', '#c8c0ac');
+      windowsFill(3, 5, () => '#3a4a6a', '#c8c0ac');
+      drawDoor('#b8a878', '#5a3a1e', doorW, doorH, true);
+      break;
     }
-    drawDoor('#55506a', '#1a1624');
+    case 'arena': {
+      // coliseum: low elliptical crown over tiers of arched openings
+      const crownH = Math.max(7, Math.round(BH * 0.18));
+      for (let yy = 0; yy < crownH; yy++) {
+        const t2 = (yy + 1) / crownH;
+        const half = Math.round((W16 / 2 - 1) * Math.sqrt(t2));
+        px(ctx, (W16 >> 1) - half, yy, half * 2, 1, yy < 2 ? '#f4f0e6' : (yy % 3 === 0 ? '#d8d0bc' : '#e8e2d4'));
+      }
+      px(ctx, 0, crownH - 1, W16, 1, '#b8b09c');
+      wallBase('#e0d8c4', '#b8b09c', crownH);
+      for (let ay = crownH + 3; ay + 6 <= BH - 3; ay += 9) {
+        px(ctx, IN, ay + 7, W16 - IN * 2, 1, '#c8c0ac');   // tier cornice
+        for (let ax = IN + 3; ax + 4 <= W16 - IN - 3; ax += 7) {
+          if (ay + 6 > BH - doorH - 2 && ax + 4 >= doorCx - 7 && ax <= doorCx + 7) continue;
+          px(ctx, ax, ay + 1, 4, 5, '#6d6154');
+          px(ctx, ax + 1, ay, 2, 1, '#6d6154');
+        }
+      }
+      drawDoor('#b8a878', '#4a4034', Math.min(12, doorW + 2), doorH, true);
+      break;
+    }
+
+    /* ------------- Four Leaf Republic ------------- */
+    case 'cottage':
+      roofTrap('#4c5a6d', '#3c4854', '#6d8098', 4, true);
+      px(ctx, W16 - 9, 1, 4, roofH - 3, '#7a746a');
+      px(ctx, W16 - 10, 0, 6, 2, '#8a847a');
+      wallBase('#b0685a', '#8a4a3e');           // warm brick
+      for (let yy = wallY + 5; yy < BH - 2; yy += 3)
+        for (let xx = (yy % 6 === 0 ? IN + 1 : IN + 4); xx < W16 - IN - 2; xx += 6) px(ctx, xx, yy, 4, 1, '#9a5648');
+      windowsFill(4, 4, () => '#ffd75e', '#6d5f47');
+      drawDoor('#6d5f47', '#4a3222');
+      break;
+    case 'pub': {
+      // timber-framed alehouse with a hanging sign
+      roofTrap('#6d5230', '#54401f', '#8a6a42', 4, true);
+      wallBase('#e8dcc0', '#b8a888');
+      px(ctx, IN + 1, wallY + 2, 2, BH - wallY - 3, '#5a4630');
+      px(ctx, W16 - IN - 3, wallY + 2, 2, BH - wallY - 3, '#5a4630');
+      px(ctx, IN + 1, wallY + 2, W16 - IN * 2 - 2, 2, '#5a4630');
+      windowsFill(4, 4, () => '#f0c040', '#5a4630');
+      // hanging sign
+      px(ctx, IN + 3, wallY + 5, 6, 5, '#2f6a3a'); px(ctx, IN + 4, wallY + 6, 4, 3, '#3d8a4c');
+      px(ctx, IN + 5, wallY + 3, 1, 2, '#54401f');
+      drawDoor('#5a4630', '#3a2c1c');
+      break;
+    }
+    case 'barn': {
+      // gambrel barn: two-step roof over big red doors
+      const slope2 = roofH - 2;
+      for (let yy = 0; yy < slope2; yy++) {
+        const f2 = (slope2 - 1 - yy) / Math.max(1, slope2 - 1);
+        const ins = Math.round((W16 / 4) * (f2 > 0.5 ? f2 : f2 * 0.4));
+        px(ctx, ins, yy, W16 - ins * 2, 1, yy < 2 ? '#8a6a42' : '#6d5230');
+      }
+      px(ctx, 0, slope2, W16, 2, '#54401f');
+      wallBase('#a03030', '#7a2020');
+      px(ctx, IN + 2, wallY + 3, 4, 3, '#e8dcc0'); // hayloft window
+      const bw2 = Math.min(12, doorW + 4);
+      drawDoor('#e8dcc0', '#8a2828', bw2, doorH);
+      // white X brace on the big door
+      const dx2 = doorCx - (bw2 >> 1);
+      for (let i2 = 0; i2 < doorH; i2++) {
+        px(ctx, dx2 + Math.round(i2 * (bw2 - 1) / doorH), BH - doorH + i2, 1, 1, '#e8dcc0');
+        px(ctx, dx2 + bw2 - 1 - Math.round(i2 * (bw2 - 1) / doorH), BH - doorH + i2, 1, 1, '#e8dcc0');
+      }
+      break;
+    }
+    case 'castle': {
+      // crenellated keep: tall teeth, corner towers, sparse arrow slits
+      px(ctx, 0, 3, W16, roofH - 3, '#aaa49a');
+      for (let bx2 = 0; bx2 < W16; bx2 += 6) px(ctx, bx2, 0, 3, 4, '#aaa49a');  // battlement teeth
+      px(ctx, 0, roofH - 2, W16, 2, '#7a746a');
+      wallBase('#b4aea2', '#8a847a');
+      // corner towers with their own teeth
+      for (const tx2 of [IN, W16 - IN - 6]) {
+        px(ctx, tx2, wallY - 2, 6, BH - wallY + 2, '#9a948a');
+        px(ctx, tx2, wallY - 5, 2, 4, '#9a948a'); px(ctx, tx2 + 4, wallY - 5, 2, 4, '#9a948a');
+        px(ctx, tx2 + 2, wallY + 4, 2, 5, '#2c3a4a');   // tower slit
+      }
+      // sparse arrow slits across the keep face
+      for (let sx2 = IN + 10; sx2 < W16 - IN - 10; sx2 += 9) {
+        px(ctx, sx2, wallY + 4, 2, 6, '#2c3a4a');
+        if (BH - wallY > 24) px(ctx, sx2 + 3, wallY + 14, 2, 6, '#2c3a4a');
+      }
+      // clover banner over the gate
+      px(ctx, doorCx - 1, 0, 1, 6, '#54401f'); px(ctx, doorCx, 0, 6, 4, '#2f7a3a');
+      px(ctx, doorCx + 2, 1, 2, 2, '#8dff6b');
+      drawDoor('#6d6864', '#3a2c1c', Math.min(12, doorW + 2), doorH, true);
+      break;
+    }
+
+    /* ------------- Horseshoeville ------------- */
+    case 'saloon':
+      px(ctx, 0, 0, W16, roofH, '#b08850');
+      px(ctx, 0, 0, W16, 3, '#8a6034');
+      px(ctx, 1, 1, W16 - 2, 1, '#c89a5e');
+      px(ctx, 3, 4, W16 - 6, roofH - 7, '#5a3a24');
+      px(ctx, 4, 5, W16 - 8, roofH - 9, '#e8d49a');
+      for (let sx2 = 6, i2 = 0; sx2 < W16 - 7; sx2 += 4, i2++) {
+        if (rnd(i2) > 0.25) px(ctx, sx2, 6, 2, Math.max(2, roofH - 11), '#5a3a24');
+      }
+      px(ctx, 0, roofH - 3, W16, 3, '#8a3d30');
+      for (let ax = 1; ax < W16; ax += 4) px(ctx, ax, roofH - 1, 2, 1, '#c05a48');
+      ctx.clearRect(0, 0, 2, 1); ctx.clearRect(W16 - 2, 0, 2, 1);
+      wallBase('#b08850', '#9a743e');
+      for (let xx = IN + 2; xx < W16 - IN - 1; xx += 3) px(ctx, xx, wallY + 2, 1, BH - wallY - 3, '#9a743e');
+      windowsFill(4, 5, () => '#3a3226', '#8a6034');
+      drawDoor('#8a6034', '#4a3018');
+      px(ctx, doorCx - (doorW >> 1), BH - (doorH >> 1), doorW, 1, '#8a6034');
+      break;
+    case 'ranch': {
+      // low ranch house: shallow roof, porch posts, horseshoe over the door
+      roofTrap('#8a6a42', '#6d5230', '#a5885c', 3);
+      wallBase('#c8a06a', '#a58048');
+      for (let xx = IN + 3; xx < W16 - IN - 2; xx += 6) px(ctx, xx, BH - 6, 2, 6, '#6d5230'); // porch posts
+      px(ctx, IN + 1, BH - 7, W16 - IN * 2 - 2, 2, '#8a6a42');                                // porch beam
+      windowsFill(4, 4, () => '#3a3226', '#8a6a42');
+      px(ctx, doorCx - 2, BH - doorH - 4, 4, 2, '#b8b0a0'); px(ctx, doorCx - 2, BH - doorH - 3, 1, 1, '#8a8480'); // horseshoe
+      drawDoor('#8a6a42', '#4a3018');
+      break;
+    }
+
+    /* ------------- Dragonia ------------- */
+    case 'hall':
+      roofTrap('#c09018', '#96700c', '#ecc23c');
+      px(ctx, doorCx - 3, 0, 6, 2, '#f0c040');
+      px(ctx, 0, roofH - 4, 2, 3, '#f0c040'); px(ctx, W16 - 2, roofH - 4, 2, 3, '#f0c040');
+      wallBase('#a03030', '#7a2020');
+      for (let cx2 = IN + 1; cx2 < W16 - IN - 2; cx2 += 6) px(ctx, cx2, wallY + 2, 2, BH - wallY - 3, '#c04040');
+      windowsFill(4, 4, () => '#f0d8a8', '#7a2020');
+      drawDoor('#f0c040', '#5a1a1a');
+      break;
+    case 'pagoda': {
+      // two stacked tapering roof tiers
+      const tier = Math.max(5, Math.round(roofH * 0.55));
+      for (let yy = 0; yy < tier; yy++) {
+        const ins = Math.round((W16 / 3.2) * (tier - 1 - yy) / Math.max(1, tier - 1));
+        px(ctx, ins, yy, W16 - ins * 2, 1, yy < 2 ? '#ecc23c' : '#c09018');
+      }
+      px(ctx, 0, tier, W16, 1, '#96700c');
+      px(ctx, IN + 2, tier + 1, W16 - IN * 2 - 4, 3, '#a03030'); // upper storey band
+      const tier2y = tier + 4;
+      for (let yy = 0; yy < 4; yy++) {
+        const ins = Math.round(3 * (3 - yy) / 3);
+        px(ctx, ins, tier2y + yy, W16 - ins * 2, 1, yy < 1 ? '#ecc23c' : '#c09018');
+      }
+      px(ctx, 0, tier2y + 4, W16, 1, '#96700c');
+      wallBase('#a03030', '#7a2020', tier2y + 5);
+      windowsFill(3, 4, () => '#f0d8a8', '#7a2020', tier2y + 5);
+      px(ctx, doorCx - 1, 0, 2, 2, '#f0c040');
+      drawDoor('#f0c040', '#5a1a1a');
+      break;
+    }
+    case 'fortress':
+      battlements('#6d6154', '#54483c');
+      px(ctx, 0, 5, W16, roofH - 5, '#7a6e60');
+      px(ctx, 0, roofH - 1, W16, 1, '#54483c');
+      wallBase('#7a6e60', '#5a5044');
+      for (let yy = wallY + 4; yy < BH - 3; yy += 4)
+        for (let xx = (yy % 8 === 0 ? IN + 1 : IN + 4); xx < W16 - IN - 2; xx += 6) px(ctx, xx, yy, 4, 1, '#6d6154');
+      px(ctx, doorCx - 1, 1, 1, 4, '#54401f'); px(ctx, doorCx, 1, 4, 3, '#c03030'); // war banner
+      windowsFill(3, 3, () => '#2c2418', null);
+      drawDoor('#54483c', '#2c2418', doorW, doorH, true);
+      break;
+
+    /* ------------- Elephantium ------------- */
+    case 'hut':
+      roofTrap('#6d8a3a', '#556e2c', '#82a04a', 4, true);
+      wallBase('#8a6a42', '#6d5230');
+      for (let yy = wallY + 4; yy < BH - 4; yy += 3) px(ctx, IN + 1, yy, W16 - IN * 2 - 2, 1, '#7a5a34');
+      windowsFill(3, 3, () => '#2f2418', '#6d5230');
+      for (let sx2 = IN + 1; sx2 < W16 - IN - 1; sx2 += 6) px(ctx, sx2, BH - 3, 2, 3, '#5a4022');
+      drawDoor('#556e2c', '#3f2f1c');
+      break;
+    case 'stilt': {
+      // coastal fishing hut: tall stilts, drying net, buoys
+      roofTrap('#8a9a5c', '#6d7a44', '#a5b470', 4, true);
+      const stiltH = Math.max(5, Math.round(BH * 0.2));
+      wallBase('#9a7a4e', '#7a5e38');
+      ctx.clearRect(IN, BH - stiltH, W16 - IN * 2, stiltH);   // open air under the hut
+      for (let sx2 = IN + 1; sx2 < W16 - IN; sx2 += 5) px(ctx, sx2, BH - stiltH, 2, stiltH, '#5a4022');
+      px(ctx, IN, BH - stiltH, W16 - IN * 2, 1, '#54401f');   // deck edge
+      // drying net
+      for (let ny = wallY + 3; ny < BH - stiltH - 2; ny += 2) px(ctx, W16 - IN - 6, ny, 5, 1, '#c8b88a');
+      for (let nx = W16 - IN - 6; nx < W16 - IN - 1; nx += 2) px(ctx, nx, wallY + 3, 1, BH - stiltH - wallY - 5, '#c8b88a');
+      px(ctx, IN + 2, BH - stiltH - 3, 2, 2, '#d44a4a');      // buoy
+      windowsFill(3, 3, () => '#2f2418', '#6d5230');
+      drawDoor('#6d7a44', '#3f2f1c');
+      break;
+    }
+    case 'redlight': {
+      // lantern-lit night house: dark timber, pink glow
+      px(ctx, 0, 0, W16, roofH, '#3a2c34');
+      px(ctx, 1, 1, W16 - 2, 1, '#54424c');
+      px(ctx, 0, roofH - 2, W16, 2, '#241c20');
+      ctx.clearRect(0, 0, 2, 1); ctx.clearRect(W16 - 2, 0, 2, 1);
+      wallBase('#4a3a42', '#332830');
+      windowsFill(4, 4, (i2) => (i2 % 2 ? '#ff6b9e' : '#ff8ac0'), '#241c20');
+      px(ctx, IN + 2, wallY + 2, 3, 4, '#ff4a7e'); px(ctx, W16 - IN - 5, wallY + 2, 3, 4, '#ff4a7e'); // paired lanterns
+      drawDoor('#241c20', '#180f14');
+      break;
+    }
+    case 'stupa': {
+      // gilded stupa: white terrace, golden bell spire to a point
+      const spireH = Math.round(BH * 0.45);
+      for (let yy = 0; yy < spireH; yy++) {
+        const t2 = yy / spireH;
+        const half = Math.max(1, Math.round((W16 / 3) * Math.pow(t2, 1.5)));
+        px(ctx, (W16 >> 1) - half, yy, half * 2, 1, yy % 4 === 3 ? '#b8880c' : (t2 < 0.3 ? '#f0c040' : '#d4a018'));
+      }
+      px(ctx, (W16 >> 1) - 1, 0, 2, 2, '#fff0a0');
+      wallBase('#e8e2d4', '#c8c0ac', spireH);
+      windowsFill(3, 3, () => '#4a3a2a', '#c8c0ac', spireH);
+      drawDoor('#d4a018', '#5a4022', doorW, Math.min(doorH, BH - spireH - 3), true);
+      break;
+    }
+
+    /* ------------- Maneki-Neko ------------- */
+    case 'casino': {
+      // chase-light marquee palace
+      px(ctx, 0, 0, W16, roofH, '#5a1a4a');
+      px(ctx, 0, roofH - 2, W16, 2, '#38102e');
+      const bulbs = ['#ffe066', '#ff6be0', '#5eeaff'];
+      for (let bx2 = 1, i2 = 0; bx2 < W16 - 1; bx2 += 3, i2++) {
+        px(ctx, bx2, 1, 2, 2, bulbs[i2 % 3]);
+        px(ctx, bx2, roofH - 4, 2, 2, bulbs[(i2 + 1) % 3]);
+      }
+      px(ctx, 4, 4, W16 - 8, roofH - 9, '#f8f0ff');
+      px(ctx, 6, 5, 4, Math.max(2, roofH - 11), '#d43a8e'); // mushroom sigil blob
+      px(ctx, 7, 4, 2, 1, '#d43a8e');
+      wallBase('#6d2458', '#4a1840');
+      windowsFill(4, 4, (i2) => bulbs[i2 % 3], '#38102e');
+      drawDoor('#ffe066', '#38102e', Math.min(12, doorW + 2));
+      break;
+    }
+    case 'warehouse': {
+      // corrugated port shed with a wide shutter
+      roofTrap('#5a6a72', '#46525a', '#74868e', 3);
+      wallBase('#7a8890', '#5a6870');
+      for (let yy = wallY + 3; yy < BH - 2; yy += 2) px(ctx, IN + 1, yy, W16 - IN * 2 - 2, 1, '#6d7c84');
+      const shW = Math.min(14, W16 - 10);
+      px(ctx, doorCx - (shW >> 1) - 1, BH - doorH - 1, shW + 2, doorH + 1, '#46525a');
+      for (let yy = BH - doorH; yy < BH - 1; yy += 2) px(ctx, doorCx - (shW >> 1), yy, shW, 1, '#38444c');
+      px(ctx, doorCx + (shW >> 1) - 3, BH - (doorH >> 1) - 1, 2, 2, '#ffd75e');
+      px(ctx, IN + 2, wallY + 2, 4, 3, '#ffe066'); // office light
+      break;
+    }
+    case 'needle': {
+      // observation tower: broad base, slim shaft, glowing disc
+      const baseH = Math.max(6, Math.round(BH * 0.25));
+      wallBase('#3a3a4e', '#242030', BH - baseH);
+      const shaftW = Math.max(4, W16 >> 2);
+      px(ctx, (W16 - shaftW) >> 1, 8, shaftW, BH - baseH - 8, '#55506a');
+      px(ctx, ((W16 - shaftW) >> 1) + 1, 8, 1, BH - baseH - 8, '#6d688a');
+      // disc
+      px(ctx, 2, 3, W16 - 4, 5, '#2c2838');
+      px(ctx, 1, 4, W16 - 2, 3, '#2c2838');
+      const neon2 = ['#ffe066', '#5eeaff', '#ff6be0'][b.v % 3];
+      px(ctx, 3, 5, W16 - 6, 1, neon2);
+      px(ctx, (W16 >> 1) - 1, 0, 2, 3, '#8a8798');
+      drawDoor('#55506a', '#1a1624');
+      break;
+    }
+    case 'tower':
+    case 'tower4':
+    default: {
+      const neon = ['#ffe066', '#5eeaff', '#ff6be0', '#8dff6b'];
+      const sign = neon[b.v % 4];
+      px(ctx, 0, 0, W16, roofH, '#2c2838');
+      px(ctx, 0, 0, W16, 4, '#3c3850');
+      px(ctx, 2, 5, W16 - 4, 3, sign);
+      px(ctx, 3, roofH - 2, 2, 2, '#8a8798'); px(ctx, W16 - 5, roofH - 2, 2, 2, '#8a8798');
+      ctx.clearRect(0, 0, 2, 1); ctx.clearRect(W16 - 2, 0, 2, 1);
+      const bodyC = ['#3a3a4e', '#343044', '#403a52'][b.v % 3];
+      wallBase(bodyC, '#242030');
+      px(ctx, IN + 1, wallY + 2, 1, BH - wallY - 3, '#55506a');
+      const rows = style === 'tower4' ? 4 : 2;
+      const rowH = Math.max(4, Math.floor((BH - wallY - 6) / rows));
+      let i2 = 0;
+      for (let r2 = 0; r2 < rows; r2++) {
+        const wy = wallY + 3 + r2 * rowH;
+        if (wy + 3 > BH - 2) break;
+        const overDoorRow = wy + 3 > BH - doorH - 2;
+        for (let wx = IN + 2; wx + 3 <= W16 - IN - 2; wx += 6) {
+          if (overDoorRow && wx + 3 >= doorCx - (doorW >> 1) - 2 && wx <= doorCx + (doorW >> 1) + 2) continue;
+          px(ctx, wx, wy, 3, 3, rnd(i2++) < 0.55 ? neon[(i2 + b.v) % 4] : '#262234');
+        }
+      }
+      if (lm) {
+        px(ctx, W16 - IN - 7, wallY + 3, 5, BH - wallY - 8, '#1a1624');
+        for (let sy2 = wallY + 5; sy2 < BH - 8; sy2 += 4) px(ctx, W16 - IN - 6, sy2, 3, 2, sign);
+      }
+      drawDoor('#55506a', '#1a1624');
+      break;
+    }
+    case 'lighthouse': {
+      // red-and-white striped light tower over a keeper's cottage
+      const towerW = Math.max(10, Math.round(W16 * 0.42));
+      const tx0 = (W16 - towerW) >> 1;
+      for (let yy = 8; yy < BH - 8; yy += 4) {
+        px(ctx, tx0, yy, towerW, 4, Math.floor(yy / 4) % 2 ? '#e8e2d4' : '#c04838');
+      }
+      px(ctx, tx0, 8, 1, BH - 16, '#8a4a3e'); px(ctx, tx0 + towerW - 1, 8, 1, BH - 16, '#8a4a3e');
+      px(ctx, tx0 + 1, 2, towerW - 2, 4, '#2c2838');       // lamp room
+      px(ctx, tx0 + 3, 3, towerW - 6, 2, '#ffe066');       // the light
+      px(ctx, tx0 - 2, 6, towerW + 4, 2, '#8a8480');       // gallery rail
+      wallBase('#e8e2d4', '#c8c0ac', BH - 10);             // keeper's cottage
+      px(ctx, IN, BH - 12, W16 - IN * 2, 3, '#c04838');    // cottage roof band
+      drawDoor('#c04838', '#5a3a1e');
+      break;
+    }
   }
 
   outline();
@@ -538,7 +806,6 @@ function drawProp(ctx, prov, v) {
       px(ctx, 7, 9, 2, 2, '#d4a018'); px(ctx, 11, 5, 2, 4, '#f4f0e6');
     }
   }
-  // soft ground shadow
   ctx.fillStyle = 'rgba(0,0,0,0.2)';
   ctx.fillRect(3, 13, 10, 2);
 }

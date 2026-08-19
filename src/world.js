@@ -403,25 +403,47 @@ export function generateWorld() {
     return true;
   }
 
+  /* Architectural mix per city style — picked per building so streets
+     read as real neighbourhoods, not one stamped shape. */
+  const KIND_POOLS = {
+    grid: ['tower', 'tower', 'tower4', 'casino', 'warehouse', 'needle', 'tower4'],
+    mediterranean: ['villa', 'villa', 'temple', 'dome', 'villa', 'temple'],
+    highland: ['cottage', 'cottage', 'pub', 'barn', 'cottage', 'pub'],
+    saloon: ['saloon', 'saloon', 'ranch', 'saloon', 'barn', 'ranch'],
+    courtyard: ['hall', 'pagoda', 'hall', 'fortress', 'pagoda', 'hall'],
+    jungle: ['hut', 'stilt', 'hut', 'redlight', 'stilt', 'hut'],
+  };
+
   function stampCity(c) {
     const floor = cityFloor[c.style];
     clearFlat(c.x, c.y, c.r, floor);
     const rng = (i, j) => hash2(c.x * 7 + i, c.y * 3 + j, seed + 75);
+    const pool = KIND_POOLS[c.style];
+    const pick2 = (i, j) => pool[Math.floor(rng(i, j) * pool.length)];
 
     if (c.style === 'grid') {
-      // dense metropolis: tight street grid, low-rise blocks + some 4-story towers
-      const step = 4;
+      // metropolis with an organic street net: variable block sizes,
+      // buildings sized to their block — no perfect checkerboard
       for (let gy = -c.r + 1; gy <= c.r - 1; gy++) for (let gx = -c.r + 1; gx <= c.r - 1; gx++) {
         if (Math.hypot(gx, gy) > c.r - 1) continue;
-        set(c.x + gx, c.y + gy, ((gx + c.r) % step === 0 || (gy + c.r) % step === 0) ? T.ROAD : T.NEON);
+        set(c.x + gx, c.y + gy, T.NEON);
       }
-      for (let by = -c.r; by < c.r - step; by += step) for (let bx = -c.r; bx < c.r - step; bx += step) {
-        const ox = bx + (c.r % step) + 1, oy = by + (c.r % step) + 1;
-        if (Math.hypot(ox + 1, oy + 1) > c.r - 2) continue;
-        if (rng(bx, by) < 0.94) {
-          // stories are drawn into the sprite; a handful read as 4-story towers
-          building(c.x + ox, c.y + oy, 3, 3, c.prov, rng(bx, by + 99) < 0.3 ? 'tower4' : 'tower');
-        }
+      const colsArr = [], rowsArr = [];
+      for (let p = -c.r + 1; p < c.r; p += 4 + Math.floor(rng(p, 21) * 2)) colsArr.push(p);
+      for (let p = -c.r + 1; p < c.r; p += 3 + Math.floor(rng(p, 22) * 2)) rowsArr.push(p);
+      for (const gc of colsArr) for (let gy = -c.r + 1; gy <= c.r - 1; gy++) {
+        if (Math.hypot(gc, gy) <= c.r - 1 && rng(gc * 3, gy) > 0.06) set(c.x + gc, c.y + gy, T.ROAD);
+      }
+      for (const gr of rowsArr) for (let gx = -c.r + 1; gx <= c.r - 1; gx++) {
+        if (Math.hypot(gx, gr) <= c.r - 1 && rng(gx, gr * 3) > 0.06) set(c.x + gx, c.y + gr, T.ROAD);
+      }
+      for (let ci = 0; ci < colsArr.length - 1; ci++) for (let ri = 0; ri < rowsArr.length - 1; ri++) {
+        const bx = colsArr[ci] + 1, by = rowsArr[ri] + 1;
+        const bw = Math.min(colsArr[ci + 1] - colsArr[ci] - 1, 4);
+        const bh = Math.min(rowsArr[ri + 1] - rowsArr[ri] - 1, 3);
+        if (bw < 3 || bh < 2) continue;
+        if (Math.hypot(bx + bw / 2, by + bh / 2) > c.r - 2) continue;
+        if (rng(ci, ri + 50) < 0.92) building(c.x + bx, c.y + by, bw, bh, c.prov, pick2(ci, ri));
       }
     } else if (c.style === 'courtyard') {
       // walled compound packed with golden-roofed halls around cross avenues
@@ -435,7 +457,7 @@ export function generateWorld() {
       set(c.x - r, c.y, T.PLAZA); set(c.x + r, c.y, T.PLAZA);
       for (let i = -r + 1; i <= r - 1; i++) { set(c.x + i, c.y, T.ROAD); set(c.x, c.y + i, T.ROAD); }
       for (let by = -r + 1; by < r - 2; by += 3) for (let bx = -r + 1; bx < r - 4; bx += 5) {
-        if (rng(bx, by) < 0.9) building(c.x + bx, c.y + by, 4, 2, c.prov, 'hall');
+        if (rng(bx, by) < 0.9) building(c.x + bx, c.y + by, 3 + Math.floor(rng(bx, by + 9) * 2), 2, c.prov, pick2(bx, by));
       }
     } else if (c.style === 'saloon') {
       // one wide dusty main street, low false fronts shoulder to shoulder
@@ -443,8 +465,8 @@ export function generateWorld() {
       for (let bx = -c.r + 2; bx < c.r - 3; bx += 3) {
         if (rng(bx, 1) < 0.94) building(c.x + bx, c.y - 4, 3, 2, c.prov, 'saloon');
         if (rng(bx, 2) < 0.94) building(c.x + bx, c.y + 3, 3, 2, c.prov, 'saloon');
-        if (rng(bx, 3) < 0.6) building(c.x + bx, c.y - 8, 3, 2, c.prov, 'saloon');
-        if (rng(bx, 4) < 0.6) building(c.x + bx, c.y + 7, 3, 2, c.prov, 'saloon');
+        if (rng(bx, 3) < 0.6) building(c.x + bx, c.y - 8, 3, 2, c.prov, pick2(bx, 5));
+        if (rng(bx, 4) < 0.6) building(c.x + bx, c.y + 7, 3, 2, c.prov, pick2(bx, 6));
       }
     } else if (c.style === 'mediterranean') {
       // central plaza, ring lane, villas crowding both sides of the ring
@@ -458,13 +480,13 @@ export function generateWorld() {
         const ang = (a / 12) * Math.PI * 2 + 0.3;
         const bx = Math.round(c.x + Math.cos(ang) * (ringR - 2.4)) - 1;
         const by = Math.round(c.y + Math.sin(ang) * (ringR - 2.4)) - 1;
-        if (rng(a, 0) < 0.92) building(bx, by, 3, rng(a, 7) < 0.35 ? 3 : 2, c.prov, 'villa');
+        if (rng(a, 0) < 0.92) building(bx + Math.round((rng(a, 8) - 0.5) * 2), by, 3, rng(a, 7) < 0.35 ? 3 : 2, c.prov, pick2(a, 0));
       }
       for (let a = 0; a < 10; a++) {
         const ang = (a / 10) * Math.PI * 2;
         const bx = Math.round(c.x + Math.cos(ang) * (ringR + 2.4)) - 1;
         const by = Math.round(c.y + Math.sin(ang) * (ringR + 2.4)) - 1;
-        if (rng(a, 5) < 0.85) building(bx, by, 3, 2, c.prov, 'villa');
+        if (rng(a, 5) < 0.85) building(bx + Math.round((rng(a, 9) - 0.5) * 2), by, 3, 2, c.prov, pick2(a, 5));
       }
     } else if (c.style === 'highland') {
       // cottages packed along a winding lane
@@ -473,8 +495,8 @@ export function generateWorld() {
         set(lx, ly, T.ROAD);
         set(lx, ly + 1, T.ROAD);
         lx += 1; ly += Math.round((fbm(lx, ly, 4, seed + 76) - 0.5) * 2.4);
-        if (i % 3 === 1 && rng(i, 3) < 0.9) building(lx - 1, ly - 4, 3, 2, c.prov, 'cottage');
-        if (i % 3 === 2 && rng(i, 4) < 0.9) building(lx - 1, ly + 3, 3, 2, c.prov, 'cottage');
+        if (i % 3 === 1 && rng(i, 3) < 0.9) building(lx - 1, ly - 4, 3, 2, c.prov, pick2(i, 3));
+        if (i % 3 === 2 && rng(i, 4) < 0.9) building(lx - 1, ly + 3, 3, 2, c.prov, pick2(i, 4));
       }
     } else if (c.style === 'jungle') {
       // stilt huts around clearings, connected by narrow trails
@@ -482,7 +504,7 @@ export function generateWorld() {
         const ang = (a / 9) * Math.PI * 2;
         const hx = Math.round(c.x + Math.cos(ang) * (c.r - 4));
         const hy = Math.round(c.y + Math.sin(ang) * (c.r - 4));
-        building(hx - 1, hy - 1, 3, 2, c.prov, 'hut');
+        building(hx - 1, hy - 1, 3, 2, c.prov, pick2(a, 1));
         const steps = c.r;
         for (let s2 = 0; s2 < steps; s2++) {
           const f = s2 / steps;
@@ -538,7 +560,16 @@ export function generateWorld() {
       if (t !== T.WATER && t !== T.DEEP) set(doorX + dx, doorY + dy, T.PLAZA);
     }
     lm.doorX = doorX; lm.doorY = doorY;
-    buildings.push({ x, y, w, h, prov: lm.prov, kind: 'landmark', v: (hash2(x, y, seed + 74) * 1e6) | 0, doorPx: (w >> 1) * 16 + 8 });
+    const n = lm.name;
+    const sub = /Castle/.test(n) ? 'castle'
+      : /Coliseum|Arena|Downs/.test(n) ? 'arena'
+      : /Casino/.test(n) ? 'casino'
+      : /Golden Temple/.test(n) ? 'stupa'
+      : /Light\b/.test(n) ? 'lighthouse'
+      : lm.prov === 'DG' && /Temple|Palace|Pavilion|Hall/.test(n) ? 'pagoda'
+      : /Harbourhouse|Docks/.test(n) ? 'warehouse'
+      : null;
+    buildings.push({ x, y, w, h, prov: lm.prov, kind: 'landmark', sub, v: (hash2(x, y, seed + 74) * 1e6) | 0, doorPx: (w >> 1) * 16 + 8 });
     landmarks.push(lm);
   }
 
@@ -607,31 +638,32 @@ export function generateWorld() {
      Roads & trails — the drawn routes, winding, carved through
      rock as narrow mountain trails.
      ============================================================ */
-  function carvePath(pts, wide = 1) {
+  function carvePath(pts, wide = 1, dirt = false) {
     for (let i = 0; i < pts.length - 1; i++) {
       const [ax, ay] = pts[i], [bx, by] = pts[i + 1];
       const steps = Math.max(Math.abs(bx - ax), Math.abs(by - ay)) * 2;
       for (let s = 0; s <= steps; s++) {
         const f = s / steps;
-        const cx = Math.round(ax + (bx - ax) * f + (fbm(s * 2 + i * 31, i * 13, 7, seed + 80) - 0.5) * 4);
-        const cy = Math.round(ay + (by - ay) * f + (fbm(i * 13, s * 2 + i * 31, 7, seed + 81) - 0.5) * 4);
+        const wob = dirt ? 6 : 4; // dirt tracks meander harder
+        const cx = Math.round(ax + (bx - ax) * f + (fbm(s * 2 + i * 31, i * 13, 7, seed + 80) - 0.5) * wob);
+        const cy = Math.round(ay + (by - ay) * f + (fbm(i * 13, s * 2 + i * 31, 7, seed + 81) - 0.5) * wob);
         const inRock = get(cx, cy) === T.MOUNTAIN || get(cx, cy) === T.PEAK || get(cx, cy) === T.CLIFF;
         const w = inRock ? 0 : wide;
         for (let dy = 0; dy <= w; dy++) for (let dx = 0; dx <= w; dx++) {
           const t = get(cx + dx, cy + dy);
-          if (t === T.WATER) set(cx + dx, cy + dy, T.BRIDGE);
+          if (t === T.WATER) { if (!dirt) set(cx + dx, cy + dy, T.BRIDGE); }
           else if (t === T.MOUNTAIN || t === T.PEAK || t === T.CLIFF) set(cx + dx, cy + dy, T.TRAIL);
           else if (t !== T.DEEP && t !== T.WALL && t !== T.ROOF && t !== T.DOOR && t !== T.BRIDGE &&
                    t !== T.TIDAL && t !== T.PLAZA && t !== T.NEON && t !== T.WALL_MARBLE &&
                    t !== T.WALL_STONE && t !== T.ROOF_GOLD && t !== T.ROOF_SLATE && t !== T.ROOF_LEAF &&
                    t !== T.FOUNDATION && t !== T.SHALLOW) {
-            set(cx + dx, cy + dy, inRock ? T.TRAIL : T.ROAD);
+            set(cx + dx, cy + dy, (inRock || dirt) ? T.TRAIL : T.ROAD);
           }
         }
       }
     }
   }
-  const trail = (pts) => carvePath(pts, 0);
+  const trail = (pts) => carvePath(pts, 0, true);
 
   // The great western road (FL/TF border, from the northern capes to J1)
   carvePath([[101, 30], [95, 50], [104, 66], [118, 82], [128, 96], [146, 107]]);
@@ -689,6 +721,52 @@ export function generateWorld() {
   trail([[60, 126], [56, 112], [58, 100]]);                          // clover cliff walk
   trail([[64, 184], [52, 176], [48, 176]]);                          // mesa overlook
   trail([[338, 24], [343, 28]]);                                     // Neko shrine steps
+
+  /* ---------- countryside dirt tracks ----------
+     Jagged walking paths webbing the open country between towns and
+     landmarks: rough direction-finding, never bridging rivers. */
+  {
+    const anchors = [
+      ...cities.map((c) => [c.x, c.y]),
+      ...landmarks.map((l) => [l.doorX, l.doorY + 2]),
+    ];
+    // wilderness waypoints so tracks also wander the empty country
+    for (let i = 0; i < 48 && anchors.length < 64; i++) {
+      const wx2 = 16 + Math.floor(hash2(i, 3, seed + 91) * (W - 32));
+      const wy2 = 16 + Math.floor(hash2(7, i, seed + 92) * (H - 32));
+      const t = get(wx2, wy2);
+      if (t === T.GRASS || t === T.MEADOW || t === T.HILL || t === T.DUST || t === T.BAMBOO || t === T.SCRUB) {
+        anchors.push([wx2, wy2]);
+      }
+    }
+    let made = 0;
+    for (let i = 0; i < anchors.length * 2 && made < 34; i++) {
+      const [ax, ay] = anchors[(i * 7) % anchors.length];
+      let best = null, bd = 1e9;
+      for (const [bx2, by2] of anchors) {
+        const d = Math.hypot(ax - bx2, ay - by2);
+        if (d > 22 && d < 75 && d < bd && hash2(ax + bx2, ay + by2, seed + 95 + i) > 0.5) {
+          bd = d; best = [bx2, by2];
+        }
+      }
+      if (!best) continue;
+      // midpoint displacement for a properly jagged track
+      const m1x = Math.round(ax + (best[0] - ax) * 0.33 + (hash2(ax, best[1] + i, seed + 96) - 0.5) * 18);
+      const m1y = Math.round(ay + (best[1] - ay) * 0.33 + (hash2(ay + i, best[0], seed + 97) - 0.5) * 18);
+      const m2x = Math.round(ax + (best[0] - ax) * 0.66 + (hash2(best[0], ay + i, seed + 98) - 0.5) * 18);
+      const m2y = Math.round(ay + (best[1] - ay) * 0.66 + (hash2(best[1] + i, ax, seed + 99) - 0.5) * 18);
+      carvePath([[ax, ay], [m1x, m1y], [m2x, m2y], best], 0, true);
+      made++;
+    }
+    // hand-laid scenic tracks through the quieter corners
+    carvePath([[40, 30], [58, 46], [74, 60], [88, 74]], 0, true);      // FL: highlands crossing
+    carvePath([[24, 96], [46, 88], [68, 94], [88, 106]], 0, true);     // FL: cliffside way
+    carvePath([[36, 40], [30, 60], [36, 80]], 0, true);                // FL: western ramble
+    carvePath([[148, 62], [162, 74], [176, 86]], 0, true);             // TF: Rolling Hills track
+    carvePath([[196, 52], [210, 68], [220, 84]], 0, true);             // TF: Fortunian hills track
+    carvePath([[28, 148], [44, 160], [58, 172]], 0, true);             // HV: mesa run
+    carvePath([[100, 190], [112, 200], [124, 208]], 0, true);          // HV: south range track
+  }
 
   /* ============================================================
      The Paradise Ferry — the only way to the Maneki-Neko isles.
