@@ -106,6 +106,19 @@ function solidAt(px, py) {
   return isSolidTile(world.tiles[ty * world.W + tx], tideLevel);
 }
 
+let pendingDoor = null; // set when the player bumps a (solid) door tile
+let doorCooldown = 0;
+
+function noteDoorBump(...points) {
+  for (const [bx, by] of points) {
+    const tx = Math.floor(bx / TILE), ty = Math.floor(by / TILE);
+    if (world.inB(tx, ty) && world.tiles[ty * world.W + tx] === T.DOOR) {
+      pendingDoor = { tx, ty };
+      return;
+    }
+  }
+}
+
 function tryMove(dx, dy, dt) {
   // wading through shallows is slow going
   const here = world.tiles[Math.floor(player.y / TILE) * world.W + Math.floor(player.x / TILE)];
@@ -113,8 +126,16 @@ function tryMove(dx, dy, dt) {
   const step = player.speed * speedMul * dt;
   const nx = player.x + dx * step, ny = player.y + dy * step;
   const r = 5; // collision radius
-  if (dx && !solidAt(nx + Math.sign(dx) * r, player.y - r + 2) && !solidAt(nx + Math.sign(dx) * r, player.y + r)) player.x = nx;
-  if (dy && !solidAt(player.x - r + 2, ny + Math.sign(dy) * r) && !solidAt(player.x + r, ny + Math.sign(dy) * r)) player.y = ny;
+  if (dx) {
+    const p1 = [nx + Math.sign(dx) * r, player.y - r + 2], p2 = [nx + Math.sign(dx) * r, player.y + r];
+    if (!solidAt(...p1) && !solidAt(...p2)) player.x = nx;
+    else noteDoorBump(p1, p2);
+  }
+  if (dy) {
+    const p1 = [player.x - r + 2, ny + Math.sign(dy) * r], p2 = [player.x + r, ny + Math.sign(dy) * r];
+    if (!solidAt(...p1) && !solidAt(...p2)) player.y = ny;
+    else noteDoorBump(p1, p2);
+  }
   player.x = Math.max(8, Math.min(world.W * TILE - 8, player.x));
   player.y = Math.max(8, Math.min(world.H * TILE - 8, player.y));
 }
@@ -321,6 +342,18 @@ function frame(now) {
   }
   resolveTideStranding();
   state.px = player.x; state.py = player.y;
+
+  /* bumping into a door swings it open (with a cooldown so a closed
+     modal doesn't immediately reopen while still pressing forward) */
+  doorCooldown = Math.max(0, doorCooldown - dt);
+  if (pendingDoor && !UI.isModalOpen() && doorCooldown === 0) {
+    const lm = world.landmarks.find((l) => l.doorX === pendingDoor.tx && l.doorY === pendingDoor.ty);
+    if (lm) {
+      doorCooldown = 1.2;
+      openHub(lm, currentProv);
+    }
+  }
+  pendingDoor = null;
 
   /* --- entities --- */
   for (const n of npcs) updateNpc(n, world, tideLevel, dt);

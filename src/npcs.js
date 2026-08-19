@@ -176,12 +176,27 @@ export const NPC_DEFS = [
 /* ------------------------------------------------------------
    NPC runtime
    ------------------------------------------------------------ */
+/* Find the nearest tile an entity can actually stand on — nobody spawns
+   inside (or on top of) a building, rock, or the sea. */
+function snapToWalkable(world, tx, ty) {
+  for (let r = 0; r < 16; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      const x = tx + dx, y = ty + dy;
+      if (!world.inB(x, y)) continue;
+      const t = world.tiles[y * world.W + x];
+      if (!isSolidTile(t, 0) && t !== T.SHALLOW && t !== T.TIDAL) return { x, y };
+    }
+  }
+  return { x: tx, y: ty };
+}
+
 export function createNpcs(world) {
   return NPC_DEFS.map((def) => {
     const sprite = def.special === 'dragon' ? makeDragonSprite() : makeCharSprite(def.pal || {});
+    const home = snapToWalkable(world, def.home.x, def.home.y);
     return {
-      def, sprite,
-      x: def.home.x * 16 + 8, y: def.home.y * 16 + 8,
+      def, sprite, home,
+      x: home.x * 16 + 8, y: home.y * 16 + 8,
       dir: 0, frame: 0, animT: 0,
       moveT: 1 + roll() * 2, vx: 0, vy: 0,
       lineIdx: 0,
@@ -194,7 +209,7 @@ export function updateNpc(n, world, tide, dt) {
   const speed = n.def.slow ? 18 : 28;
   if (n.moveT <= 0) {
     n.moveT = 1.2 + roll() * 2.5;
-    chooseHeading(n, speed, n.def.home, n.def.radius);
+    chooseHeading(n, speed, n.home, n.def.radius);
   }
   moveEntity(n, world, tide, dt);
   animateEntity(n, dt);
@@ -401,14 +416,23 @@ export function createCitizens(world) {
     const pals = CITIZEN_PALETTES[city.prov] || CITIZEN_PALETTES.TF;
     for (let i = 0; i < city.citizens; i++) {
       const pal = pals[i % pals.length];
-      const ang = rng() * Math.PI * 2, dist = rng() * city.r * 0.7;
+      // sample walkable street spots; never spawn inside a building
+      let sx = city.x, sy = city.y;
+      for (let tries = 0; tries < 30; tries++) {
+        const ang = rng() * Math.PI * 2, dist = rng() * city.r * 0.8;
+        const tx = Math.round(city.x + Math.cos(ang) * dist), ty = Math.round(city.y + Math.sin(ang) * dist);
+        if (!world.inB(tx, ty)) continue;
+        const t = world.tiles[ty * world.W + tx];
+        if (!isSolidTile(t, 0) && t !== T.SHALLOW && t !== T.TIDAL) { sx = tx; sy = ty; break; }
+      }
+      const spot = snapToWalkable(world, sx, sy);
       citizens.push({
         sprite: makeCharSprite({
           skin: skinTones[(i + city.x) % skinTones.length],
           body: pal.body, legs: '#33334a', hat: pal.hat, hatColor: pal.hatColor || '#333',
         }),
-        x: (city.x + Math.cos(ang) * dist) * 16 + 8,
-        y: (city.y + Math.sin(ang) * dist) * 16 + 8,
+        x: spot.x * 16 + 8,
+        y: spot.y * 16 + 8,
         dir: 0, frame: 0, animT: 0, moveT: rng() * 2, vx: 0, vy: 0,
         home: city, // leash to the city
       });

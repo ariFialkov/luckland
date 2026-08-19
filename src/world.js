@@ -43,7 +43,7 @@ export const PROVINCES = {
 const SOLID = new Set([
   T.DEEP, T.WATER, T.MOUNTAIN, T.PEAK, T.CLIFF, T.FOREST, T.JUNGLE,
   T.WALL, T.ROOF, T.WALL_MARBLE, T.WALL_STONE, T.ROOF_GOLD, T.ROOF_SLATE, T.ROOF_LEAF,
-  T.FOUNDATION,
+  T.FOUNDATION, T.DOOR,  // doors block movement too — bumping one opens the hub
 ]);
 
 export function isSolidTile(t, tide) {
@@ -409,7 +409,7 @@ export function generateWorld() {
     const rng = (i, j) => hash2(c.x * 7 + i, c.y * 3 + j, seed + 75);
 
     if (c.style === 'grid') {
-      // dense metropolis: tight street grid, towers filling every block
+      // dense metropolis: tight street grid, low-rise blocks + some 4-story towers
       const step = 4;
       for (let gy = -c.r + 1; gy <= c.r - 1; gy++) for (let gx = -c.r + 1; gx <= c.r - 1; gx++) {
         if (Math.hypot(gx, gy) > c.r - 1) continue;
@@ -418,7 +418,10 @@ export function generateWorld() {
       for (let by = -c.r; by < c.r - step; by += step) for (let bx = -c.r; bx < c.r - step; bx += step) {
         const ox = bx + (c.r % step) + 1, oy = by + (c.r % step) + 1;
         if (Math.hypot(ox + 1, oy + 1) > c.r - 2) continue;
-        if (rng(bx, by) < 0.94) building(c.x + ox, c.y + oy, 3, 3, c.prov, 'tower');
+        if (rng(bx, by) < 0.94) {
+          // stories are drawn into the sprite; a handful read as 4-story towers
+          building(c.x + ox, c.y + oy, 3, 3, c.prov, rng(bx, by + 99) < 0.3 ? 'tower4' : 'tower');
+        }
       }
     } else if (c.style === 'courtyard') {
       // walled compound packed with golden-roofed halls around cross avenues
@@ -431,17 +434,17 @@ export function generateWorld() {
       for (const gx of [0]) { set(c.x + gx, c.y + r, T.PLAZA); set(c.x + gx, c.y - r, T.PLAZA); }
       set(c.x - r, c.y, T.PLAZA); set(c.x + r, c.y, T.PLAZA);
       for (let i = -r + 1; i <= r - 1; i++) { set(c.x + i, c.y, T.ROAD); set(c.x, c.y + i, T.ROAD); }
-      for (let by = -r + 1; by < r - 3; by += 4) for (let bx = -r + 1; bx < r - 4; bx += 5) {
-        if (rng(bx, by) < 0.9) building(c.x + bx, c.y + by, 4, 3, c.prov, 'hall');
+      for (let by = -r + 1; by < r - 2; by += 3) for (let bx = -r + 1; bx < r - 4; bx += 5) {
+        if (rng(bx, by) < 0.9) building(c.x + bx, c.y + by, 4, 2, c.prov, 'hall');
       }
     } else if (c.style === 'saloon') {
-      // one wide dusty main street, false fronts shoulder to shoulder
+      // one wide dusty main street, low false fronts shoulder to shoulder
       for (let i = -c.r + 1; i <= c.r - 1; i++) for (let wgt = -1; wgt <= 1; wgt++) set(c.x + i, c.y + wgt, T.ROAD);
       for (let bx = -c.r + 2; bx < c.r - 3; bx += 3) {
-        if (rng(bx, 1) < 0.94) building(c.x + bx, c.y - 5, 3, 3, c.prov, 'saloon');
-        if (rng(bx, 2) < 0.94) building(c.x + bx, c.y + 3, 3, 3, c.prov, 'saloon');
-        if (rng(bx, 3) < 0.5) building(c.x + bx, c.y - 9, 3, 3, c.prov, 'saloon');
-        if (rng(bx, 4) < 0.5) building(c.x + bx, c.y + 7, 3, 3, c.prov, 'saloon');
+        if (rng(bx, 1) < 0.94) building(c.x + bx, c.y - 4, 3, 2, c.prov, 'saloon');
+        if (rng(bx, 2) < 0.94) building(c.x + bx, c.y + 3, 3, 2, c.prov, 'saloon');
+        if (rng(bx, 3) < 0.6) building(c.x + bx, c.y - 8, 3, 2, c.prov, 'saloon');
+        if (rng(bx, 4) < 0.6) building(c.x + bx, c.y + 7, 3, 2, c.prov, 'saloon');
       }
     } else if (c.style === 'mediterranean') {
       // central plaza, ring lane, villas crowding both sides of the ring
@@ -453,15 +456,15 @@ export function generateWorld() {
       }
       for (let a = 0; a < 12; a++) {
         const ang = (a / 12) * Math.PI * 2 + 0.3;
-        const bx = Math.round(c.x + Math.cos(ang) * (ringR - 2.6)) - 1;
-        const by = Math.round(c.y + Math.sin(ang) * (ringR - 2.6)) - 1;
-        if (rng(a, 0) < 0.92) building(bx, by, 3, 3, c.prov, 'villa');
+        const bx = Math.round(c.x + Math.cos(ang) * (ringR - 2.4)) - 1;
+        const by = Math.round(c.y + Math.sin(ang) * (ringR - 2.4)) - 1;
+        if (rng(a, 0) < 0.92) building(bx, by, 3, rng(a, 7) < 0.35 ? 3 : 2, c.prov, 'villa');
       }
-      for (let a = 0; a < 8; a++) {
-        const ang = (a / 8) * Math.PI * 2;
+      for (let a = 0; a < 10; a++) {
+        const ang = (a / 10) * Math.PI * 2;
         const bx = Math.round(c.x + Math.cos(ang) * (ringR + 2.4)) - 1;
         const by = Math.round(c.y + Math.sin(ang) * (ringR + 2.4)) - 1;
-        if (rng(a, 5) < 0.8) building(bx, by, 3, 3, c.prov, 'villa');
+        if (rng(a, 5) < 0.85) building(bx, by, 3, 2, c.prov, 'villa');
       }
     } else if (c.style === 'highland') {
       // cottages packed along a winding lane
@@ -470,16 +473,16 @@ export function generateWorld() {
         set(lx, ly, T.ROAD);
         set(lx, ly + 1, T.ROAD);
         lx += 1; ly += Math.round((fbm(lx, ly, 4, seed + 76) - 0.5) * 2.4);
-        if (i % 3 === 1 && rng(i, 3) < 0.9) building(lx - 1, ly - 5, 3, 3, c.prov, 'cottage');
-        if (i % 4 === 2 && rng(i, 4) < 0.9) building(lx - 1, ly + 3, 3, 3, c.prov, 'cottage');
+        if (i % 3 === 1 && rng(i, 3) < 0.9) building(lx - 1, ly - 4, 3, 2, c.prov, 'cottage');
+        if (i % 3 === 2 && rng(i, 4) < 0.9) building(lx - 1, ly + 3, 3, 2, c.prov, 'cottage');
       }
     } else if (c.style === 'jungle') {
       // stilt huts around clearings, connected by narrow trails
-      for (let a = 0; a < 8; a++) {
-        const ang = (a / 8) * Math.PI * 2;
+      for (let a = 0; a < 9; a++) {
+        const ang = (a / 9) * Math.PI * 2;
         const hx = Math.round(c.x + Math.cos(ang) * (c.r - 4));
         const hy = Math.round(c.y + Math.sin(ang) * (c.r - 4));
-        building(hx - 1, hy - 1, 3, 3, c.prov, 'hut');
+        building(hx - 1, hy - 1, 3, 2, c.prov, 'hut');
         const steps = c.r;
         for (let s2 = 0; s2 < steps; s2++) {
           const f = s2 / steps;
@@ -488,6 +491,18 @@ export function generateWorld() {
         }
       }
       for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) set(c.x + dx, c.y + dy, T.PLAZA);
+    }
+
+    // decorative street props: lanterns, barrels, flowerbeds, statues…
+    const propTargets = new Set([cityFloor[c.style], T.PLAZA, T.NEON, T.GRASS, T.MEADOW, T.DUST]);
+    let placed = 0;
+    for (let attempt = 0; attempt < 60 && placed < Math.round(c.r * 0.8) + 3; attempt++) {
+      const ang = rng(attempt, 11) * Math.PI * 2;
+      const d = 2 + rng(attempt, 12) * (c.r - 3);
+      const px2 = Math.round(c.x + Math.cos(ang) * d), py2 = Math.round(c.y + Math.sin(ang) * d);
+      if (!propTargets.has(get(px2, py2))) continue;
+      if (get(px2, py2 - 1) === T.DOOR || get(px2, py2 + 1) === T.DOOR) continue;
+      if (building(px2, py2, 1, 1, c.prov, 'prop')) placed++;
     }
   }
   for (const c of cities) stampCity(c);
@@ -503,10 +518,10 @@ export function generateWorld() {
       const t = get(x + dx, y + dy);
       if (t === T.WATER || t === T.DEEP) return; // refuse to build in the sea
     }
-    // evict any city building the landmark would overlap (no overlapping sprites)
+    // evict any city building the landmark (or its door apron) would overlap
     for (let i = buildings.length - 1; i >= 0; i--) {
       const o = buildings[i];
-      if (o.x < x + w && o.x + o.w > x && o.y < y + h && o.y + o.h > y) {
+      if (o.x < x + w + 2 && o.x + o.w > x - 2 && o.y < y + h + 3 && o.y + o.h > y) {
         for (let dy = 0; dy < o.h; dy++) for (let dx = 0; dx < o.w; dx++) {
           if (get(o.x + dx, o.y + dy) === T.FOUNDATION) set(o.x + dx, o.y + dy, T.PLAZA);
         }
@@ -608,7 +623,8 @@ export function generateWorld() {
           else if (t === T.MOUNTAIN || t === T.PEAK || t === T.CLIFF) set(cx + dx, cy + dy, T.TRAIL);
           else if (t !== T.DEEP && t !== T.WALL && t !== T.ROOF && t !== T.DOOR && t !== T.BRIDGE &&
                    t !== T.TIDAL && t !== T.PLAZA && t !== T.NEON && t !== T.WALL_MARBLE &&
-                   t !== T.WALL_STONE && t !== T.ROOF_GOLD && t !== T.ROOF_SLATE && t !== T.ROOF_LEAF) {
+                   t !== T.WALL_STONE && t !== T.ROOF_GOLD && t !== T.ROOF_SLATE && t !== T.ROOF_LEAF &&
+                   t !== T.FOUNDATION && t !== T.SHALLOW) {
             set(cx + dx, cy + dy, inRock ? T.TRAIL : T.ROAD);
           }
         }
