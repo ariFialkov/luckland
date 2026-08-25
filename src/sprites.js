@@ -1208,6 +1208,50 @@ function drawEventProp(ctx, game, W16, BH, v) {
       px(ctx, W16 - 8, B - 6, 3, 3, '#f0c040');             // payout tray coin
       break;
     }
+    case 'fishing': {                          // coastal hut, drying rack, fisherman at his rods
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 26, 20, 5, '#6d4726');                 // driftwood roof
+      px(ctx, 2, B - 26, 20, 1, '#8a5c32');
+      px(ctx, 4, B - 21, 16, 12, '#8a6034');                // hut
+      px(ctx, 5, B - 20, 6, 6, '#3a5a70');                  // window to the sea
+      px(ctx, 6, B - 19, 2, 2, '#8fd0e8');
+      px(ctx, 13, B - 18, 5, 9, '#4a3520');                 // door
+      px(ctx, 3, B - 9, 18, 2, '#a5793f');                  // porch boards
+      px(ctx, W16 - 20, B - 24, 2, 20, '#5a3a24');          // rod rack
+      px(ctx, W16 - 22, B - 24, 6, 2, '#5a3a24');
+      px(ctx, W16 - 21, B - 22, 1, 14, '#c8c0ac');          // rods
+      px(ctx, W16 - 18, B - 22, 1, 16, '#c8c0ac');
+      px(ctx, W16 - 12, B - 8, 8, 5, '#3a5a70');            // bait barrel + bucket
+      px(ctx, W16 - 12, B - 8, 8, 1, '#8fd0e8');
+      px(ctx, W16 - 6, B - 13, 4, 5, '#8a6034');
+      for (let fy = 0; fy < 3; fy++) px(ctx, 24 + fy * 6, B - 24, 4, 2, '#8fb8c8'); // drying fish
+      px(ctx, 23, B - 25, 14, 1, '#4a3a2a');                // drying line
+      break;
+    }
+    case 'scavhunt': {                         // grand hunt sign-up tent, games-day style
+      sh2(ctx, W16, B);
+      // striped marquee
+      for (let sx2 = 2; sx2 < W16 - 2; sx2 += 6) {
+        px(ctx, sx2, B - 24, 6, 10, ((sx2 / 6) | 0) % 2 ? '#e8e2d4' : '#c43a2a');
+      }
+      px(ctx, 1, B - 25, W16 - 2, 2, '#8a2030');            // canopy edge
+      px(ctx, 2, B - 14, 3, 11, '#e8e2d4');                 // tent walls
+      px(ctx, W16 - 5, B - 14, 3, 11, '#e8e2d4');
+      px(ctx, 3, B - 14, 1, 11, '#c8c0ac');
+      px(ctx, 5, B - 14, W16 - 10, 3, '#3a2a30');           // shaded interior
+      px(ctx, 8, B - 10, W16 - 16, 7, '#5a3a24');           // sign-up counter
+      px(ctx, 8, B - 10, W16 - 16, 2, '#8a6034');
+      px(ctx, 10, B - 8, 5, 3, '#e8d49a');                  // entry ledger
+      px(ctx, W16 - 15, B - 8, 4, 3, '#f0c040');            // prize purse
+      px(ctx, (W16 >> 1) - 1, B - 32, 2, 8, '#5a3a24');     // centre pole + pennant
+      px(ctx, (W16 >> 1) + 1, B - 32, 6, 3, '#ffd75e');
+      px(ctx, 1, B - 30, 1, 6, '#5a3a24'); px(ctx, 2, B - 30, 4, 2, '#5eb3ff'); // corner flags
+      px(ctx, W16 - 2, B - 30, 1, 6, '#5a3a24'); px(ctx, W16 - 6, B - 30, 4, 2, '#8dff6b');
+      px(ctx, 6, B - 21, W16 - 12, 4, '#f4ecd8');           // banner
+      px(ctx, 8, B - 20, 3, 2, '#c43a2a'); px(ctx, 13, B - 20, 3, 2, '#e8b830'); // medal dots
+      px(ctx, 18, B - 20, 3, 2, '#9aa0ac');
+      break;
+    }
     default:
       // No prop art for this game — never spawn one in the world. A grey
       // placeholder slab reads as a rendering bug and leaves an invisible

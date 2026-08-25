@@ -971,6 +971,20 @@ export function generateWorld() {
     { game: 'neonneko',    prov: 'MN', label: 'Neon Neko',            w: 2, h: 2, spawn: 'urban',    n: 5 },
     { game: 'catparade',   prov: 'MN', label: 'Lucky Cat Parade',     w: 3, h: 2, spawn: 'urban',    n: 5 },
     { game: 'coincascade', prov: 'MN', label: 'Neko Coin Cascade',    w: 2, h: 2, spawn: 'urban',    n: 5 },
+    /* Coastal fishing huts — rent a rod, tempt the deep */
+    { game: 'fishing', prov: 'TF', label: "Fisherman's Hut", w: 3, h: 2, spawn: 'coast', n: 2 },
+    { game: 'fishing', prov: 'FL', label: "Fisherman's Hut", w: 3, h: 2, spawn: 'coast', n: 2 },
+    { game: 'fishing', prov: 'HV', label: "Fisherman's Hut", w: 3, h: 2, spawn: 'coast', n: 2 },
+    { game: 'fishing', prov: 'DG', label: "Fisherman's Hut", w: 3, h: 2, spawn: 'coast', n: 2 },
+    { game: 'fishing', prov: 'EP', label: "Fisherman's Hut", w: 3, h: 2, spawn: 'coast', n: 2 },
+    { game: 'fishing', prov: 'MN', label: "Fisherman's Hut", w: 3, h: 2, spawn: 'coast', n: 2 },
+    /* Grand Scavenger Hunt sign-up tents */
+    { game: 'scavhunt', prov: 'TF', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
+    { game: 'scavhunt', prov: 'FL', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
+    { game: 'scavhunt', prov: 'HV', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
+    { game: 'scavhunt', prov: 'DG', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
+    { game: 'scavhunt', prov: 'EP', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
+    { game: 'scavhunt', prov: 'MN', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
   ];
 
   const events = [];
@@ -1032,6 +1046,14 @@ export function generateWorld() {
       case 'mountain':                                // caves, vaults, mountain shrines
         return (t === T.TRAIL || t === T.GRASS || t === T.HILL || t === T.BAMBOO) &&
           nearTile(x, y, 2, (q) => q === T.MOUNTAIN || q === T.PEAK || q === T.CLIFF);
+      case 'coast': {                                 // the sea coast proper: beaches by open salt water
+        if (!(t === T.SAND || t === T.GRASS || t === T.WETSAND)) return false;
+        if (!nearTile(x, y, 3, (q) => q === T.SHALLOW || q === T.WATER || q === T.DEEP)) return false;
+        for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+          if (inB(x + dx, y + dy) && PROV_LIST[prov[idx(x + dx, y + dy)]] === 'SEA') return true;
+        }
+        return false;                                 // fresh water only — a lake, not the sea
+      }
       default: return false;
     }
   }

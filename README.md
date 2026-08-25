@@ -142,6 +142,32 @@ periodically offer off-market deals at 0.62–1.38× face value that *don't*
 count against the cap — which is exactly why a lowball is sometimes worth
 taking.
 
+### Gone Fishin'
+
+**Fisherman's huts** stand on the sea coasts (two per province). Buy the rod
+once (120 🪙, yours for keeps), then pay per cast for one of three baits —
+Shrimp Scrap, Glowsquid Cut or the Golden Lugworm — where richer bait skews
+the draw hard toward the rare, valuable Sea Lucklians of that coast. The odds
+are honest end to end: hook chance = `bait cost × RTP / expected catch value`
+(capped for suspense), and on coasts too poor to justify a fancy bait, the
+balance comes back as **salvage** dredged up on missed strikes — pearl
+oysters, drowned coin purses, sea amber — so every bait returns exactly the
+configured RTP everywhere.
+
+### The Grand Scavenger Hunt
+
+**Striped sign-up tents** (one per province) run a race against seven named
+rivals: a card of **four local Lucklians** — three everyday, one genuinely
+hard — to catch in any order. When you catch a listed species you choose:
+**contribute** it to your card (it forfeits its sale value for good) or keep
+it to sell; already-owned listed species can be contributed straight from the
+tracker. Your true stake is therefore the 200 🪙 entry *plus* the card's
+total face value, and the podium ladder — a fat gold purse, slimmer silver
+and bronze, nothing off the podium — is scaled so `E[prize] = stake × RTP`,
+leaning long-odds/high-reward. A collapsible corner tracker shows your card,
+the live leaderboard and an exit button; the rivals' pace is choreographed
+around yours so the board always agrees with the honestly drawn result.
+
 ## Tuning the economy (RTP)
 
 Everything lives in **`src/config.js`**:
@@ -196,6 +222,7 @@ src/concealers.js           chest spawning, loot rolls, opening ceremonies
 src/lucklians.js            157 creatures: encounters, snares, Lucklipedia, traders
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
+src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker
 src/npcs.js                 named characters, dialogue, bot crowd
 src/ui.js                   HUD, modals, toasts, joystick, map/stats screens
 src/state.js                wallet, stats, buffs, localStorage saves

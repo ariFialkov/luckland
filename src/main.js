@@ -18,6 +18,7 @@ import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderO
 import { getLucklianSprite, getStationSprite, getDecorSprite } from './sprites.js';
 import { getInterior, updatePatrons } from './interiors.js';
 import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay } from './liveevents.js';
+import { tickHunt } from './hunts.js';
 
 /* ---------------- boot ---------------- */
 const canvas = document.getElementById('game');
@@ -604,6 +605,7 @@ function frame(now) {
     } else player.frame = 0;
   }
   tickEncounterCooldown(dt);
+  tickHunt(dt);           // scavenger-hunt rivals keep pace indoors and out
   if (!scene) {
     traderTimer -= dt;
     if (traderTimer <= 0) {
@@ -819,7 +821,7 @@ requestAnimationFrame(frame);
 /* Debug/testing handle (also handy for tinkering in devtools). */
 window.LUCKLAND = {
   world, player, state, concealers, npcs, bots, citizens,
-  enterLandmark, exitInterior, getScene: () => scene,
+  enterLandmark, exitInterior, getScene: () => scene, openGame,
 };
 
 /* ---------------- PWA service worker ---------------- */

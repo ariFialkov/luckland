@@ -553,3 +553,60 @@ html, body {
   z-index: 40;
 }
 #fade.on { opacity: 1; pointer-events: all; }
+
+/* ---------------- The Grand Scavenger Hunt ---------------- */
+.hunt-card { max-width: 360px; margin: 4px auto 8px; }
+.hunt-row {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px; padding: 4px 8px; margin: 3px 0; font-size: 12.5px;
+}
+.hunt-row.me { border-color: var(--gold); box-shadow: 0 0 6px rgba(255, 215, 94, 0.35); }
+.hunt-row img { width: 26px; height: auto; image-rendering: pixelated; }
+.hunt-nm { flex: 1; text-align: left; font-weight: 700; }
+.hunt-val { color: var(--gold); font-size: 12px; }
+.hunt-medal { width: 28px; text-align: center; }
+.hunt-prizes {
+  display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;
+  font-size: 13px; margin: 6px 0 8px; color: var(--gold);
+}
+.hunt-prizes span:last-child { color: inherit; opacity: 0.6; }
+
+/* corner tracker widget */
+#hunt-widget {
+  position: fixed; right: 10px; top: 122px; z-index: 30;
+  width: 196px; font-family: inherit; font-size: 11.5px;
+  background: rgba(16, 10, 34, 0.92); border: 1px solid #3a2c58;
+  border-radius: 10px; overflow: hidden; backdrop-filter: blur(3px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+}
+#hunt-widget .hw-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  width: 100%; padding: 6px 9px; border: 0; cursor: pointer;
+  background: rgba(255, 215, 94, 0.12); color: #ffe9a8; font: inherit; font-weight: 700;
+}
+#hunt-widget .hw-place { color: var(--gold); }
+#hunt-widget .hw-arrow { opacity: 0.7; }
+#hunt-widget .hw-body { padding: 6px 8px 8px; }
+.hw-item { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
+.hw-item img { width: 20px; height: auto; image-rendering: pixelated; }
+.hw-item.got { opacity: 0.6; }
+.hw-item.got .hw-nm { text-decoration: line-through; }
+.hw-nm { flex: 1; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hw-tick { color: #7dd87a; font-weight: 700; }
+.hw-val { color: var(--gold); font-size: 10.5px; }
+.hw-use {
+  font: inherit; font-size: 10px; font-weight: 700; cursor: pointer;
+  background: rgba(125, 216, 122, 0.18); color: #a8e8a4;
+  border: 1px solid rgba(125, 216, 122, 0.5); border-radius: 6px; padding: 1px 7px;
+}
+.hw-board { border-top: 1px solid rgba(255, 255, 255, 0.12); margin-top: 5px; padding-top: 4px; }
+.hw-rival { display: flex; justify-content: space-between; opacity: 0.8; padding: 1px 0; }
+.hw-rival.me { opacity: 1; color: var(--gold); font-weight: 700; }
+.hw-prizes { text-align: center; color: var(--gold); font-size: 10.5px; margin-top: 5px; opacity: 0.9; }
+.hw-quit {
+  display: block; width: 100%; margin-top: 6px; padding: 4px 0; cursor: pointer;
+  font: inherit; font-size: 10.5px; font-weight: 700;
+  background: rgba(255, 108, 108, 0.12); color: #ff9a8a;
+  border: 1px solid rgba(255, 108, 108, 0.4); border-radius: 7px;
+}

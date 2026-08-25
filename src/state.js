@@ -23,6 +23,8 @@ export const state = {
   collection: [],            // unique item names discovered
   metNpcs: [],               // npc ids greeted at least once
   lk: { caught: {}, seen: {}, sales: 0, salesDay: '' },   // Lucklians
+  gear: { rod: false },      // one-time equipment (fishing rod)
+  hunt: null,                // active Grand Scavenger Hunt (see hunts.js)
   buffs: {
     luckUntil: 0,            // epoch ms; while active, +rtp bonus
     luckBonus: 0,
@@ -101,6 +103,8 @@ export function saveGame() {
       metNpcs: state.metNpcs,
       lastBet: state.lastBet,
       lk: state.lk,
+      gear: state.gear,
+      hunt: state.hunt,
     }));
   } catch { /* storage full / private mode — play on without saving */ }
 }
@@ -120,6 +124,8 @@ export function loadGame() {
     if (d.lk && typeof d.lk === 'object') {
       state.lk = { caught: d.lk.caught || {}, seen: d.lk.seen || {}, sales: d.lk.sales || 0, salesDay: d.lk.salesDay || '' };
     }
+    if (d.gear && typeof d.gear === 'object') state.gear = { rod: !!d.gear.rod };
+    if (d.hunt && typeof d.hunt === 'object' && Array.isArray(d.hunt.list)) state.hunt = d.hunt;
     return true;
   } catch { return false; }
 }

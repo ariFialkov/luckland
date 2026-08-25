@@ -18,6 +18,9 @@
 import { roll, weightedPick, pick as rpick } from './rng.js';
 import { state, spend, payout, canAfford, effectiveRTP } from './state.js';
 import { showModal, closeModal, buildBetRow, escapeHtml, toast, renderBalance } from './ui.js';
+import { LUCKLIANS, recordCatch, rarityTier } from './lucklians.js';
+import { getLucklianSprite } from './sprites.js';
+import { openHuntLobby } from './hunts.js';
 
 /* ------------------------------------------------------------
    Game definitions
@@ -505,6 +508,24 @@ export const GAME_DEFS = {
     choices: [{ ico: '🔔', label: 'First' }, { ico: '🔔', label: 'Second' }, { ico: '🔔', label: 'Third' }],
     winP: 1 / 3, hidden: true,
     flavor: { win: 'The bell rings pure gold!', lose: 'A dull clang. The spirits doze.' },
+  },
+
+  /* ---------------- Coastal & competitive ---------------- */
+  fishing: {
+    name: "Gone Fishin'", ico: '🎣',
+    desc: "Rod, bait and patience against the sea's Lucklians.",
+    mech: 'fishing',
+    rodCost: 120,
+    baits: [
+      { name: 'Shrimp Scrap', ico: '🦐', cost: 40, exp: 1, blurb: 'everything nibbles it' },
+      { name: 'Glowsquid Cut', ico: '🦑', cost: 140, exp: 0.45, blurb: 'the finer fish take notice' },
+      { name: 'Golden Lugworm', ico: '✨', cost: 400, exp: -0.1, blurb: "only the deep's treasures bother" },
+    ],
+  },
+  scavhunt: {
+    name: 'The Grand Scavenger Hunt', ico: '🏆',
+    desc: 'Race the field to catch four local Lucklians — podium pays.',
+    mech: 'hunt',
   },
 };
 
@@ -1351,6 +1372,142 @@ async function runReels(def, provCode) {
 }
 
 /* ------------------------------------------------------------
+   Mechanic: fishing — buy the rod once, then pay per bait. A
+   hooked catch is a real Sea Lucklian added to the Lucklipedia,
+   so the "payout" is the creature's face value: hook chance =
+   bait cost x RTP / expected value of the local pool (capped so
+   a strike stays suspenseful). Pricier bait skews the draw hard
+   toward the rare, valuable species — and on coasts too poor to
+   justify the bait's price, the balance comes back honestly as
+   SALVAGE hauled up on missed strikes (pearls, purses, amber),
+   so every bait returns exactly the configured RTP everywhere.
+   ------------------------------------------------------------ */
+const HOOK_CAP = 0.62;
+const SALVAGE = [ // [value factor on the per-miss mean, weight, icon, text]
+  [0,   38, '🌿', 'a knot of dripping kelp'],
+  [0.5, 24, '🥾', 'an old boot — empty, of course'],
+  [1.3, 22, '🦪', 'a cluster of pearl oysters!'],
+  [2.6, 11, '👛', 'a drowned coin purse!'],
+  [6.2,  5, '🧡', 'a lump of precious sea amber!'],
+];
+const SALVAGE_MEAN = SALVAGE.reduce((a, s) => a + s[0] * s[1], 0) / SALVAGE.reduce((a, s) => a + s[1], 0);
+
+export function fishingMath(provCode, bait, rtp) {
+  let pool = LUCKLIANS.filter((l) => l.type === 'Sea' && l.prov === provCode);
+  if (!pool.length) pool = LUCKLIANS.filter((l) => l.type === 'Sea');
+  const weights = pool.map((l) => Math.pow(l.rare, bait.exp));
+  const totalW = weights.reduce((a, w) => a + w, 0);
+  const ev = pool.reduce((a, l, i) => a + (weights[i] / totalW) * l.value, 0);
+  const p = Math.min(HOOK_CAP, (bait.cost * rtp) / ev);
+  const shortfall = Math.max(0, bait.cost * rtp - p * ev);   // paid back via salvage
+  const salvageMean = shortfall > 0 ? shortfall / (1 - p) : 0;   // per miss
+  return { pool, weights, totalW, ev, p, salvageMean };
+}
+
+async function runFishing(def, provCode) {
+  session++;
+  const rtp = effectiveRTP('fishing', provCode);
+  showModal(`
+    <h2>${def.ico} ${escapeHtml(def.name)}</h2>
+    <div class="subtitle">${escapeHtml(def.desc)} · RTP ${(rtp * 100).toFixed(1)}%</div>
+    <div class="stage" id="g-stage"></div>
+    <div class="btn-row" id="g-actions"></div>
+  `, { onClose: () => { session++; } });
+  const stage = document.getElementById('g-stage');
+
+  const baitBoard = () => {
+    const rows = def.baits.map((b, i) => {
+      const { ev, p, salvageMean } = fishingMath(provCode, b, rtp);
+      return `<div class="race-lane race-pick-btn" data-i="${i}">
+        <span style="flex:1;text-align:left">${b.ico} ${escapeHtml(b.name)}<br>
+          <span style="font-size:10.5px;opacity:.75">${escapeHtml(b.blurb)} · avg catch ~${fmtCoins(ev)} 🪙${salvageMean > 0 ? ' · 🦪 rich salvage' : ''}</span></span>
+        <span class="odds">${b.cost} 🪙 · ${(p * 100).toFixed(0)}% hook</span>
+      </div>`;
+    }).join('');
+    stage.innerHTML = `<div class="flavor" style="margin-bottom:6px">🌊 The old fisherman baits your hook — pick from the bucket:</div>${rows}`;
+    stage.querySelectorAll('.race-pick-btn').forEach((el) =>
+      el.addEventListener('click', () => cast(def.baits[+el.dataset.i])));
+  };
+
+  const rodBoard = () => {
+    stage.innerHTML = `<div class="big-sym">🎣</div>
+      <div class="flavor">“Sea's full of Lucklians, friend — but not for bare hands.
+      This rod's yours for keeps for <b>${def.rodCost} 🪙</b>.”</div>`;
+    const buy = document.createElement('button');
+    buy.className = 'btn';
+    buy.textContent = `🎣 Buy the rod · ${def.rodCost} 🪙`;
+    buy.disabled = !canAfford(def.rodCost);
+    buy.addEventListener('click', () => {
+      if (!spend(def.rodCost)) return;
+      state.gear.rod = true;
+      renderBalance();
+      toast('🎣 The rod is yours — every hut on every coast will lend you a line now.');
+      baitBoard();
+    });
+    stage.appendChild(buy);
+  };
+
+  async function cast(bait) {
+    const s = session;
+    if (!playGuard(bait.cost)) return;
+    const { pool, weights, totalW, p, salvageMean } = fishingMath(provCode, bait, rtp);
+    const hooked = roll() < p;
+    const frames = [
+      ['🎣', 'The line arcs out past the breakers…'],
+      ['🌊', 'The bobber settles. The sea breathes…'],
+      ['🌊', '…'],
+    ];
+    for (const [sym, text] of frames) {
+      stage.innerHTML = `<div class="big-sym">${sym}</div><div class="flavor">${text}</div>`;
+      await wait(750);
+      if (!alive(s)) return;
+    }
+    if (!hooked) {
+      // no fish — but the slack line can still drag up salvage
+      const sv = salvageMean > 0 ? weightedPick(SALVAGE.map(([f, w, ico, text]) => ({ f, ico, text, weight: w }))) : null;
+      const coins = sv ? Math.round((sv.f / SALVAGE_MEAN) * salvageMean) : 0;
+      stage.innerHTML = `<div class="big-sym">${sv ? sv.ico : '💧'}</div>`;
+      const line = document.createElement('div');
+      if (coins > 0) {
+        payout(coins);
+        renderBalance();
+        line.className = 'result-line win';
+        line.textContent = `SALVAGE ${fmtCoins(coins)} 🪙`;
+      } else {
+        line.className = 'result-line lose';
+        line.textContent = 'Something took the bait and left…';
+      }
+      stage.appendChild(line);
+      const f2 = document.createElement('div');
+      f2.className = 'flavor';
+      f2.textContent = sv ? `The line comes back with ${sv.text}` : 'The bobber never so much as trembled.';
+      stage.appendChild(f2);
+    } else {
+      stage.innerHTML = `<div class="big-sym" style="color:#ffd75e">❗</div><div class="flavor">A strike! The rod doubles over!</div>`;
+      await wait(800);
+      if (!alive(s)) return;
+      let r = roll() * totalW, sp = pool[pool.length - 1];
+      for (let i = 0; i < pool.length; i++) { r -= weights[i]; if (r <= 0) { sp = pool[i]; break; } }
+      recordCatch(sp);
+      const tier = rarityTier(sp.rare);
+      stage.innerHTML = `
+        <div class="lk-stage"><img src="${getLucklianSprite(sp).toDataURL()}" class="lk-sprite big" alt=""></div>
+        <div class="result-line win">Landed a <span style="color:${tier.color}">${escapeHtml(sp.name)}</span>!</div>
+        <div class="flavor">${tier.name} · worth ${fmtCoins(sp.value)} 🪙 — it's in your Lucklipedia.</div>`;
+      if (sp.rare < 0.025) toast(`🎣 <span class="who">You</span> hauled in a <b>${escapeHtml(sp.name)}</b> — worth <span class="amt">${fmtCoins(sp.value)}</span>!`, sp.rare < 0.006);
+    }
+    const again = document.createElement('button');
+    again.className = 'btn secondary';
+    again.textContent = 'Cast again';
+    again.addEventListener('click', baitBoard);
+    stage.appendChild(again);
+  }
+
+  if (state.gear?.rod) baitBoard();
+  else rodBoard();
+}
+
+/* ------------------------------------------------------------
    Entry point
    ------------------------------------------------------------ */
 export function openGame(gameId, provCode) {
@@ -1369,6 +1526,8 @@ export function openGame(gameId, provCode) {
     case 'path': runPath(def, provCode); break;
     case 'pickchain': runPickchain(def, provCode); break;
     case 'reels': runReels(def, provCode); break;
+    case 'fishing': runFishing(def, provCode); break;
+    case 'hunt': openHuntLobby(provCode); break;
   }
 }
 

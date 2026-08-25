@@ -51,6 +51,15 @@ export const CONFIG = {
     TRADER_MAX_S: 170,
     TRADER_CHANCE: 0.55,        // odds an offer actually happens each cycle
   },
+
+  // The Grand Scavenger Hunt.
+  HUNT: {
+    FEE: 200,                   // sign-up fee at the tent
+    LIST_SIZE: 4,               // species on each hunt card
+    Q: [0.15, 0.30, 0.47, 0.08],  // odds of gold / silver / bronze / off-podium
+    K: [3.5, 1.5, 0.6, 0],        // raw prize shape (x total stake), scaled to RTP
+    BOTS: 7,                    // rival contestants
+  },
 };
 
 /* ------------------------------------------------------------
@@ -101,6 +110,9 @@ export const GAME_RTP = {
   spiritlanterns: 0.95,  // lanterns drift to shrines
   nagariver:      0.94,  // offering down branching currents
   banyan:         0.96,  // shake the sacred tree
+  // Coastal & competitive
+  fishing:        0.94,  // rod + bait vs the sea's Lucklians
+  scavhunt:       0.94,  // the Grand Scavenger Hunt purse
   // Neon Japan (MN)
   neonneko:       0.94,  // the beckoning paw's colour
   catparade:      0.95,  // cats from the gacha doors

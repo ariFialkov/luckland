@@ -333,6 +333,19 @@ function ensureLk() {
 export function ownedCount(id) { return ensureLk().caught[id] || 0; }
 export function salesLeft() { ensureLk(); return Math.max(0, LK.DAILY_SALES - state.lk.sales); }
 
+/* Any capture — snare, rod or otherwise — lands here. Interested
+   parties (the Grand Scavenger Hunt) register a hook; it fires a
+   beat after the catch so the catching modal has already closed. */
+let catchHook = null;
+export function setCatchHook(fn) { catchHook = fn; }
+export function recordCatch(def) {
+  const l = ensureLk();
+  l.seen[def.id] = true;
+  l.caught[def.id] = (l.caught[def.id] || 0) + 1;
+  state.stats.lucklians = (state.stats.lucklians || 0) + 1;
+  if (catchHook) setTimeout(() => catchHook(def), 350);
+}
+
 function spriteImg(def, sil = false, big = false) {
   const cv = getLucklianSprite(def, sil);
   return `<img src="${cv.toDataURL()}" class="lk-sprite${big ? ' big' : ''}" alt="">`;
@@ -374,9 +387,7 @@ export function openEncounter(def, sx, sy) {
     setTimeout(() => {
       busy = false;
       if (roll() < catchChance(def, snare)) {
-        const l = ensureLk();
-        l.caught[def.id] = (l.caught[def.id] || 0) + 1;
-        state.stats.lucklians = (state.stats.lucklians || 0) + 1;
+        recordCatch(def);
         active = null;
         closeModal();
         toast(`🧿 Caught <b>${escapeHtml(def.name)}</b>! (worth ${def.value.toLocaleString('en-US')} 🪙) — it's in your Lucklipedia`, def.rare < 0.006);
