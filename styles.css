@@ -10,8 +10,9 @@
   --parchment: #f5e6c4;
   --parchment-2: #e8d5a8;
   --ink: #3a2a18;
-  --gold: #ffd75e;
+  --gold: #ffd75e;          /* bright gold — for DARK panels only */
   --gold-2: #e0a92e;
+  --gold-ink: #8a5a06;      /* readable gold on the light parchment HUD */
   --green: #6fdc6f;
   --red: #ff7a6b;
   --accent: #b48cff;
@@ -348,7 +349,9 @@ html, body {
 .race-lane { display: flex; align-items: center; width: 100%; margin: 3px 0; font-size: 13px; }
 .race-lane .track { flex: 1; height: 22px; background: #17102a; border-radius: 6px; position: relative; margin: 0 6px; border: 1px solid #3a2c58; }
 .race-lane .runner { position: absolute; left: 0; top: -2px; font-size: 18px; transition: left 0.28s linear; }
-.race-lane .odds { color: var(--gold); width: 52px; text-align: right; }
+.race-lane .runner.live { transition: none; }   /* driven frame-by-frame during a race */
+.race-lane .odds { color: var(--gold-ink); width: 52px; text-align: right; font-weight: bold; }
+.stage .race-lane .odds { color: var(--gold); }   /* the stage is dark — bright gold reads there */
 .race-lane.pick .track { border-color: var(--gold); box-shadow: 0 0 6px rgba(255,215,94,0.4); }
 .race-pick-btn { cursor: pointer; }
 
@@ -564,11 +567,11 @@ html, body {
 .hunt-row.me { border-color: var(--gold); box-shadow: 0 0 6px rgba(255, 215, 94, 0.35); }
 .hunt-row img { width: 26px; height: auto; image-rendering: pixelated; }
 .hunt-nm { flex: 1; text-align: left; font-weight: 700; }
-.hunt-val { color: var(--gold); font-size: 12px; }
+.hunt-val { color: var(--gold-ink); font-size: 12px; font-weight: bold; }
 .hunt-medal { width: 28px; text-align: center; }
 .hunt-prizes {
   display: flex; justify-content: center; gap: 14px; flex-wrap: wrap;
-  font-size: 13px; margin: 6px 0 8px; color: var(--gold);
+  font-size: 13px; margin: 6px 0 8px; color: var(--gold-ink); font-weight: bold;
 }
 .hunt-prizes span:last-child { color: inherit; opacity: 0.6; }
 

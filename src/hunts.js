@@ -170,7 +170,7 @@ export function openHuntLobby(provCode, kind = 'local') {
   const rows = card.map((l) => {
     const tier = rarityTier(l.rare);
     return `<div class="hunt-row">${sprImg(l)}
-      <span class="hunt-nm" style="color:${tier.color}">${escapeHtml(l.name)}<span style="opacity:.6;font-weight:400"> · ${escapeHtml(PROVINCES[l.prov]?.name || l.prov)}</span></span>
+      <span class="hunt-nm" style="color:${tier.ink}">${escapeHtml(l.name)}<span style="opacity:.6;font-weight:400"> · ${escapeHtml(PROVINCES[l.prov]?.name || l.prov)}</span></span>
       <span class="hunt-val">${fmt(l.value)} 🪙</span></div>`;
   }).join('');
   const title = kind === 'national' ? '🌐 The National Hunt' : '🏆 The Grand Scavenger Hunt';

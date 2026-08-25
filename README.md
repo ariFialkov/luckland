@@ -202,11 +202,12 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   98.5% "special"), a black-market Lucklian at a collector's markup — no
   questions asked, straight into your Lucklipedia — and one species in
   strange demand that sells above face value, off the books.
-- **Below Decks** (🎲 the Paradise Ferry) — the crossing now takes real
-  time, and a den exists only while the boat is under way: a progress bar
-  crawls dock to dock while the captain rattles Ship's Bones — Port (2–6),
-  Starboard (8–12) or Lucky Sevens, each paying `RTP / p`, with the tide
-  setting the mood of the felt.
+- **Below Decks** (🎲 the Paradise Ferry) — the ferry really sails: for the
+  eight seconds of the crossing an actual boat carries you dock to dock
+  across the strait while the den plays out below. No wager to place — the
+  fare itself rides on the captain's bones, he calls it for you (Port,
+  Starboard or Lucky Sevens) and the dice pay `RTP / p`, so a good crossing
+  pays for itself.
 - **The Homing Post** (🕊️ FL) — back one of five homers (Old Reliable,
   Wrong Way Wanda, Sky Potato…) and watch the whole flight as living dots
   arcing across the **real world map** to a far-off roost, trails, comeback
@@ -292,6 +293,7 @@ src/lucklians.js            157 creatures: encounters, snares, Lucklipedia, trad
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker
+src/racing.js               shared race choreography: smooth, monotone drama
 src/npcs.js                 named characters, dialogue, bot crowd
 src/ui.js                   HUD, modals, toasts, joystick, map/stats screens
 src/state.js                wallet, stats, buffs, localStorage saves

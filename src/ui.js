@@ -289,7 +289,7 @@ export function openMapModal(world, player) {
       ${Object.entries(PROV_MAP_COLORS).map(([c, col]) =>
         `<span><span style="color:${col}">■</span> ${escapeHtml(PROVINCES[c].name)}</span>`).join('')}
     </div>
-    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold)">✖ sunken hoard</span>' : ''}</div>
+    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold-ink);font-weight:bold">✖ sunken hoard</span>' : ''}</div>
   `);
   const cv = $('worldmap-canvas');
   const ctx = cv.getContext('2d');

@@ -1913,6 +1913,52 @@ export function makeShipSprite(hull, sail) {
   return cv;
 }
 
+/* The Paradise Ferry — a broad-beamed passenger boat with a cabin,
+   a smoking stack and a railed deck. Two facings, two wake frames. */
+export function makeFerrySprite() {
+  const CW = 40, CH = 26;
+  const hull = '#7a4a28', cabin = '#e8e2d4', trim = '#c43a2a';
+  const cv = document.createElement('canvas');
+  cv.width = CW * 2; cv.height = CH * 2;   // cols: 0 right, 1 left; rows: wake frames
+  const ctx = cv.getContext('2d');
+  const dark = shade(hull, -30), hi = shade(hull, 22);
+  for (let face = 0; face < 2; face++) for (let f = 0; f < 2; f++) {
+    const ox = face * CW, oy = f * CH;
+    const X = (x, w = 1) => (face === 1 ? ox + CW - x - w : ox + x);
+    const P = (x, y, w, h, c) => px(ctx, X(x, w), oy + y, w, h, c);
+    // hull with a raked bow to the right
+    P(3, 14, 33, 7, hull);
+    P(4, 21, 31, 2, dark);
+    P(3, 14, 33, 2, hi);
+    P(36, 15, 3, 5, hull);                          // bow point
+    P(2, 13, 3, 3, dark);                           // stern curl
+    P(4, 12, 30, 2, '#a5793f');                     // deck boards
+    // railings along the deck
+    for (let i = 0; i < 9; i++) P(5 + i * 3, 9, 1, 3, '#d9c49a');
+    P(4, 8, 29, 1, '#d9c49a');
+    // passenger cabin with lit windows
+    P(9, 3, 16, 7, cabin);
+    P(9, 3, 16, 1, '#f4f0e6');
+    P(9, 9, 16, 1, shade(cabin, -22));
+    P(11, 5, 3, 3, '#8fd0e8'); P(15, 5, 3, 3, '#8fd0e8'); P(19, 5, 3, 3, '#ffe066');
+    P(9, 2, 16, 1, trim);                           // painted trim line
+    // funnel + smoke puffs (drifting on the wake frame)
+    P(26, 1, 4, 9, trim);
+    P(26, 1, 4, 1, '#26202c');
+    P(27, f === 0 ? -2 : -3, 2, 2, 'rgba(220,220,230,0.75)');
+    P(29, f === 0 ? -4 : -6, 2, 2, 'rgba(220,220,230,0.45)');
+    // life ring and a bollard
+    P(6, 5, 3, 3, '#e8e2d4'); P(7, 6, 1, 1, trim);
+    P(33, 10, 2, 2, '#5a3a24');
+    // bow wave + churned wake astern
+    P(36, 20, 4, 2, 'rgba(220,240,250,0.6)');
+    if (f === 0) { P(0, 18, 3, 1, 'rgba(220,240,250,0.45)'); P(-2, 20, 3, 1, 'rgba(220,240,250,0.3)'); }
+    else { P(0, 19, 4, 1, 'rgba(220,240,250,0.5)'); P(-3, 17, 3, 1, 'rgba(220,240,250,0.3)'); }
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
 export function makeDragonBoatSprite(team) {
   const CW = 42, CH = 22;
   const cv = document.createElement('canvas');

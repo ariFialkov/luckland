@@ -23,6 +23,7 @@ import { LUCKLIANS, BY_ID, recordCatch, rarityTier } from './lucklians.js';
 import { getLucklianSprite } from './sprites.js';
 import { openHuntLobby } from './hunts.js';
 import { openConcealer } from './concealers.js';
+import { makeDrama, stepRacer } from './racing.js';
 
 /* the overworld, registered by main at boot (map races, loft lookups) */
 let worldRef = null;
@@ -865,21 +866,42 @@ async function runRace(def, provCode) {
       l.classList.toggle('pick', i === pickIdx);
       l.style.pointerEvents = 'none';
     });
+    /* the run itself: booked finishing order up front, then the same
+       smooth choreography every other race in the game uses — swells
+       and comebacks that never skip a runner across the track */
+    const order = def.runners.map((_, i) => i).filter((i) => i !== winner).sort(() => roll() - 0.5);
+    order.unshift(winner);
+    const times = {};
+    order.forEach((idx, rank) => { times[idx] = 6.5 + rank * (0.4 + roll() * 0.35); });
+    const drama = def.runners.map(() => makeDrama(roll));
     const prog = def.runners.map(() => 0);
-    const STEPS = 9;
-    for (let step = 0; step < STEPS; step++) {
-      await wait(300);
-      if (!alive(s)) return;
-      for (let i = 0; i < prog.length; i++) {
-        // winner is gently rigged to finish first; others jockey around
-        const boost = i === winner ? 1 : 0.55 + roll() * 0.45;
-        prog[i] = Math.min(1, prog[i] + (roll() * 0.6 + 0.55) * boost / (STEPS - 2));
-        if (i !== winner && step === STEPS - 1) prog[i] = Math.min(prog[i], 0.96);
-        const track = lanes[i].querySelector('.track');
-        const runner = lanes[i].querySelector('.runner');
-        runner.style.left = `${prog[i] * (track.clientWidth - 22)}px`;
+    const finished = [];
+    lanes.forEach((l) => l.querySelector('.runner').classList.add('live'));
+    const t0 = performance.now();
+    let lastMs = t0;
+    await new Promise((res) => {
+      function step() {
+        if (!alive(s)) return res();
+        const nowMs = performance.now();
+        const dt = Math.min(0.05, (nowMs - lastMs) / 1000);
+        lastMs = nowMs;
+        const t = (nowMs - t0) / 1000;
+        const winnerDone = finished.includes(winner);
+        for (let i = 0; i < prog.length; i++) {
+          if (prog[i] < 1) {
+            prog[i] = stepRacer(prog[i], t, times[i], drama[i], dt, i === winner, winnerDone);
+            if (prog[i] >= 1 && !finished.includes(i)) finished.push(i);
+          }
+          const track = lanes[i].querySelector('.track');
+          const runner = lanes[i].querySelector('.runner');
+          runner.style.left = `${prog[i] * (track.clientWidth - 22)}px`;
+        }
+        if (finished.length >= prog.length || t > 14) return res();
+        requestAnimationFrame(step);
       }
-    }
+      step();
+    });
+    if (!alive(s)) return;
     await wait(350);
     if (!alive(s)) return;
     const won = pickIdx === winner;
@@ -1829,7 +1851,7 @@ async function runMarket(def, provCode) {
         <div class="race-lane race-pick-btn" id="nm-contra" ${bought[contraKey] ? 'style="opacity:.5;pointer-events:none"' : ''}>
           <span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">
             <img src="${getLucklianSprite(contra).toDataURL()}" style="width:26px;image-rendering:pixelated" alt="">
-            <span><span style="color:${tier.color}">${escapeHtml(contra.name)}</span> <span style="opacity:.7">· no questions asked</span><br>
+            <span><span style="color:${tier.ink}">${escapeHtml(contra.name)}</span> <span style="opacity:.7">· no questions asked</span><br>
             <span style="font-size:10.5px;opacity:.75">${bought[contraKey] ? 'sold — come back tomorrow night' : `face value ${fmtCoins(contra.value)} 🪙 — collector's markup`}</span></span></span>
           <span class="odds">${contraPrice} 🪙</span></div>
         <div class="race-lane ${owned > 0 ? 'race-pick-btn' : ''}" id="nm-demand" ${owned > 0 ? '' : 'style="opacity:.55"'}>
@@ -1871,83 +1893,75 @@ async function runMarket(def, provCode) {
    Starboard (8–12), or Lucky Sevens — each pays RTP / p.
    ------------------------------------------------------------ */
 const DIE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
-export function openCrossingDen(provCode, destLabel) {
+export function openCrossingDen(provCode, destLabel, stake, seconds) {
   session++;
   const rtp = effectiveRTP('shipsbones', provCode);
-  const seconds = CONFIG.CROSSING_S;
   const rough = (state.tide ?? 0.5) > 0.6;
   const WAGERS = [
-    { id: 'port', label: 'Port (2–6)', ico: '⬅️', p: 15 / 36 },
-    { id: 'star', label: 'Starboard (8–12)', ico: '➡️', p: 15 / 36 },
-    { id: 'seven', label: 'Lucky Sevens', ico: '7️⃣', p: 6 / 36 },
+    { id: 'port', label: 'Port (2\u20136)', ico: '\u2b05\ufe0f', p: 15 / 36 },
+    { id: 'star', label: 'Starboard (8\u201312)', ico: '\u27a1\ufe0f', p: 15 / 36 },
+    { id: 'seven', label: 'Lucky Sevens', ico: '7\ufe0f\u20e3', p: 6 / 36 },
   ];
+  // the captain calls it for you — every call pays rtp/p, so the crossing
+  // returns the same honest RTP whichever way the cup lands
+  const w = WAGERS[(roll() * WAGERS.length) | 0];
   showModal(`
-    <h2>🎲 Below Decks</h2>
-    <div class="subtitle">The den only exists mid-crossing — bound for ${escapeHtml(destLabel)} · RTP ${(rtp * 100).toFixed(1)}%<br>
-    ${rough ? '🌊 Rough water tonight — the dice never sit still.' : '🌙 A flat calm — the lamp barely swings.'}</div>
+    <h2>\ud83c\udfb2 Below Decks</h2>
+    <div class="subtitle">Under way for ${escapeHtml(destLabel)} \u00b7 your ${fmtCoins(stake)} \ud83e\ude99 fare rides on the bones \u00b7 RTP ${(rtp * 100).toFixed(1)}%<br>
+    ${rough ? '\ud83c\udf0a Rough water \u2014 the dice never sit still.' : '\ud83c\udf19 A flat calm \u2014 the lamp barely swings.'}</div>
     <div id="cr-bar" style="height:10px;background:#17102a;border:1px solid #3a2c58;border-radius:5px;margin:4px 0 8px;overflow:hidden">
       <div id="cr-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#3fa9f5,#8fe0ff)"></div>
     </div>
     <div class="stage" id="g-stage"></div>
-    <div id="g-bet"></div>
-    <div class="btn-row" id="g-actions"></div>
   `, { onClose: () => { session++; } });
   const stage = document.getElementById('g-stage');
-  let bet = state.lastBet;
-  buildBetRow(document.getElementById('g-bet'), (v) => { bet = v; });
-  const s0 = session;
+  const s = session;
   const t0 = performance.now();
-  let ashoreShown = false;
   (function barTick() {
-    if (!alive(s0)) return;
+    if (!alive(s)) return;
     const k = Math.min(1, (performance.now() - t0) / (seconds * 1000));
     const fill = document.getElementById('cr-fill');
     if (fill) fill.style.width = `${(k * 100).toFixed(1)}%`;
-    if (k >= 1 && !ashoreShown) {
-      ashoreShown = true;
-      const acts = document.getElementById('g-actions');
-      if (acts) {
-        const b = document.createElement('button');
-        b.className = 'btn';
-        b.textContent = `⚓ Step ashore at ${destLabel}`;
-        b.addEventListener('click', closeModal);
-        acts.appendChild(b);
-      }
-    }
     if (k < 1) requestAnimationFrame(barTick);
   })();
 
-  function board() {
-    stage.innerHTML = `<div class="flavor" style="margin-bottom:6px">🕯️ The captain tips the cup toward you: “Call it, landlubber.”</div>` +
-      WAGERS.map((w, i) => `<div class="race-lane race-pick-btn" data-w="${i}">
-        <span style="flex:1;text-align:left">${w.ico} ${escapeHtml(w.label)}</span>
-        <span class="odds">${fmtMult(rtp / w.p)}x</span></div>`).join('');
-    stage.querySelectorAll('[data-w]').forEach((el) => el.addEventListener('click', () => throwBones(WAGERS[+el.dataset.w])));
-  }
-
-  async function throwBones(w) {
-    const s = session;
-    if (!playGuard(bet)) return;
+  (async () => {
+    stage.innerHTML = `<div class="big-sym">\ud83d\udd6f\ufe0f</div>
+      <div class="flavor">The captain kicks a stool toward you and tips the cup.
+      \u201cFare\u2019s paid, so we\u2019ll let it ride. I\u2019ll call it for you \u2014 ${escapeHtml(w.label)}.\u201d</div>`;
+    await wait(1500);
+    if (!alive(s)) return;
     const d1 = 1 + ((roll() * 6) | 0), d2 = 1 + ((roll() * 6) | 0);
     const sum = d1 + d2;
-    stage.innerHTML = `<div class="big-sym"><span class="shake">🎲</span> <span class="shake">🎲</span></div>
-      <div class="flavor">${rough ? 'The hull heaves — the bones clatter twice as long…' : 'The bones rattle across the felt…'}</div>`;
-    await wait(1000);
+    stage.innerHTML = `<div class="big-sym"><span class="shake">\ud83c\udfb2</span> <span class="shake">\ud83c\udfb2</span></div>
+      <div class="flavor">${w.ico} Riding on <b>${escapeHtml(w.label)}</b> at ${fmtMult(rtp / w.p)}x\u2026
+      ${rough ? 'the hull heaves and the bones clatter twice as long\u2026' : 'the bones rattle across the felt\u2026'}</div>`;
+    await wait(1900);
     if (!alive(s)) return;
     stage.innerHTML = `<div class="big-sym">${DIE_FACES[d1 - 1]} ${DIE_FACES[d2 - 1]}</div><div class="flavor">${sum}!</div>`;
     const hit = (w.id === 'port' && sum <= 6) || (w.id === 'star' && sum >= 8) || (w.id === 'seven' && sum === 7);
-    await wait(350);
+    await wait(700);
     if (!alive(s)) return;
-    settle(bet, hit ? rtp / w.p : 0, stage,
-      hit ? (w.id === 'seven' ? 'SEVENS! The captain mutters about beginner\'s luck.' : 'The captain slides your winnings over with two fingers.')
-          : 'The captain sweeps the felt without looking up.');
-    const again = document.createElement('button');
-    again.className = 'btn secondary';
-    again.textContent = 'Throw again';
-    again.addEventListener('click', board);
-    stage.appendChild(again);
-  }
-  board();
+    // the fare was already taken at the gangway — this only pays out
+    const win = hit ? stake * (rtp / w.p) : 0;
+    const line = document.createElement('div');
+    line.className = 'result-line ' + (win > 0 ? 'win' : 'lose');
+    if (win > 0) {
+      payout(win);
+      renderBalance();
+      line.textContent = `WIN ${fmtCoins(win)} \ud83e\ude99 (${fmtMult(rtp / w.p)}x)`;
+      toast(`\ud83c\udfb2 The captain pays out <span class="amt">${fmtCoins(win)}</span> \ud83e\ude99 \u2014 your crossing paid for itself.`, win >= stake * 4);
+    } else {
+      line.textContent = 'The captain sweeps the felt.';
+    }
+    stage.appendChild(line);
+    const f2 = document.createElement('div');
+    f2.className = 'flavor';
+    f2.textContent = hit
+      ? (w.id === 'seven' ? 'Sevens! He mutters about landlubber\u2019s luck.' : 'He slides your winnings over with two fingers.')
+      : 'He doesn\u2019t look up. The lamp swings on.';
+    stage.appendChild(f2);
+  })();
 }
 
 /* ------------------------------------------------------------
@@ -2010,10 +2024,7 @@ async function runHoming(def, provCode) {
         wAmp: 2 + roll() * 4, wFreq: 6 + roll() * 8, wPhase: roll() * 6.28,
       };
     });
-    const drama = def.homers.map(() => ({
-      amp: 0.02 + roll() * 0.03, freq: 0.5 + roll() * 1.2, phase: roll() * 6.28,
-      surgeT: 2 + roll() * 5, surgeLen: 1.2 + roll() * 1.6, surgeBoost: 0.04 + roll() * 0.06,
-    }));
+    const drama = def.homers.map(() => makeDrama(roll));
     stage.innerHTML = `
       <canvas id="hm-cv" width="${world.W}" height="${world.H}" style="width:100%;image-rendering:pixelated;border-radius:8px;border:2px solid #3a2c58"></canvas>
       <div id="hm-board" style="font-size:11.5px;text-align:left;line-height:1.5;margin-top:6px"></div>`;
@@ -2031,10 +2042,14 @@ async function runHoming(def, provCode) {
       const u = 1 - t;
       return { x: u * u * p0.x + 2 * u * t * pc.x + t * t * p1.x, y: u * u * p0.y + 2 * u * t * pc.y + t * t * p1.y };
     };
+    let lastFrame = performance.now();
     await new Promise((res) => {
       function frame() {
         if (!alive(s)) return res();
-        const t = (performance.now() - t0) / 1000;
+        const nowMs = performance.now();
+        const dt = Math.min(0.05, (nowMs - lastFrame) / 1000);
+        lastFrame = nowMs;
+        const t = (nowMs - t0) / 1000;
         const winnerDone = finished.includes(winner);
         cctx.drawImage(base, 0, 0);
         // loft + roost markers
@@ -2044,15 +2059,7 @@ async function runHoming(def, provCode) {
         cctx.fillRect(roost.x - 2, roost.y - 2, 5, 5);
         def.homers.forEach((h, i) => {
           if (prog[i] < 1) {
-            const base2 = Math.min(1, t / times[i]);
-            const D = drama[i];
-            const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
-            let d = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
-            const fade = Math.max(0, Math.min(1, (1 - base2) * 2.6)) * Math.min(1, base2 * 10);
-            d *= fade;
-            let target = base2 + Math.max(-(1 - base2) * 0.4, Math.min((1 - base2) * 0.4, d));
-            if (i !== winner && !winnerDone) target = Math.min(target, 0.985);
-            prog[i] = Math.min(1, Math.max(prog[i], target));
+            prog[i] = stepRacer(prog[i], t, times[i], drama[i], dt, i === winner, winnerDone);
             if (prog[i] >= 1 && !finished.includes(i)) finished.push(i);
           }
           const P = paths[i];
@@ -2080,7 +2087,7 @@ async function runHoming(def, provCode) {
               ? (finished.indexOf(a.i) === -1 ? 99 : finished.indexOf(a.i)) - (finished.indexOf(b.i) === -1 ? 99 : finished.indexOf(b.i))
               : prog[b.i] - prog[a.i]);
           board2.innerHTML = ranked.map((e, rank) =>
-            `<span style="color:${e.i === pickIdx ? 'var(--gold-2)' : 'inherit'};font-weight:${e.i === pickIdx ? 700 : 400}">
+            `<span style="color:${e.i === pickIdx ? 'var(--gold-ink)' : 'inherit'};font-weight:${e.i === pickIdx ? 700 : 400}">
              ${rank + 1}. <span style="color:${HOMER_COLORS[e.i]}">●</span> ${escapeHtml(e.h.name)}${finished.includes(e.i) ? ' 🏠' : ''}</span>`).join(' &nbsp; ');
         }
         if (finished.length >= def.homers.length || t > 18) return res();

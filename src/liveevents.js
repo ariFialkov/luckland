@@ -18,6 +18,7 @@ import { roll } from './rng.js';
 import { state, spend, payout, effectiveRTP } from './state.js';
 import { showModal, closeModal, escapeHtml, toast, renderBalance, buildBetRow } from './ui.js';
 import { GAME_DEFS, lanternWindow, lanternPrizes, LANTERN_FOLK } from './games.js';
+import { makeDrama, stepRacer } from './racing.js';
 import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite, makeDragonBoatSprite, getLucklianSprite } from './sprites.js';
 import { BY_ID, LUCKLIANS, ownedCount } from './lucklians.js';
 
@@ -598,7 +599,7 @@ function openOwnersRace(it, st, provCode) {
     field.forEach((r, i) => {
       const row = document.createElement('div');
       row.className = 'race-lane race-pick-btn';
-      row.innerHTML = `<span style="flex:1;text-align:left;${r.yours ? 'color:var(--gold);font-weight:700' : ''}">${r.yours ? '⭐' : '🐎'} ${escapeHtml(r.name)}${r.yours ? '' : ` · ${escapeHtml(r.species)}`}</span>
+      row.innerHTML = `<span style="flex:1;text-align:left;${r.yours ? 'color:var(--gold-ink);font-weight:700' : ''}">${r.yours ? '⭐' : '🐎'} ${escapeHtml(r.name)}${r.yours ? '' : ` · ${escapeHtml(r.species)}`}</span>
         <span class="odds">${fmtMult(rtp / r.p)}x</span>`;
       row.addEventListener('click', () => {
         if (state.balance < bet) { toast('Not enough coins!'); return; }
@@ -730,14 +731,7 @@ function startSim(it, kind, choice, bet, rtp) {
     order.forEach((idx, rank) => { times[idx] = 8.5 + rank * (0.55 + roll() * 0.4); });
     // drama tracks: swells and surges that fade before the wire, so mid-race
     // order shuffles (comebacks!) while the booked result still lands
-    const drama = field.map(() => ({
-      amp: 0.02 + roll() * 0.035,
-      freq: 0.5 + roll() * 1.3,
-      phase: roll() * Math.PI * 2,
-      surgeT: 1.5 + roll() * 4,
-      surgeLen: 1 + roll() * 1.6,
-      surgeBoost: 0.05 + roll() * 0.07,
-    }));
+    const drama = field.map(() => makeDrama(roll));
     live.race = { winner, field, times, drama, prog: field.map(() => 0), finished: [], started: false, gateT: 0 };
     if (it.arena.kind === 'regatta') {
       /* the moored fleet paints up in this card's colours */
@@ -1008,10 +1002,11 @@ function updateRegattaRace(it, live, dt) {
   if (!R.started) {
     R.gateT += dt;
     R.actors.forEach((a, i) => {
-      a.x += (C.x0 - a.x) * 0.07;
-      a.y += (C.laneY(i) - a.y) * 0.07;
-      a.dir = 0; a.frame = 0;
-      for (const c2 of a.crew || []) c2.frame = 0;
+      // paddle up to the line at a steady speed — no lurching from the moorings
+      const parked = glideTo(a, C.x0, C.laneY(i), 220, dt);
+      a.dir = 0;
+      if (parked) a.frame = 0; else stepAnim(a, dt, 0.3);
+      for (const c2 of a.crew || []) c2.frame = a.frame;
     });
     if (R.gateT > 1.1 && !R.drummed) { R.drummed = true; live.fx.push({ text: '🥁 DOOM… DOOM…', x: C.x0, y: it.arena.rect.y + 6, t: 0, color: '#ffd75e' }); }
     if (R.gateT > 2.4) {
@@ -1032,19 +1027,10 @@ function updateRegattaRace(it, live, dt) {
   }
   R.actors.forEach((a, i) => {
     if (R.prog[i] >= 1) { a.frame = 0; (a.crew || []).forEach((c2) => { c2.frame = 0; }); return; }
-    const T2 = R.times[i];
-    const base = Math.min(1, t / T2);
-    const D = R.drama[i];
-    const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
-    let drama = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
-    const fade = Math.max(0, Math.min(1, (1 - base) * 2.6)) * Math.min(1, base * 10);
-    drama *= fade;
-    drama = Math.max(-(1 - base) * 0.4, Math.min((1 - base) * 0.4, drama));
-    let target = base + drama;
-    if (i !== R.winner && !winnerDone) target = Math.min(target, 0.985);
-    R.prog[i] = Math.min(1, Math.max(R.prog[i], target));
+    R.prog[i] = stepRacer(R.prog[i], t, R.times[i], R.drama[i], dt, i === R.winner, winnerDone);
     a.x = C.x0 + R.prog[i] * (C.x1 - C.x0);
-    a.y = C.laneY(i) + Math.sin(t * 5 + i * 2) * 1.5;
+    // the hull's roll eases in from the line rather than snapping on
+    a.y = C.laneY(i) + Math.sin(t * 5 + i * 2) * 1.5 * Math.min(1, t);
     a.dir = 0;
     stepAnim(a, dt, 0.16);                       // paddles digging hard
     (a.crew || []).forEach((c2) => { c2.frame = a.frame; c2.dir = 2; });
@@ -1060,6 +1046,25 @@ function updateRegattaRace(it, live, dt) {
   }
 }
 
+/* One racer's lane on the oval, used by BOTH the gates and the race
+   itself — if these ever disagree, the field snaps at the off. */
+function ovalLane(o, i) {
+  return { ...o, rx: o.rx - (i % 3) * 6, ry: o.ry - (i % 3) * 3 };
+}
+const laneStagger = (i) => -i * 0.03;   // a hair apart at the line, and all race long
+
+/* Walk an actor toward a point at a capped speed. A proportional ease
+   lurches when the actor starts far away; a speed limit never does. */
+function glideTo(a, tx, ty, speed, dt) {
+  const dx = tx - a.x, dy = ty - a.y;
+  const d = Math.hypot(dx, dy);
+  if (d < 0.5) { a.x = tx; a.y = ty; return true; }
+  const step = Math.min(d, speed * dt);
+  a.x += (dx / d) * step;
+  a.y += (dy / d) * step;
+  return false;
+}
+
 function updateRace(it, live, dt) {
   if (it.arena.kind === 'regatta') return updateRegattaRace(it, live, dt);
   const R = live.race;
@@ -1068,11 +1073,14 @@ function updateRace(it, live, dt) {
   if (!R.started) {
     R.gateT += dt;
     R.actors.forEach((a, i) => {
-      const gate = ovalPos({ ...o, rx: o.rx - 4 - (i % 3) * 7, ry: o.ry - 2 - (i % 3) * 4 }, startAng);
-      a.x += (gate.x + (i - R.actors.length / 2) * 7 - a.x) * 0.08;
-      a.y += (gate.y - a.y) * 0.08;
-      a.dir = 2; a.frame = 0;
-      a.ang = startAng;
+      // walk onto the EXACT spot the race will start them from, at a
+      // capped speed so a runner coming from the far turn never lurches
+      const ang = startAng + laneStagger(i);
+      const gate = ovalPos(ovalLane(o, i), ang);
+      const parked = glideTo(a, gate.x, gate.y, 300, dt);
+      a.dir = 2;
+      if (parked) a.frame = 0; else stepAnim(a, dt, 0.16);
+      a.ang = ang;
     });
     if (it.arena.starter && R.gateT > 1.2) it.arena.starter.emote = { ico: R.gateT > 2 ? '💥' : '🔫', t: 0.5 };
     if (R.gateT > 2.4) { R.started = true; live.raceT = 0; }
@@ -1084,28 +1092,18 @@ function updateRace(it, live, dt) {
   const winnerDone = R.finished.includes(R.winner);
   R.actors.forEach((a, i) => {
     if (R.prog[i] >= 1) { a.frame = 0; return; }
-    const T = R.times[i];
-    const base = Math.min(1, t / T);
-    /* drama: swells and one big surge per runner, fading to nothing near
-       the wire so the booked order re-asserts itself smoothly */
-    const D = R.drama[i];
-    const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
-    let drama = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
-    const fade = Math.max(0, Math.min(1, (1 - base) * 2.6)) * Math.min(1, base * 10);
-    drama *= fade;
-    drama = Math.max(-(1 - base) * 0.4, Math.min((1 - base) * 0.4, drama));
-    let target = base + drama;
-    if (i !== R.winner && !winnerDone) target = Math.min(target, 0.985);
-    R.prog[i] = Math.min(1, Math.max(R.prog[i], target));
-    const laneRx = o.rx - (i % 3) * 6, laneRy = o.ry - (i % 3) * 3;
-    const ang = startAng + R.prog[i] * Math.PI * 2 * LAPS;
-    const p = ovalPos({ ...o, rx: laneRx, ry: laneRy }, ang);
+    // smooth, monotone, rate-limited: drama shuffles the order without
+    // ever skipping a runner across the track
+    R.prog[i] = stepRacer(R.prog[i], t, R.times[i], R.drama[i], dt, i === R.winner, winnerDone);
+    const lane = ovalLane(o, i);
+    const ang = startAng + laneStagger(i) + R.prog[i] * Math.PI * 2 * LAPS;
+    const p = ovalPos(lane, ang);
     a.x = p.x; a.y = p.y; a.ang = ang;
-    faceFromVel(a, -Math.sin(ang) * laneRx, Math.cos(ang) * laneRy);
+    faceFromVel(a, -Math.sin(ang) * lane.rx, Math.cos(ang) * lane.ry);
     stepAnim(a, dt, 0.1);
     if (R.prog[i] >= 1 && !R.finished.includes(i)) R.finished.push(i);
   });
-  if (R.finished.length >= R.actors.length || live.raceT > 17) {
+  if (R.finished.length >= R.actors.length || live.raceT > 19) {
     const field = R.field;
     endSim(it, `🏁 ${field[R.winner].name.toUpperCase()} TAKES IT!`);
   }
@@ -1712,8 +1710,7 @@ function startLanternRace(def, provCode, path, bet, rtp) {
   rivalRanks.forEach((ri, j) => { rankOf[ri + 1] = j < place ? j : j + 1; });
   const times = names.map((_, i) => 9.5 + rankOf[i] * (0.45 + roll() * 0.3));
   const drama = names.map(() => ({
-    amp: 0.02 + roll() * 0.03, freq: 0.5 + roll() * 1.2, phase: roll() * Math.PI * 2,
-    surgeT: 1.5 + roll() * 4, surgeLen: 1 + roll() * 1.5, surgeBoost: 0.04 + roll() * 0.05,
+    ...makeDrama(roll),
     lane: (roll() - 0.5) * 9, bobP: roll() * 6.28,
   }));
   lanternRace = {
@@ -1759,15 +1756,7 @@ export function updateLanternRace(dt) {
   const winnerDone = L.finished.includes(winnerIdx);
   L.names.forEach((_, i) => {
     if (L.prog[i] >= 1) return;
-    const base = Math.min(1, t / L.times[i]);
-    const D = L.drama[i];
-    const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
-    let d = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
-    const fade = Math.max(0, Math.min(1, (1 - base) * 2.6)) * Math.min(1, base * 10);
-    d *= fade;
-    let target = base + Math.max(-(1 - base) * 0.4, Math.min((1 - base) * 0.4, d));
-    if (i !== winnerIdx && !winnerDone) target = Math.min(target, 0.985);
-    L.prog[i] = Math.min(1, Math.max(L.prog[i], target));
+    L.prog[i] = stepRacer(L.prog[i], t, L.times[i], L.drama[i], dt, i === winnerIdx, winnerDone);
     if (L.prog[i] >= 1 && !L.finished.includes(i)) L.finished.push(i);
   });
   // camera rides with the front of the flotilla

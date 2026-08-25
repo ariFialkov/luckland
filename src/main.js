@@ -9,13 +9,13 @@ import { CONFIG } from './config.js';
 import { hash2, roll } from './rng.js';
 import { generateWorld, T, TILE, isSolidTile, PROVINCES } from './world.js';
 import { buildTileAtlas, makeCharSprite, getBuildingSprite, getEventSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
-import { state, loadGame, onBalanceChange } from './state.js';
+import { state, spend, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
 import { openGame, openHub, GAME_DEFS, setWorld, nightNow, openCrossingDen } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer, openHoard } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
 import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
-import { getLucklianSprite, getStationSprite, getDecorSprite } from './sprites.js';
+import { getLucklianSprite, getStationSprite, getDecorSprite, makeFerrySprite } from './sprites.js';
 import { getInterior, updatePatrons } from './interiors.js';
 import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay, openLanternFestival, updateLanternRace, drawLanternRace, getLanternRace } from './liveevents.js';
 import { tickHunt } from './hunts.js';
@@ -308,7 +308,42 @@ function findInteriorTarget() {
   return null;
 }
 
-function offerFerry({ f, other }) {
+/* ---------------- the Paradise Ferry crossing ----------------
+   The boat really sails: for the length of the crossing the player
+   rides her deck across the strait while the den plays out below. */
+let crossing = null;
+let ferrySprite = null;
+
+function startCrossing(dock, other, fare) {
+  if (!ferrySprite) ferrySprite = makeFerrySprite();
+  const from = { x: dock.x * TILE + 8, y: dock.y * TILE + 8 };
+  const to = { x: other.x * TILE + 8, y: other.y * TILE + 8 };
+  crossing = { from, to, t: 0, dur: CONFIG.CROSSING_S, dir: to.x < from.x ? 1 : 0, frame: 0, animT: 0, other };
+  player.x = from.x; player.y = from.y;
+  openCrossingDen(world.provAt(other.x, other.y), other.label, fare, CONFIG.CROSSING_S);
+}
+
+function updateCrossing(dt) {
+  if (!crossing) return;
+  crossing.t += dt;
+  const k = Math.min(1, crossing.t / crossing.dur);
+  // ease away from the dock and glide into the far one
+  const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+  player.x = crossing.from.x + (crossing.to.x - crossing.from.x) * e;
+  player.y = crossing.from.y + (crossing.to.y - crossing.from.y) * e + Math.sin(crossing.t * 2.2) * 1.5;
+  crossing.animT += dt;
+  if (crossing.animT > 0.42) { crossing.animT = 0; crossing.frame = 1 - crossing.frame; }
+  if (k >= 1) {
+    const { other } = crossing;
+    crossing = null;
+    player.x = other.x * TILE + 8;
+    player.y = other.y * TILE + 8;
+    if (UI.isModalOpen()) UI.closeModal();
+    UI.toast(`⛴️ The Paradise Ferry ties up at ${UI.escapeHtml(other.label)}.`);
+  }
+}
+
+function offerFerry({ f, other, dock }) {
   const fare = CONFIG.FERRY_PRICE;
   UI.showModal(`
     <h2>⛴️ ${UI.escapeHtml(f.name)}</h2>
@@ -328,14 +363,12 @@ function offerFerry({ f, other }) {
   `);
   document.getElementById('ferry-stay').addEventListener('click', UI.closeModal);
   document.getElementById('ferry-go').addEventListener('click', () => {
-    if (state.balance < fare) { UI.toast('Not enough coins for the fare!'); return; }
-    state.balance -= fare;
+    if (!spend(fare)) { UI.toast('Not enough coins for the fare!'); return; }
+    state.stats.gamesPlayed++;
     UI.renderBalance();
-    player.x = other.x * TILE + 8;
-    player.y = other.y * TILE + 8;
     UI.closeModal();
-    // the crossing takes a while — and there's a den below decks
-    openCrossingDen(world.provAt(other.x, other.y), other.label);
+    // she casts off — and the fare rides on the captain's bones below decks
+    startCrossing(dock, other, fare);
   });
 }
 
@@ -635,13 +668,14 @@ function frame(now) {
   tickEncounterCooldown(dt);
   tickHunt(dt);           // scavenger-hunt rivals keep pace indoors and out
   updateLanternRace(dt);  // a lantern race on the river settles wherever you are
+  updateCrossing(dt);     // the ferry sails on whether or not the den is open
   if (!scene) {
     traderTimer -= dt;
     if (traderTimer <= 0) {
       traderTimer = CONFIG.LUCKLIAN.TRADER_MIN_S + roll() * (CONFIG.LUCKLIAN.TRADER_MAX_S - CONFIG.LUCKLIAN.TRADER_MIN_S);
       if (roll() < CONFIG.LUCKLIAN.TRADER_CHANCE && !getLanternRace()) maybeTraderOffer();
     }
-    resolveTideStranding();
+    if (!crossing) resolveTideStranding();
     state.px = player.x; state.py = player.y;
   }
 
@@ -726,6 +760,9 @@ function frame(now) {
   const focX = lRace ? lRace.focus.x : player.x;
   const focY = lRace ? lRace.focus.y : player.y;
   let camX = focX - viewW / 2, camY = focY - viewH / 2;
+  // mid-crossing the den modal owns the middle of the screen, so lift the
+  // boat into the clear water above it
+  if (crossing) camY += viewH * 0.24;
   camX = Math.max(0, Math.min(world.W * TILE - viewW, camX));
   camY = Math.max(0, Math.min(world.H * TILE - viewH, camY));
 
@@ -819,6 +856,12 @@ function frame(now) {
 
   /* entities, y-sorted (buildings live in the static pass — their art
      never leaves their solid footprint, so nothing can hide behind them) */
+  if (crossing && ferrySprite) {   // the Paradise Ferry, with you on her deck
+    const cw = ferrySprite.cellW, ch = ferrySprite.cellH;
+    ctx.drawImage(ferrySprite, crossing.dir * cw, crossing.frame * ch, cw, ch,
+      Math.round((player.x - cw / 2 - camX) * zoom), Math.round((player.y - ch + 10 - camY) * zoom),
+      cw * zoom, ch * zoom);
+  }
   const drawList = [player, ...npcs, ...bots, ...citizens].sort((a, b) => a.y - b.y);
   for (const e of drawList) {
     const { sx, sy } = drawSprite(e, camX, camY);
@@ -877,6 +920,7 @@ requestAnimationFrame(frame);
 window.LUCKLAND = {
   world, player, state, concealers, npcs, bots, citizens,
   enterLandmark, exitInterior, getScene: () => scene, openGame,
+  doInteract, getCrossing: () => crossing,
 };
 
 /* ---------------- PWA service worker ---------------- */

@@ -213,13 +213,15 @@ export const LUCKLIANS = D.map(([id, name, type, prov, rarePct, a, c0, c1, c2, d
 });
 export const BY_ID = new Map(LUCKLIANS.map((l) => [l.id, l]));
 
+/* Two tones per tier: `color` glows on the dark game stage, `ink` stays
+   legible on the light parchment panels (dex cards, hunt cards, lobbies). */
 export function rarityTier(rare) {
-  if (rare >= 0.15) return { name: 'Common', color: '#b8c4b0' };
-  if (rare >= 0.07) return { name: 'Uncommon', color: '#7dd87a' };
-  if (rare >= 0.025) return { name: 'Rare', color: '#5eb3ff' };
-  if (rare >= 0.006) return { name: 'Epic', color: '#c58cff' };
-  if (rare >= 0.0015) return { name: 'Legendary', color: '#ffb84d' };
-  return { name: 'Mythic', color: '#ff6be0' };
+  if (rare >= 0.15) return { name: 'Common', color: '#b8c4b0', ink: '#5a6753' };
+  if (rare >= 0.07) return { name: 'Uncommon', color: '#7dd87a', ink: '#2e7d36' };
+  if (rare >= 0.025) return { name: 'Rare', color: '#5eb3ff', ink: '#1b62b8' };
+  if (rare >= 0.006) return { name: 'Epic', color: '#c58cff', ink: '#7033c4' };
+  if (rare >= 0.0015) return { name: 'Legendary', color: '#ffb84d', ink: '#a85c00' };
+  return { name: 'Mythic', color: '#ff6be0', ink: '#b81a94' };
 }
 
 /* ------------------------------------------------------------
@@ -366,7 +368,7 @@ export function openEncounter(def, sx, sy) {
   }).join('');
   const m = showModal(`
     <h2>${isNew ? '✨ ' : ''}A wild ${escapeHtml(def.name)}!</h2>
-    <div class="subtitle"><span style="color:${tier.color}">${tier.name}</span> · ${escapeHtml(def.type)} Lucklian of ${escapeHtml(PROVINCES[def.prov]?.name || def.prov)}${isNew ? ' · <b>new species!</b>' : ''}</div>
+    <div class="subtitle"><span style="color:${tier.ink};font-weight:bold">${tier.name}</span> · ${escapeHtml(def.type)} Lucklian of ${escapeHtml(PROVINCES[def.prov]?.name || def.prov)}${isNew ? ' · <b>new species!</b>' : ''}</div>
     <div class="lk-stage">${spriteImg(def, false, true)}</div>
     <div class="lk-desc">${escapeHtml(def.desc)}</div>
     <div class="lk-value">Face value <b>${def.value.toLocaleString('en-US')}</b> 🪙 — pick a snare:</div>
@@ -429,7 +431,7 @@ export function openLucklipedia(scrollTop = 0) {
       return `<div class="lk-card" title="${escapeHtml(l.desc)}">
         <div class="lk-num">#${l.id}</div>
         ${img}
-        <div class="lk-name" style="color:${tier.color}">${escapeHtml(l.name)}</div>
+        <div class="lk-name" style="color:${tier.ink}">${escapeHtml(l.name)}</div>
         <div class="lk-meta">${escapeHtml(l.type)}${n > 0 ? ` · x${n}` : ''}</div>
         ${sell}
       </div>`;

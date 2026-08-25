@@ -94,7 +94,7 @@ export const CONFIG = {
   },
 
   // Paradise Ferry crossing (the below-decks den lives inside it).
-  CROSSING_S: 22,               // seconds from dock to dock
+  CROSSING_S: 8,                // seconds from dock to dock
 };
 
 /* ------------------------------------------------------------
