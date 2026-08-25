@@ -13,13 +13,14 @@
    beast hunt -> naval battle.
    ============================================================ */
 
+import { CONFIG } from './config.js';
 import { TILE, T } from './world.js';
-import { roll } from './rng.js';
-import { state, spend, payout, effectiveRTP } from './state.js';
+import { roll, hash2 } from './rng.js';
+import { state, spend, payout, effectiveRTP, grantLuck } from './state.js';
 import { showModal, closeModal, escapeHtml, toast, renderBalance, buildBetRow } from './ui.js';
 import { GAME_DEFS, lanternWindow, lanternPrizes, LANTERN_FOLK } from './games.js';
 import { makeDrama, stepRacer } from './racing.js';
-import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite, makeDragonBoatSprite, getLucklianSprite } from './sprites.js';
+import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite, makeDragonBoatSprite, makeSumoSprite, makeKiteSprite, getLucklianSprite } from './sprites.js';
 import { BY_ID, LUCKLIANS, ownedCount } from './lucklians.js';
 
 const fmt = (v) => Math.round(v).toLocaleString('en-US');
@@ -65,6 +66,24 @@ const REGATTA_TEAMS = [
   ['River Ghost', '#8a94a0'], ['Jade Typhoon', '#2f8a5c'], ['Crimson Carp', '#c43a2a'],
   ['Moon Lotus', '#b8a8d8'], ['Iron Junk', '#5a5652'], ['Silk Lightning', '#e88ab0'],
   ['Old Dragon', '#6a3a1a'], ['Nine Oars', '#9ac82a'], ['Whirlpool', '#2fa8a0'],
+];
+const RIKISHI_NAMES = [
+  'Yamakaze', 'Ōnami the Great Wave', 'Tetsuzan', 'Kumogatari', 'Little Comet',
+  'Harukaze', 'Mochizuki', 'The Neon Mountain', 'Tanukiyama', 'Steambun',
+  'Thunderhill', 'The Polite Avalanche', 'Koban-zeki', 'Grandmother\'s Favourite',
+];
+const MAWASHI = ['#8a2030', '#2a4a9a', '#2f7a5a', '#e8a020', '#5a2a5a', '#26222c', '#c96ad4', '#3fb0a0'];
+const SUMO_MOVES = ['OSHIDASHI!', 'YORIKIRI!', 'UWATENAGE!', 'TSUKIOTOSHI!', 'HATAKIKOMI!', 'SLAP FLURRY!', 'THE POLITE NUDGE!'];
+const KITE_NAMES = [
+  'Paper Tiger', "The Widow's Razor", 'Old Thunder', 'Butterfly of Doom',
+  'Iron Silk', "Grandfather's Regret", 'The Hissing Swan', 'Nine-Tailed Ribbon',
+  'The Unlicensed Phoenix', 'Humble Diamond', 'The Tax Collector', 'Whispering Blade',
+];
+const KITE_COLORS = ['#c43a2a', '#2a4a9a', '#e8a020', '#2f8a5c', '#8a2a5a', '#e88ab0', '#26222c', '#3fb0a0'];
+const KITE_WINDS = [
+  { id: 'calm', label: 'A polite breeze', ico: '🍃', w: 5, props: { winA: 0.52, winB: 0.48, double: 0.06, runaway: 0.10 } },
+  { id: 'gusty', label: 'Gusting hard', ico: '🌬️', w: 4, props: { winA: 0.52, winB: 0.48, double: 0.10, runaway: 0.18 } },
+  { id: 'typhoon', label: "Typhoon's edge", ico: '🌀', w: 2, props: { winA: 0.50, winB: 0.50, double: 0.16, runaway: 0.30 } },
 ];
 const KARAOKE_SINGERS = [
   'DJ Tanuki', 'Miki Starlight', 'Neon Grandpa', 'Sakura Static', 'Kappa Kid',
@@ -279,7 +298,7 @@ function setProgram(it, ev, shipCount) {
 }
 
 /* called by main every frame for halls with an arena */
-export function updateLive(it, dt, now) {
+export function updateLive(it, dt, now, player) {
   if (!it.arena) return;
   const A = it.arena;
 
@@ -291,6 +310,11 @@ export function updateLive(it, dt, now) {
       setProgram(it, COLISEUM_PROGRAM[(COLISEUM_PROGRAM.indexOf(A.program) + 1) % COLISEUM_PROGRAM.length]);
     }
   }
+
+  // self-running arenas: the basho rolls on, the bog watches your boots
+  if (A.kind === 'sumo') tickBasho(it, dt);
+  if (A.kind === 'bog' && player) tickBog(it, dt, player);
+  if (A.kind === 'kites' && !A.duel) newKiteDuel(it);   // kites aloft from the first visit
 
   // ambient actor motion (also used during sims — sims steer via fields)
   for (const a of it.actors) {
@@ -433,6 +457,22 @@ export function updateLive(it, dt, now) {
         if (!a.emote && Math.random() < dt * 0.25) a.emote = { ico: '🎵', t: 1 };
         break;
       }
+      case 'rikishi': {  // waits on the bench; the basho engine walks it to the ring
+        if (a.ctl) break;                          // a bout has it
+        a.frame = 0;
+        if (!a.emote && Math.random() < dt * 0.05) a.emote = { ico: ['🧂', '💪', '😤'][(Math.random() * 3) | 0], t: 1.2 };
+        break;
+      }
+      case 'kite': {     // lazy ambient swoops over the sky court
+        if (a.ctl) break;                          // the duel sim is flying it
+        const R = it.arena.rect;
+        const nx = R.x + R.w / 2 + Math.sin(a.t * 0.55 + a.ph) * (R.w * 0.36);
+        const ny = R.y + R.h / 2 + Math.sin(a.t * 0.9 + a.ph * 2) * (R.h * 0.32);
+        a.dir = nx < a.x ? 0 : 1;
+        a.x = nx; a.y = ny;
+        stepAnim(a, dt, 0.22);
+        break;
+      }
     }
     if (a.emote) { a.emote.t -= dt; if (a.emote.t <= 0) a.emote = null; }
   }
@@ -450,6 +490,8 @@ export function stationIsLive(it, st) {
 export function openLiveBet(it, st, provCode) {
   if (st.game === 'ownersrace') return openOwnersRace(it, st, provCode);
   if (st.game === 'beastbout') return openBeastBout(it, st, provCode);
+  if (st.game === 'sumobracket') return openBashoBook(it, st, provCode);
+  if (st.game === 'bogwisp') return openBogGate(it, st, provCode);
   const A = it.arena;
   let title, ico, choices, eventKind, sub = '';
   const fightChoices = (names, ps) => {
@@ -478,6 +520,19 @@ export function openLiveBet(it, st, provCode) {
     A.pendingField = newRegattaField();
     sub = 'Four crews, one bay · ';
     choices = A.pendingField.map((r, i) => ({ label: r.name, ico: '🛶', p: r.p, idx: i }));
+  } else if (A.kind === 'kites') {
+    if (!A.duel) newKiteDuel(it);
+    if (!A.wind) A.wind = weightedPick2(KITE_WINDS);
+    title = "String-Cutter's Book"; ico = '🪁'; eventKind = 'kites';
+    const P = A.wind.props;
+    const [ka, kb] = A.duel;
+    sub = `${A.wind.ico} <b>${escapeHtml(A.wind.label)}</b> · <b>${escapeHtml(ka.name)}</b> vs <b>${escapeHtml(kb.name)}</b> · `;
+    choices = [
+      { kind: 'winA', label: `${ka.name} cuts first`, ico: '✂️', p: P.winA },
+      { kind: 'winB', label: `${kb.name} cuts first`, ico: '✂️', p: P.winB },
+      { kind: 'double', label: 'Both strings part', ico: '💥', p: P.double },
+      { kind: 'runaway', label: 'A kite escapes on the wind', ico: '🎐', p: P.runaway },
+    ];
   } else if (A.kind === 'karaoke') {
     if (!A.bout) A.bout = newKaraokeBout();
     A.singers?.forEach((s, i) => { s.name = A.bout.names[i]; });
@@ -813,6 +868,23 @@ function startSim(it, kind, choice, bet, rtp) {
       rect: { x: it.arena.rect.x + 26, y: it.arena.rect.y + 26, w: it.arena.rect.w - 52, h: it.arena.rect.h - 36 },
       koAt: 12 + roll() * 3,
     };
+  } else if (kind === 'kites') {
+    const P = it.arena.wind.props;
+    const hit = roll() < choice.p;
+    const flag = (k) => (choice.kind === k ? hit : roll() < P[k]);
+    let winner = roll() < P.winA ? 0 : 1;   // the kite that SURVIVES (cuts the other)
+    if (choice.kind === 'winA') winner = hit ? 0 : 1;
+    else if (choice.kind === 'winB') winner = hit ? 1 : 0;
+    live.win = hit;
+    live.kite = {
+      winner, double: flag('double'), runaway: flag('runaway'),
+      cutAt: 10.5 + roll() * 3, clashes: [2.5, 5.2, 8], ci: 0, cutDone: false,
+    };
+    it.actors.filter((a) => a.type === 'kite').forEach((a) => { a.ctl = true; a.state = 'fly'; a.vx = 0; a.vy = 0; });
+  } else if (kind === 'sumo') {
+    // the bout itself is run by the basho engine; the sim just rides it
+    live.sumo = { side: choice.side, key: choice.key, settled: false };
+    live.focus = it.arena.center;
   } else if (kind === 'chase') {
     const hit = roll() < choice.p;
     const L = choice.label.toLowerCase();
@@ -889,6 +961,12 @@ function updateSim(it, dt, now) {
         it.actors = it.actors.filter((a) => a.type !== 'bbeast');
         if (it.arena.kind === 'coliseum') setProgram(it, it.arena.savedProgram || 'chariots');
       }
+      if (live.kind === 'kites') {
+        // fresh kites, fresh names, fresh wind for the next duel
+        it.actors.filter((a) => a.type === 'kite').forEach((a) => { a.ctl = false; a.state = null; a.cut = false; });
+        newKiteDuel(it);
+        it.arena.wind = null;
+      }
       if (it.arena.kind === 'coliseum') it.arena.programT = 20; // move the card along soon
     }
     return;
@@ -903,6 +981,8 @@ function updateSim(it, dt, now) {
   else if (live.kind === 'naval') updateNaval(it, live, dt);
   else if (live.kind === 'karaoke') updateKaraoke(it, live, dt);
   else if (live.kind === 'bbout') updateBeastBout(it, live, dt);
+  else if (live.kind === 'kites') updateKitesSim(it, live, dt);
+  else if (live.kind === 'sumo') updateSumoSim(it, live, dt);
 }
 
 function updateFight(it, live, dt) {
@@ -1430,6 +1510,119 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     }
   }
 
+  /* the basho: round marquee + live momentum bar over the dohyō */
+  if (A.kind === 'sumo' && A.basho) {
+    const B = A.basho;
+    let label;
+    if (B.champion !== null) label = `👑 ${B.rikishi[B.champion].name.toUpperCase()} — YOKOZUNA OF THE HOUR`;
+    else if (B.bout) label = `${ROUND_NAMES[B.round]} · ${B.rikishi[B.bout.ai].name} vs ${B.rikishi[B.bout.bi].name}`;
+    else {
+      const nx = B.matches[B.winners.length];
+      label = `${ROUND_NAMES[B.round]} · NEXT: ${B.rikishi[nx[0]].name} vs ${B.rikishi[nx[1]].name}`;
+    }
+    ctx.font = font(10 * zoom / 2);
+    const w = ctx.measureText(label).width + 18;
+    panel(ctx, S(A.center.x) - w / 2, Sy(A.rect.y) - 16 * zoom / 2, w, 11 * zoom / 2 + 6);
+    ctx.fillStyle = '#ffd75e';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, S(A.center.x), Sy(A.rect.y) - 6 * zoom / 2);
+    if (B.bout && B.bout.phase === 'clash') {
+      // the shoving match, as a two-colour tug bar
+      const bw = 60 * zoom / 2, bx = S(A.center.x) - bw / 2, by = Sy(A.rect.y) + 4;
+      const mid = bw / 2 + (B.bout.mom * bw) / 2.4;
+      ctx.fillStyle = 'rgba(10,8,16,0.85)';
+      ctx.fillRect(bx - 1, by - 1, bw + 2, 5 * zoom / 2 + 2);
+      ctx.fillStyle = B.rikishi[B.bout.ai].color;
+      ctx.fillRect(bx, by, Math.max(3, mid), 5 * zoom / 2);
+      ctx.fillStyle = B.rikishi[B.bout.bi].color;
+      ctx.fillRect(bx + mid, by, Math.max(3, bw - mid), 5 * zoom / 2);
+      // fighters' names under their colours
+      ctx.font = font(7 * zoom / 2);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#f4ecd8';
+      ctx.fillText(B.rikishi[B.bout.ai].name.slice(0, 10), bx, by + 10 * zoom / 2);
+      ctx.textAlign = 'right';
+      ctx.fillText(B.rikishi[B.bout.bi].name.slice(0, 10), bx + bw, by + 10 * zoom / 2);
+    }
+  }
+
+  /* kite duels: strings from the flyers, and the wind on a chip */
+  if (A.kind === 'kites' && A.duel) {
+    for (let i = 0; i < 2; i++) {
+      const kite = A.duel[i].actor;
+      const flyer = A.flyers[i];
+      if (!kite || !flyer || kite.cut) continue;
+      const x1 = S(flyer.x), y1 = Sy(flyer.y - 8);
+      const x2 = S(kite.x), y2 = Sy(kite.y + 8);
+      ctx.strokeStyle = 'rgba(240,240,250,0.55)';
+      ctx.lineWidth = Math.max(1, zoom / 3);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      // a sagging line: one midpoint pulled down
+      ctx.quadraticCurveTo((x1 + x2) / 2, Math.max(y1, y2) + 14, x2, y2);
+      ctx.stroke();
+    }
+    if (A.wind && live) {
+      const wtxt = `${A.wind.ico} ${A.wind.label.toUpperCase()}`;
+      ctx.font = font(8 * zoom / 2);
+      const w = ctx.measureText(wtxt).width + 14;
+      panel(ctx, S(A.rect.x) + 4, Sy(A.rect.y) + 4, w, 9 * zoom / 2 + 6);
+      ctx.fillStyle = '#8fd8ff';
+      ctx.textAlign = 'left';
+      ctx.fillText(wtxt, S(A.rect.x) + 11, Sy(A.rect.y) + 4 + 7 * zoom / 2);
+    }
+  }
+
+  /* the bog: rolling fog, the wisp, crossed-tuft lanterns, the pot */
+  if (A.kind === 'bog') {
+    // fog thickens with depth (smaller y = deeper in)
+    const bands = 7;
+    for (let b = 0; b < bands; b++) {
+      const y0 = A.rect.y + (b / bands) * A.rect.h;
+      const alpha = 0.42 * (1 - b / bands) + 0.04 * Math.sin(now / 900 + b);
+      ctx.fillStyle = `rgba(150,170,160,${Math.max(0, alpha).toFixed(3)})`;
+      ctx.fillRect(S(A.rect.x), Sy(y0), A.rect.w * zoom, (A.rect.h / bands) * zoom + 1);
+    }
+    // lanterns on conquered tufts
+    for (let i = 0; i < A.progress; i++) {
+      const t2 = A.tufts[i];
+      ctx.fillStyle = 'rgba(255,215,94,0.8)';
+      ctx.fillRect(S(t2.x * TILE + 7), Sy(t2.y * TILE + 2), zoom * 1.5, zoom * 1.5);
+    }
+    // the wisp over the next tuft (bright when a bargain is live)
+    const target = A.stakeActive ? A.tufts[Math.min(A.progress, A.tufts.length - 1)] : A.tufts[2];
+    if (target) {
+      const wx = S(target.x * TILE + 8), wy = Sy(target.y * TILE - 4 + Math.sin(now / 300) * 3);
+      const pulse = 0.6 + 0.4 * Math.sin(now / 180);
+      ctx.globalAlpha = (A.stakeActive ? 0.9 : 0.35) * pulse;
+      ctx.fillStyle = '#8fd8c8';
+      ctx.fillRect(wx - 3 * zoom, wy - 3 * zoom, 6 * zoom, 6 * zoom);
+      ctx.fillStyle = '#e8fff4';
+      ctx.fillRect(wx - zoom, wy - zoom, 2 * zoom, 2 * zoom);
+      ctx.globalAlpha = 1;
+    }
+    if (A.stakeActive) {
+      const line = `🫧 POT ${fmt(A.pot)} · TUFT ${A.progress + 1}/${A.tufts.length} HOLDS AT ${(A.ps[A.progress] * 100).toFixed(0)}%`;
+      ctx.font = font(9 * zoom / 2);
+      const w = ctx.measureText(line).width + 18;
+      panel(ctx, S(A.center.x) - w / 2, Sy(A.rect.y) - 4, w, 11 * zoom / 2 + 6);
+      ctx.fillStyle = '#ffd75e';
+      ctx.textAlign = 'center';
+      ctx.fillText(line, S(A.center.x), Sy(A.rect.y) - 4 + 8 * zoom / 2);
+    }
+    if (A.stepFx) {
+      ctx.globalAlpha = Math.max(0, 1 - A.stepFx.t / 1.4);
+      ctx.font = font(8 * zoom / 2);
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 2;
+      const fy = Sy(A.stepFx.y - A.stepFx.t * 12);
+      ctx.strokeText(A.stepFx.text, S(A.stepFx.x), fy);
+      ctx.fillStyle = '#8fdc9a';
+      ctx.fillText(A.stepFx.text, S(A.stepFx.x), fy);
+      ctx.globalAlpha = 1;
+    }
+  }
+
   /* health bars on ambient + sim performers */
   for (const a of it.actors) {
     if (!a.arena) continue;
@@ -1540,6 +1733,8 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     else if (live.kind === 'naval') line1 = `${live.naval.ships.filter((s) => s.sink === 0).length} SHIPS AFLOAT`;
     else if (live.kind === 'karaoke') line1 = live.phase === 'done' ? 'THE SET ENDS' : `🎤 VERSE ${Math.min(3, live.kar.verse)} OF 3`;
     else if (live.kind === 'bbout') line1 = live.phase === 'done' ? 'THE SAND SETTLES' : '🐆 ON THE SAND';
+    else if (live.kind === 'sumo') line1 = live.phase === 'done' ? 'THE DOHYŌ IS SWEPT' : '🤼 THE BOUT IS ON';
+    else if (live.kind === 'kites') line1 = live.phase === 'done' ? 'THE SKY SETTLES' : (live.kite.cutDone ? '✂️ A STRING PARTS!' : '🪁 CIRCLING FOR THE CUT');
     ctx.font = font(11 * zoom / 2);
     const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width) + 20;
     panel(ctx, cx - w / 2, topY, w, 26 * zoom / 2);
@@ -1865,5 +2060,573 @@ export function drawLanternRace(ctx, camX, camY, zoom, now, vw) {
     ctx.textAlign = 'center';
     ctx.fillStyle = L.win ? '#8fdc9a' : '#e8e2d4';
     ctx.fillText(L.banner, cx, cy + 2 * zoom / 2);
+  }
+}
+
+/* ============================================================
+   Utility: weighted pick over {w} entries (local to this module)
+   ============================================================ */
+function weightedPick2(arr) {
+  let tot = 0; for (const e of arr) tot += e.w;
+  let r = roll() * tot;
+  for (const e of arr) { r -= e.w; if (r <= 0) return e; }
+  return arr[0];
+}
+
+/* ============================================================
+   THE GRAND BASHO — a rolling 8-man single-elimination sumo
+   tournament. Bouts play themselves on the dohyō whether or not
+   anyone bets. Every rikishi has a hidden strength; a bout's
+   winner is drawn by the strength ratio, and champion odds are
+   the exact fold of the remaining bracket — so both books pay
+   RTP / p against the true probabilities.
+   ============================================================ */
+function seedBasho(it) {
+  const A = it.arena;
+  // clear last field's actors
+  it.actors = it.actors.filter((a) => a.type !== 'rikishi');
+  const names = pickN(RIKISHI_NAMES, 8);
+  const skins = ['#e8b890', '#c89a70', '#a5713f', '#f0c8a0'];
+  const rikishi = names.map((name, i) => {
+    const actor = it.addActor({
+      type: 'rikishi', arena: true,
+      sprite: makeSumoSprite(MAWASHI[i], skins[i % skins.length]),
+      x: A.benches[i].x, y: A.benches[i].y, dir: i < 4 ? 0 : 1, frame: 0,
+    });
+    return { name, s: 0.6 + roll(), color: MAWASHI[i], actor, out: false };
+  });
+  A.basho = {
+    rikishi,
+    round: 0,                       // 0 quarters, 1 semis, 2 final
+    matches: [[0, 1], [2, 3], [4, 5], [6, 7]],
+    winners: [],
+    bout: null, nextT: 5, champion: null, ceremonyT: 0,
+    champBets: [],   // settled at the previous crown; each basho opens a fresh book
+    justFinished: null,
+  };
+}
+
+const ROUND_NAMES = ['QUARTERFINALS', 'SEMIFINALS', 'THE FINAL'];
+
+/* exact champion odds: fold the remaining bracket slot by slot */
+export function championProb(B) {
+  const s = (i) => B.rikishi[i].s;
+  let slots = [];
+  for (let m = 0; m < B.matches.length; m++) {
+    if (m < B.winners.length) slots.push([[B.winners[m], 1]]);
+    else {
+      const [a, b] = B.matches[m];
+      if (B.bout && m === B.winners.length) {
+        // bout under way — its winner is already drawn, but the book
+        // never peeks: price it at the honest pre-bout ratio
+        const pa = s(a) / (s(a) + s(b));
+        slots.push([[a, pa], [b, 1 - pa]]);
+      } else {
+        const pa = s(a) / (s(a) + s(b));
+        slots.push([[a, pa], [b, 1 - pa]]);
+      }
+    }
+  }
+  while (slots.length > 1) {
+    const next = [];
+    for (let k = 0; k < slots.length; k += 2) {
+      const X = slots[k], Y = slots[k + 1];
+      const combined = new Map();
+      for (const [i, pi] of X) {
+        let win = 0;
+        for (const [j, pj] of Y) win += pj * (s(i) / (s(i) + s(j)));
+        combined.set(i, (combined.get(i) || 0) + pi * win);
+      }
+      for (const [j, pj] of Y) {
+        let win = 0;
+        for (const [i, pi] of X) win += pi * (s(j) / (s(i) + s(j)));
+        combined.set(j, (combined.get(j) || 0) + pj * win);
+      }
+      next.push([...combined.entries()]);
+    }
+    slots = next;
+  }
+  return new Map(slots[0]);
+}
+
+function tickBasho(it, dt) {
+  const A = it.arena;
+  if (!A.basho) seedBasho(it);
+  const B = A.basho;
+  const c = A.center;
+
+  if (B.champion !== null) {
+    B.ceremonyT -= dt;
+    const champ = B.rikishi[B.champion];
+    if (champ && !champ.actor.emote) champ.actor.emote = { ico: '👑', t: 1.5 };
+    if (B.ceremonyT <= 0) seedBasho(it);
+    return;
+  }
+
+  if (!B.bout) {
+    B.nextT -= dt;
+    if (B.nextT <= 0) {
+      const pair = B.matches[B.winners.length];
+      const [ai, bi] = pair;
+      const sA = B.rikishi[ai].s, sB = B.rikishi[bi].s;
+      B.bout = {
+        ai, bi, t: 0, phase: 'walk', mom: 0,
+        winner: roll() < sA / (sA + sB) ? ai : bi,
+        move: SUMO_MOVES[(roll() * SUMO_MOVES.length) | 0],
+      };
+      B.rikishi[ai].actor.ctl = true;
+      B.rikishi[bi].actor.ctl = true;
+    }
+    return;
+  }
+
+  const bt = B.bout;
+  bt.t += dt;
+  const aA = B.rikishi[bt.ai].actor, aB = B.rikishi[bt.bi].actor;
+  const markA = { x: c.x - 14, y: c.y + 6 }, markB = { x: c.x + 14, y: c.y + 6 };
+
+  if (bt.phase === 'walk') {
+    const p1 = glideTo(aA, markA.x, markA.y, 60, dt);
+    const p2 = glideTo(aB, markB.x, markB.y, 60, dt);
+    aA.dir = 0; aB.dir = 1;
+    aA.frame = 0; aB.frame = 0;
+    if ((p1 && p2) || bt.t > 3) { bt.phase = 'face'; bt.t = 0; }
+  } else if (bt.phase === 'face') {
+    if (bt.t > 1.2) {
+      bt.phase = 'clash'; bt.t = 0;
+      if (it.live?.kind === 'sumo') it.live.fx.push({ text: 'TACHIAI!', x: c.x, y: c.y - 20, t: 0, color: '#ffd75e' });
+    }
+  } else if (bt.phase === 'clash') {
+    // momentum: swings both ways, leaning toward the drawn winner late
+    const bias = (bt.winner === bt.ai ? -1 : 1) * Math.min(1, bt.t / 4.5) * 0.65;
+    bt.mom = Math.sin(bt.t * 2.1) * (1 - Math.min(1, bt.t / 5)) * 0.8 + bias;
+    const push = bt.mom * 9;
+    aA.x = markA.x + 6 + push; aA.y = markA.y + Math.sin(bt.t * 7) * 1.2;
+    aB.x = markB.x - 6 + push; aB.y = markB.y + Math.cos(bt.t * 7) * 1.2;
+    aA.frame = 1; aB.frame = 1;
+    aA.dir = 0; aB.dir = 1;
+    if (bt.t > 4.8) { bt.phase = 'oshi'; bt.t = 0; }
+  } else if (bt.phase === 'oshi') {
+    // the finish: loser driven out over the bales
+    const loser = bt.winner === bt.ai ? aB : aA;
+    const winner = bt.winner === bt.ai ? aA : aB;
+    const dirOut = bt.winner === bt.ai ? 1 : -1;
+    loser.x += dirOut * 55 * dt;
+    loser.y += 8 * dt;
+    winner.frame = 1;
+    if (bt.t > 0.9 && !bt.called) {
+      bt.called = true;
+      loser.emote = { ico: '😵', t: 2 };
+      winner.emote = { ico: '🙌', t: 2 };
+      if (it.live?.kind === 'sumo') it.live.fx.push({ text: bt.move, x: c.x, y: c.y - 24, t: 0, color: '#ffd75e' });
+    }
+    if (bt.t > 1.6) {
+      // record and stand down
+      B.winners.push(bt.winner);
+      const loserIdx = bt.winner === bt.ai ? bt.bi : bt.ai;
+      B.rikishi[loserIdx].out = true;
+      B.justFinished = { key: `${bt.ai}v${bt.bi}`, winner: bt.winner, move: bt.move };
+      aA.ctl = false; aB.ctl = false;
+      // walk them home
+      aA.homeGlide = true; aB.homeGlide = true;
+      bt.done = true;
+      B.bout = null;
+      B.nextT = 7;
+      if (B.winners.length === B.matches.length) {
+        if (B.matches.length === 1) {
+          // the Emperor's Cup
+          B.champion = B.winners[0];
+          B.ceremonyT = 12;
+          const champName = B.rikishi[B.champion].name;
+          for (const cb of B.champBets) {
+            if (cb.idx === B.champion) {
+              payout(cb.bet * cb.mult);
+              toast(`🏆 <b>${escapeHtml(champName)}</b> lifts the Emperor's Cup — your ride pays <span class="amt">${fmt(cb.bet * cb.mult)}</span> 🪙!`, cb.mult >= 4);
+            } else {
+              toast(`🤼 ${escapeHtml(champName)} takes the Cup — your ${escapeHtml(cb.name)} fell short.`);
+            }
+          }
+          renderBalance();
+          B.champBets = [];
+        } else {
+          B.matches = [];
+          for (let k = 0; k < B.winners.length; k += 2) B.matches.push([B.winners[k], B.winners[k + 1]]);
+          B.winners = [];
+          B.round++;
+        }
+      }
+    }
+  }
+
+  // benched rikishi drift home after their bouts
+  for (const rk of B.rikishi) {
+    const a = rk.actor;
+    if (a.homeGlide && !a.ctl) {
+      const i = B.rikishi.indexOf(rk);
+      if (glideTo(a, A.benches[i].x, A.benches[i].y, 46, dt)) a.homeGlide = false;
+      a.dir = i < 4 ? 0 : 1;
+      a.frame = 0;
+    }
+  }
+}
+
+function updateSumoSim(it, live, dt) {
+  const B = it.arena.basho;
+  live.focus = it.arena.center;
+  if (!B) { endSim(it, 'The hall falls quiet.'); return; }
+  const done = B.justFinished;
+  if (done && done.key === live.sumo.key && !live.sumo.settled) {
+    live.sumo.settled = true;
+    live.win = done.winner === live.sumo.side;
+    const wName = B.rikishi[done.winner].name;
+    endSim(it, `🤼 ${wName.toUpperCase()} — ${done.move}`);
+  } else if (live.t > 40) {
+    // never trap a punter: if the bout somehow vanished, refund
+    live.win = true; live.mult = 1;
+    endSim(it, 'The bout is postponed — stake returned.');
+  }
+}
+
+function openBashoBook(it, st, provCode) {
+  const A = it.arena;
+  if (!A.basho) seedBasho(it);
+  const B = A.basho;
+  const rtp = effectiveRTP('sumobracket', provCode);
+  if (B.champion !== null) {
+    toast(`🏆 ${escapeHtml(B.rikishi[B.champion].name)} is being carried around the hall — the next basho seeds shortly.`);
+    return;
+  }
+  let bet = state.lastBet;
+  const pendingPair = B.bout ? null : B.matches[B.winners.length];
+  const champ = championProb(B);
+  const alive2 = B.rikishi.map((r, i) => ({ r, i })).filter((e) => !e.r.out);
+  const m = showModal(`
+    <h2>🤼 The Basho Book</h2>
+    <div class="subtitle">${ROUND_NAMES[B.round]} · ${B.bout ? 'a bout is under way — the next book opens after' : 'next bout soon'} · RTP ${(rtp * 100).toFixed(1)}%<br>
+    Champion bets settle when the Emperor's Cup is lifted — the basho waits if you step out.</div>
+    <div id="sb-list"></div>
+    <div id="sb-bet"></div>
+  `);
+  buildBetRow(m.querySelector('#sb-bet'), (v) => { bet = v; });
+  const box = m.querySelector('#sb-list');
+  const addRow = (html, onPick) => {
+    const row = document.createElement('div');
+    row.className = 'race-lane race-pick-btn';
+    row.innerHTML = html;
+    row.addEventListener('click', onPick);
+    box.appendChild(row);
+  };
+  const head = (txt) => {
+    const el = document.createElement('div');
+    el.style.cssText = 'font-weight:700;margin:6px 0 2px;font-size:12px;color:var(--gold-ink)';
+    el.textContent = txt;
+    box.appendChild(el);
+  };
+  if (pendingPair) {
+    const [ai, bi] = pendingPair;
+    const sA = B.rikishi[ai].s, sB = B.rikishi[bi].s;
+    const pA = sA / (sA + sB);
+    head(`NEXT BOUT — ${B.rikishi[ai].name} vs ${B.rikishi[bi].name}`);
+    [[ai, pA], [bi, 1 - pA]].forEach(([idx, p], side) => {
+      addRow(`<span style="flex:1;text-align:left">🤼 ${escapeHtml(B.rikishi[idx].name)} wins the bout</span><span class="odds">${fmtMult(rtp / p)}x</span>`, () => {
+        if (state.balance < bet) { toast('Not enough coins!'); return; }
+        spend(bet); state.stats.gamesPlayed++; renderBalance(); closeModal();
+        startSim(it, 'sumo', { label: `${B.rikishi[idx].name} wins the bout`, p, side: idx, key: `${ai}v${bi}` }, bet, rtp);
+        B.nextT = Math.min(B.nextT, 1.2);   // the hall doesn't dawdle for a punter
+      });
+    });
+  }
+  head("THE EMPEROR'S CUP — outright champion");
+  alive2.forEach(({ r, i }) => {
+    const p = champ.get(i) || 0.0001;
+    addRow(`<span style="flex:1;text-align:left"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${r.color}"></span> ${escapeHtml(r.name)}</span><span class="odds">${fmtMult(rtp / p)}x</span>`, () => {
+      if (state.balance < bet) { toast('Not enough coins!'); return; }
+      spend(bet); state.stats.gamesPlayed++; renderBalance(); closeModal();
+      B.champBets.push({ idx: i, name: r.name, bet, mult: rtp / p });
+      toast(`🏆 Riding <b>${escapeHtml(r.name)}</b> to the Emperor's Cup at ${fmtMult(rtp / p)}x — settles at the final.`);
+    });
+  });
+}
+
+/* ============================================================
+   KITE DUELS — glass string against glass string over Kite City
+   ============================================================ */
+function newKiteDuel(it) {
+  const A = it.arena;
+  const names = pickN(KITE_NAMES, 2);
+  const cols = pickN(KITE_COLORS, 2);
+  let kites = it.actors.filter((a) => a.type === 'kite');
+  for (let i = kites.length; i < 2; i++) {
+    it.addActor({ type: 'kite', arena: true, sprite: null, x: A.center.x, y: A.center.y, dir: i, frame: 0, ph: i * 2.4 });
+  }
+  kites = it.actors.filter((a) => a.type === 'kite');
+  A.duel = names.map((name, i) => {
+    kites[i].sprite = makeKiteSprite(cols[i]);
+    kites[i].kIdx = i;
+    kites[i].cut = false; kites[i].state = null;
+    return { name, color: cols[i], actor: kites[i] };
+  });
+  return A.duel;
+}
+
+function updateKitesSim(it, live, dt) {
+  const K = live.kite;
+  const A = it.arena;
+  const R = A.rect;
+  const t = live.t;
+  const [ka, kb] = A.duel.map((d) => d.actor);
+  live.focus = { x: A.center.x, y: A.center.y + 30 };
+
+  const fly = (a, i) => {
+    if (a.cut) return;
+    // duelling flight: tighter, faster figures than the ambient swoop
+    let nx = R.x + R.w / 2 + Math.sin(t * (0.9 + i * 0.2) + a.ph) * (R.w * 0.34);
+    let ny = R.y + R.h / 2 + Math.sin(t * (1.4 - i * 0.25) + a.ph * 2) * (R.h * 0.3);
+    // clash passes pull both kites together
+    if (K.ci < K.clashes.length) {
+      const ct = K.clashes[K.ci];
+      const d = Math.abs(t - ct);
+      if (d < 0.7) {
+        const pull = 1 - d / 0.7;
+        nx = nx + (A.center.x - nx) * pull;
+        ny = ny + (A.center.y - ny) * pull;
+      }
+      if (t > ct && !K[`clashed${K.ci}`]) {
+        K[`clashed${K.ci}`] = true;
+        live.fx.push({ text: ['LINES CROSS!', 'GLASS STRING BITES!', 'SPARKS ON THE WIND!'][K.ci % 3], x: A.center.x, y: A.center.y - 12, t: 0, color: '#ffd75e' });
+        K.ci++;
+      }
+    }
+    a.dir = nx < a.x ? 0 : 1;
+    // rate-limited flight — kites dart, but never teleport
+    glideTo(a, nx, ny, 150, dt);
+    stepAnim(a, dt, 0.14);
+  };
+
+  if (!K.cutDone && t >= K.cutAt) {
+    K.cutDone = true;
+    const cutKites = K.double ? [ka, kb] : [K.winner === 0 ? kb : ka];
+    for (const ck of cutKites) {
+      ck.cut = true;
+      ck.state = K.runaway ? 'runaway' : 'fall';
+      ck.vx = (ck.x < A.center.x ? -1 : 1) * (K.runaway ? 60 : 18);
+      ck.vy = K.runaway ? -34 : 10;
+      live.fx.push({ text: '✂️ CUT!', x: ck.x, y: ck.y - 14, t: 0, color: '#ff8a7a' });
+    }
+    if (K.double) live.fx.push({ text: 'BOTH STRINGS PART!', x: A.center.x, y: A.center.y - 26, t: 0, color: '#ffd75e' });
+  }
+
+  fly(ka, 0); fly(kb, 1);
+  for (const a of [ka, kb]) {
+    if (!a.cut) continue;
+    if (a.state === 'runaway') { a.vy -= 26 * dt; a.vx *= 1 + dt * 0.6; }
+    else { a.vy += 60 * dt; a.vx *= 0.98; }
+    a.x += a.vx * dt; a.y += a.vy * dt;
+    a.dir = ((live.t * 6) | 0) % 2;              // tumbling flicker
+    stepAnim(a, dt, 0.08);
+  }
+
+  if (K.cutDone && t > K.cutAt + 2.4) {
+    const surv = A.duel[K.winner].name;
+    endSim(it, K.double ? '💥 BOTH STRINGS PART — THE SKY IS EMPTY!'
+      : K.runaway ? `🎐 ${A.duel[1 - K.winner].name.toUpperCase()} ESCAPES — ${surv.toUpperCase()} RULES THE SKY`
+      : `🪁 ${surv.toUpperCase()} RULES THE SKY`);
+  }
+}
+
+/* ============================================================
+   THE BOG OF MIDDLING FORTUNE — follow the wisp, tuft by tuft.
+   Each step is an honest gate: survive with p and the pot grows
+   by RTP / p; sink and the bog keeps the stake. Bank at the
+   keeper's stone, or cross all nine tufts for the shrine.
+   ============================================================ */
+function tickBog(it, dt, player) {
+  const A = it.arena;
+  A.wispT = (A.wispT || 0) + dt;
+  if (A.bounceCd > 0) A.bounceCd -= dt;
+  const tx = Math.floor(player.x / TILE), ty = Math.floor(player.y / TILE);
+  const onTuft = (i) => A.tufts[i] && A.tufts[i].x === tx && A.tufts[i].y === ty;
+
+  if (!A.stakeActive) {
+    // no bargain struck: the bog gently refuses passage
+    if (A.pot <= 0 && onTuft(0) && !(A.bounceCd > 0)) {
+      A.bounceCd = 1.2;
+      player.x = A.entrance.x; player.y = A.entrance.y;
+      toast('🫧 The wisp stays dark. Strike the bargain at the keeper\'s stone first.');
+    }
+    return;
+  }
+
+  // stepping onto the NEXT tuft resolves it
+  if (A.progress < A.tufts.length && onTuft(A.progress)) {
+    const p = A.ps[A.progress];
+    if (roll() < p) {
+      A.pot *= A.rtp / p;
+      A.progress++;
+      A.stepFx = { text: `FIRM! POT ${fmt(A.pot)}`, x: player.x, y: player.y - 16, t: 0 };
+      if (A.progress >= A.tufts.length) {
+        // the far shrine: the crossing banks itself, plus the bog's blessing
+        payout(A.pot);
+        renderBalance();
+        toast(`🫧 <b>YOU CROSS THE BOG!</b> The shrine pays <span class="amt">${fmt(A.pot)}</span> 🪙 — and the wisp's blessing settles on you.`, true);
+        grantLuck(0.03, 90);
+        A.stakeActive = false; A.pot = 0; A.progress = 0;
+      }
+    } else {
+      toast(`🫧 <b>GLUB.</b> The tuft was a lie — the bog keeps your ${fmt(A.stake)} 🪙 stake.`);
+      A.stakeActive = false; A.pot = 0; A.progress = 0;
+      player.x = A.entrance.x; player.y = A.entrance.y;
+    }
+  }
+  if (A.stepFx) { A.stepFx.t += dt; if (A.stepFx.t > 1.4) A.stepFx = null; }
+}
+
+function openBogGate(it, st, provCode) {
+  const A = it.arena;
+  const rtp = effectiveRTP('bogwisp', provCode);
+  if (A.stakeActive || A.pot > 0) {
+    const m = showModal(`
+      <h2>🫧 The Keeper's Stone</h2>
+      <div class="subtitle">${A.progress}/${A.tufts.length} tufts behind you · pot <b>${fmt(A.pot)}</b> 🪙</div>
+      <div class="stage"><div class="big-sym">🪨</div>
+      <div class="flavor">“Bank it and walk away warm — or follow the wisp deeper.
+      Tuft ${A.progress + 1} holds at ${(A.ps[A.progress] * 100).toFixed(0)}%, and pays ${fmtMult(A.rtp / A.ps[A.progress])}x the pot.”</div></div>
+      <div class="btn-row">
+        <button class="btn" id="bog-bank">💰 Bank ${fmt(A.pot)} 🪙</button>
+        <button class="btn secondary" id="bog-on">Keep wading</button>
+      </div>
+    `);
+    m.querySelector('#bog-on').addEventListener('click', closeModal);
+    m.querySelector('#bog-bank').addEventListener('click', () => {
+      payout(A.pot);
+      renderBalance();
+      toast(`💰 Banked <span class="amt">${fmt(A.pot)}</span> 🪙 from the bog — boots barely damp.`);
+      A.stakeActive = false; A.pot = 0; A.progress = 0;
+      closeModal();
+    });
+    return;
+  }
+  let bet = state.lastBet;
+  const ladder = A.ps.map((p, i) => `${i + 1}: ${(p * 100).toFixed(0)}%`).join(' · ');
+  const fullMult = A.ps.reduce((m2, p) => m2 * (rtp / p), 1);
+  const m = showModal(`
+    <h2>🫧 The Wisp's Bargain</h2>
+    <div class="subtitle">RTP ${(rtp * 100).toFixed(1)}% · nine tufts to the shrine · full crossing pays ~${fmtMult(fullMult)}x</div>
+    <div class="stage"><div class="big-sym">🫧</div>
+    <div class="flavor">“Stake your coin and the wisp lights the way, one tuft at a time.
+    Firm ground grows the pot; the wrong tuft swallows the stake.
+    Come back to this stone whenever you want to bank.”<br><br>
+    <span style="font-size:11px;opacity:.8">Footing: ${ladder}</span></div></div>
+    <div id="bog-bet"></div>
+    <div class="btn-row"><button class="btn" id="bog-go">🫧 Strike the bargain</button></div>
+  `);
+  buildBetRow(m.querySelector('#bog-bet'), (v) => { bet = v; });
+  m.querySelector('#bog-go').addEventListener('click', () => {
+    if (state.balance < bet) { toast('Not enough coins for the wisp\'s toll!'); return; }
+    spend(bet);
+    state.stats.gamesPlayed++;
+    renderBalance();
+    A.stake = bet; A.pot = bet; A.progress = 0; A.rtp = rtp; A.stakeActive = true;
+    closeModal();
+    toast('🫧 The wisp flares over the first tuft. Follow it — or don\'t.');
+  });
+}
+
+/* ============================================================
+   THE GREAT MIGRATION — every so often a herd of one mid-rare
+   species visibly crosses the continent. Walk among them and
+   encounters with that species come thick and fast. The snares
+   are priced honestly as ever — the migration only brings the
+   chances to you.
+   ============================================================ */
+const MIG_ARCH = ['deer', 'quad', 'ram', 'hare', 'fox', 'primate'];
+
+function migState(world) {
+  const M = CONFIG.MIGRATION;
+  const nowS = Date.now() / 1000;
+  const idx = Math.floor(nowS / M.CYCLE_S);
+  const into = nowS % M.CYCLE_S;
+  if (into >= M.ACTIVE_S) return null;
+  const pool = LUCKLIANS.filter((l) => MIG_ARCH.includes(l.a) && l.rare >= 0.003 && l.rare <= 0.06);
+  const def = pool[Math.floor(hash2(idx, 3, 501) * pool.length) % pool.length];
+  // seeded route between two far-apart cities
+  const cities = world.cities;
+  let a = cities[Math.floor(hash2(idx, 7, 502) * cities.length) % cities.length];
+  let b = null;
+  for (let k = 0; k < cities.length; k++) {
+    const cand = cities[(Math.floor(hash2(idx, 11, 503) * cities.length) + k) % cities.length];
+    if (Math.hypot(cand.x - a.x, cand.y - a.y) > 110) { b = cand; break; }
+  }
+  if (!b) b = cities[(cities.indexOf(a) + 3) % cities.length];
+  return { idx, k: into / M.ACTIVE_S, def, a, b };
+}
+
+function migMembers(world) {
+  const st2 = migState(world);
+  if (!st2) return null;
+  const M = CONFIG.MIGRATION;
+  const nowS = Date.now() / 1000;
+  const pts = [];
+  for (let m = 0; m < M.HERD; m++) {
+    // each animal trails the leader a little, drifting off the line
+    const along = Math.max(0, Math.min(1, st2.k * 1.08 - m * 0.014));
+    const px2 = st2.a.x + (st2.b.x - st2.a.x) * along;
+    const py2 = st2.a.y + (st2.b.y - st2.a.y) * along;
+    const dx = st2.b.x - st2.a.x, dy = st2.b.y - st2.a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const lat = (hash2(st2.idx, m * 13 + 1, 504) - 0.5) * 9 + Math.sin(nowS * 0.7 + m * 1.7) * 1.6;
+    const wob = Math.sin(nowS * 1.1 + m * 2.3) * 1.1;
+    pts.push({
+      x: (px2 + (-dy / len) * lat + wob) * TILE,
+      y: (py2 + (dx / len) * lat) * TILE,
+    });
+  }
+  return { ...st2, pts };
+}
+
+let migWasActive = false;
+export function migrationTick(world) {
+  const st2 = migState(world);
+  if (!!st2 !== migWasActive) {
+    migWasActive = !!st2;
+    if (st2) {
+      toast(`🦌 <b>THE GREAT MIGRATION!</b> A herd of ${escapeHtml(st2.def.name)} is crossing from ${escapeHtml(st2.a.name)} toward ${escapeHtml(st2.b.name)} — marked on your map!`, true);
+    } else {
+      toast('🦌 The migration has passed on. The plains are quiet again.');
+    }
+  }
+  // transient marker for the map screen
+  if (st2) {
+    const m2 = migMembers(world);
+    state.mig = { name: st2.def.name, pts: m2.pts.map((p) => ({ x: Math.round(p.x / TILE), y: Math.round(p.y / TILE) })) };
+  } else state.mig = null;
+}
+
+/* is the player walking among the herd? -> the species + a visual anchor */
+export function migrationNear(world, px2, py2) {
+  const m2 = migMembers(world);
+  if (!m2) return null;
+  const R = CONFIG.MIGRATION.NEAR_TILES * TILE;
+  let best = null, bd = 1e9;
+  for (const p of m2.pts) {
+    const d = Math.hypot(p.x - px2, p.y - py2);
+    if (d < bd) { bd = d; best = p; }
+  }
+  if (bd > R) return null;
+  return { def: m2.def, tx: Math.floor(best.x / TILE), ty: Math.floor(best.y / TILE) };
+}
+
+export function drawMigration(ctx, world, camX, camY, zoom, now) {
+  const m2 = migMembers(world);
+  if (!m2) return;
+  const spr = getLucklianSprite(m2.def);
+  for (let i = 0; i < m2.pts.length; i++) {
+    const p = m2.pts[i];
+    const sx = (p.x - camX) * zoom, sy = (p.y - camY) * zoom;
+    if (sx < -40 || sy < -40 || sx > ctx.canvas.width + 40 || sy > ctx.canvas.height + 40) continue;
+    const bob = Math.sin(now / 260 + i * 1.9) * 1.5;
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(sx - 5 * zoom, sy + 6 * zoom, 10 * zoom, 2 * zoom);
+    ctx.drawImage(spr, Math.round(sx - (spr.width / 2) * zoom), Math.round(sy - spr.height * zoom * 0.75 + bob * zoom), spr.width * zoom, spr.height * zoom);
   }
 }

@@ -27,6 +27,7 @@ const STATION_KIND = {
   chariots: 'board', ponies: 'board', sumo: 'board', muaythai: 'board', goldencorral: 'board',
   muaythaibout: 'board', coliseumbets: 'board', downsrace: 'kiosk',
   regattabets: 'kiosk', karaokebets: 'board', ownersrace: 'kiosk', beastbout: 'board',
+  sumobracket: 'dohyo', kiteduel: 'kiosk', bogwisp: 'counter',
   amphorae: 'shrine', spirits: 'shrine', cloverbloom: 'shrine', banyan: 'shrine',
   spiritlanterns: 'shrine', fatesthread: 'shrine', dragonhoard: 'shrine',
   catparade: 'shrine', neonneko: 'shrine', faeriering: 'shrine',
@@ -529,6 +530,119 @@ function buildKaraoke(lm) {      // MN — the Neon Koi: stage, crowd, long odds
   return it;
 }
 
+function buildSumoArena(lm) {    // MN — the basho: a rolling live tournament
+  const style = { wall: T.WALL_STONE, floor: T.PLAZA, tint: 'rgba(160,110,40,0.10)' };
+  const it = makeRoom(lm, style, 32, 20);
+  // the dohyō itself is the live station — bump it to open the book
+  const dj = it.addStation(13, 6, 6, 5, 'sumobracket', 'dohyo');
+  dj.live = true;
+  dj.label = "The Basho Book — bouts & the Emperor's Cup";
+  // stands on three sides
+  it.addDecor(4, 2, 8, 2, 'bleacher'); it.addDecor(20, 2, 8, 2, 'bleacher');
+  it.addDecor(2, 5, 2, 4, 'bleacher'); it.addDecor(28, 5, 2, 4, 'bleacher');
+  it.addDecor(2, 10, 2, 4, 'bleacher'); it.addDecor(28, 10, 2, 4, 'bleacher');
+  it.addDecor(13, 2, 6, 1, 'banner', false);
+  // concourse: food, tea, salt barrel by the ring
+  it.addDecor(2, 16, 3, 2, 'foodstand'); it.addDecor(27, 16, 3, 2, 'foodstand');
+  it.addDecor(11, 12, 2, 2, 'crate'); it.addDecor(20, 12, 2, 2, 'lantern');
+  // the gyōji, fan in hand, forever circling his ring
+  figure(it, 20.5, 8.5, { skin: '#e8b890', body: '#8a2a5a', legs: '#5a1a3a' }, 'ref', {
+    cx: 16 * TILE, cy: 8.5 * TILE, r: 44, emIco: '🪭',
+  });
+  for (const [bx, by] of [[7, 2.5], [23, 2.5], [2.5, 6.5], [29.5, 6.5], [2.5, 11.5], [29.5, 11.5]]) {
+    it.addActor({ type: 'cheer', x: bx * TILE + 8, y: by * TILE });
+  }
+  it.arena = {
+    kind: 'sumo', game: 'sumobracket',
+    center: { x: 16 * TILE, y: 8.2 * TILE },
+    rect: { x: 13 * TILE, y: 6 * TILE, w: 6 * TILE, h: 5 * TILE },
+    // bench spots where the field waits between bouts (east & west sides)
+    benches: [
+      [6, 13], [8.5, 13], [11, 13], [6, 14.6],
+      [21, 13], [23.5, 13], [26, 13], [21, 14.6],
+    ].map(([x, y]) => ({ x: x * TILE, y: y * TILE })),
+  };
+  // the rest of the hall's games
+  const rest = (lm.games || []).filter((g) => g !== 'sumobracket');
+  const spots = [[4, 16.5], [13, 16], [22, 16.5]];
+  rest.forEach((g, i) => { const [sx, sy] = spots[i % spots.length]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
+  scatterPatrons(it, 7, 0.2);
+  return it;
+}
+
+function buildKitePavilion(lm) { // DG — a rooftop terrace under a fighting sky
+  const style = { wall: T.WALL_STONE, floor: T.PLAZA, tint: 'rgba(120,150,200,0.08)' };
+  const it = makeRoom(lm, style, 28, 17);
+  // the upper half of the room IS the sky — solid tiles painted over blue,
+  // with the kites swooping above the parapet
+  for (let y = 2; y < 8; y++) for (let x = 1; x < 27; x++) it.set(x, y, T.WALL_STONE);
+  it.floorRects.push({ x: 1, y: 2, w: 26, h: 6, color: 'rgba(110,160,220,0.92)' });
+  it.floorRects.push({ x: 1, y: 2, w: 26, h: 2, color: 'rgba(140,185,235,0.9)' });
+  // the parapet
+  it.addDecor(2, 8, 4, 1, 'rail', false); it.addDecor(7, 8, 4, 1, 'rail', false);
+  it.addDecor(12, 8, 4, 1, 'rail', false); it.addDecor(17, 8, 4, 1, 'rail', false);
+  it.addDecor(22, 8, 4, 1, 'rail', false);
+  // terrace life
+  it.addDecor(2, 10, 2, 2, 'lantern'); it.addDecor(24, 10, 2, 2, 'lantern');
+  it.addDecor(23, 13, 3, 2, 'teacorner'); it.addDecor(2, 13, 2, 2, 'plant');
+  // the two duelling flyers at the wall, lines up into the sky
+  const f1 = figure(it, 9, 9.6, { skin: '#e8b890', body: '#c43a2a', legs: '#5a1a14' }, 'flyer', { dir: 3 });
+  const f2 = figure(it, 18, 9.6, { skin: '#c89a70', body: '#2a4a9a', legs: '#16294a' }, 'flyer', { dir: 3 });
+  for (const [bx, by] of [[6, 10.5], [22, 10.5]]) it.addActor({ type: 'cheer', x: bx * TILE + 8, y: by * TILE });
+  it.arena = {
+    kind: 'kites', game: 'kiteduel',
+    center: { x: 14 * TILE, y: 5 * TILE },
+    rect: { x: 2 * TILE, y: 2.4 * TILE, w: 24 * TILE, h: 5 * TILE },   // the sky court
+    flyers: [f1, f2],
+  };
+  const st = it.addStation(12, 11, 3, 2, 'kiteduel');
+  st.live = true;
+  st.label = "String-Cutter's Book — duels on the wind";
+  const rest = (lm.games || []).filter((g) => g !== 'kiteduel');
+  rest.forEach((g, i) => { const [sx, sy] = [[5, 13], [17, 13]][i % 2]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
+  scatterPatrons(it, 6, 0.2);
+  return it;
+}
+
+function buildBog(lm) {          // FL — the Bog of Middling Fortune
+  const style = { wall: T.WALL_STONE, floor: T.MEADOW, tint: 'rgba(24,44,34,0.22)' };
+  const it = makeRoom(lm, style, 26, 18);
+  // flood everything above the entrance apron
+  for (let y = 2; y < 13; y++) for (let x = 1; x < 25; x++) it.set(x, y, T.WATER);
+  // the tuft causeway: nine hummocks in a straight, sinking line into the
+  // fog (orthogonally chained — the only way across is one tuft at a time)
+  const TUFTS = [[13, 12], [13, 11], [13, 10], [13, 9], [13, 8], [13, 7], [13, 6], [13, 5], [13, 4]];
+  for (const [tx, ty] of TUFTS) {
+    it.set(tx, ty, T.MEADOW);
+    it.addDecor(tx, ty, 1, 1, 'tuft', false);
+  }
+  // the far islet with its mossy shrine — journey's end
+  for (let y = 2; y < 4; y++) for (let x = 12; x < 16; x++) it.set(x, y, T.MEADOW);
+  it.addDecor(14, 2, 2, 2, 'zenrock');
+  // drowned trees and reeds at the margins
+  it.addDecor(3, 13, 2, 2, 'plant'); it.addDecor(21, 13, 2, 2, 'plant');
+  it.addDecor(2, 15, 2, 2, 'crate');
+  // the keeper's stone, where you stake and where you bank
+  const ks = it.addStation(9, 14, 2, 2, 'bogwisp', 'counter');
+  ks.live = true;
+  ks.label = "The Wisp's Bargain — stake or bank";
+  it.arena = {
+    kind: 'bog', game: 'bogwisp',
+    center: { x: 13 * TILE, y: 8 * TILE },
+    rect: { x: 1 * TILE, y: 2 * TILE, w: 24 * TILE, h: 11 * TILE },
+    tufts: TUFTS.map(([x, y]) => ({ x, y })),
+    // firm-ground odds, tuft by tuft — deeper is dicier
+    ps: [0.78, 0.74, 0.70, 0.66, 0.62, 0.58, 0.54, 0.50, 0.46],
+    progress: 0, pot: 0, stake: 0,
+    entrance: { x: it.doorX * TILE + 8, y: 14 * TILE + 8 },
+  };
+  // two locals who know better than to wade
+  figure(it, 6, 15, PATRON_PALETTES[2], 'corner', { dir: 3, emIco: '😬' });
+  figure(it, 17, 15.4, PATRON_PALETTES[5], 'corner', { dir: 3, emIco: '🫧' });
+  scatterPatrons(it, 2, 0.1);
+  return it;
+}
+
 /* ============================================================
    Generic themed hall (everything without a bespoke build)
    ============================================================ */
@@ -571,6 +685,9 @@ function buildGeneric(lm) {
 }
 
 const BESPOKE = {
+  'Grand Sumo Arena': buildSumoArena,
+  'Kite Pavilion': buildKitePavilion,
+  'The Bog of Middling Fortune': buildBog,
   'Grand Regatta House': buildRegatta,
   'Neon Koi Karaoke': buildKaraoke,
   'Roaring Elephant Arena': buildFightArena,
@@ -667,6 +784,7 @@ export function updatePatrons(it, dt) {
       case 'monkMed':
       case 'noble':
       case 'jester':
+      case 'flyer':
       case 'corner': {
         if (!a.emote && a.emIco && Math.random() < dt * 0.10) a.emote = { ico: a.emIco, t: 1.5 };
         break;

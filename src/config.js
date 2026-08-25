@@ -95,6 +95,21 @@ export const CONFIG = {
 
   // Paradise Ferry crossing (the below-decks den lives inside it).
   CROSSING_S: 8,                // seconds from dock to dock
+
+  // The Great Migration: a herd crosses the continent on this cycle.
+  MIGRATION: {
+    CYCLE_S: 560,               // time between migrations
+    ACTIVE_S: 170,              // how long the herd is on the move
+    HERD: 7,                    // animals in the herd
+    NEAR_TILES: 8,              // encounter-boost radius around the herd
+    RATE: 1 / 5,                // boosted encounter odds per fresh step nearby
+  },
+
+  // The Grand Auction House: session windows when the gavel is live.
+  AUCTION: {
+    CYCLE_S: 480,               // time between sessions
+    OPEN_S: 200,                // how long each session runs
+  },
 };
 
 /* ------------------------------------------------------------
@@ -154,6 +169,9 @@ export const GAME_RTP = {
   colossus:       0.95,  // the Mount Colossus expedition ladder
   shipsbones:     0.94,  // the ferry captain's dice, below decks
   homingpost:     0.93,  // the FL homing-Lucklian post race
+  sumobracket:    0.93,  // MN — the basho book (bouts & the Emperor's Cup)
+  kiteduel:       0.93,  // DG — string-cutting duels over Kite City
+  bogwisp:        0.94,  // FL — the wisp's bargain, tuft by tuft
   regattabets:    0.93,  // DG — dragon-boat lanes on the bay
   ownersrace:     0.93,  // HV — enter your own Lucklian at the Downs
   beastbout:      0.93,  // TF — your beast on the Coliseum sand

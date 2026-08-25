@@ -289,6 +289,9 @@ function encounterRate(tile) {
 
 let cooldown = 0;
 export function tickEncounterCooldown(dt) { cooldown = Math.max(0, cooldown - dt); }
+/* can an outside system (the Great Migration) spring an encounter right now? */
+export function encounterReady() { return !isModalOpen() && cooldown <= 0; }
+export function armEncounterCooldown(s = 3) { cooldown = Math.max(cooldown, s); }
 
 let active = null; // {def, x, y} — rendered in the world while the modal is up
 export function getActiveEncounter() { return active; }

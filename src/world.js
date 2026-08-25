@@ -677,7 +677,7 @@ export function generateWorld() {
     ['HV', 'The Grand Saloon', '🤠', 'Swing the doors, draw your luck', 85, 163, 7, 5, ['fivecard', 'standoff', 'horseshoetoss']],
     ['DG', 'Flat Palace', '🏯', 'Broad courts of the western dragon lords', 132, 170, 8, 5, ['mahjong', 'sicbo', 'pearldrop']],
     ['DG', 'Golden Tiger Hall', '🏯', "Tiger City's roaring gambling court", 152, 183, 9, 6, ['mahjong', 'sicbo', 'ninegates']],
-    ['DG', 'Kite Pavilion', '🪁', 'Where fortunes ride the mountain wind', 202, 129, 6, 4, ['sicbo', 'pearldrop']],
+    ['DG', 'Kite Pavilion', '🪁', 'Where fortunes ride the mountain wind', 202, 129, 6, 4, ['kiteduel', 'sicbo', 'pearldrop']],
     ['DG', 'Hidden Temple', '🍵', 'Whispered of, rarely found', 198, 149, 5, 4, ['teahouse']],
     ['DG', 'Shady Temple', '⛩️', 'High stakes in low light', 222, 145, 6, 4, ['sicbo', 'teahouse']],
     ['DG', 'Peekaboo Palace', '🏯', 'Now you see your winnings…', 236, 153, 7, 5, ['mahjong', 'teahouse', 'dragonhoard']],
@@ -685,10 +685,11 @@ export function generateWorld() {
     ['EP', 'Roaring Elephant Arena', '🥊', "Khrueang's ring of glory", 333, 178, 8, 6, ['muaythaibout', 'muaythai', 'haiko', 'nagariver']],
     ['EP', 'Waterfall Park Pavilion', '⛲', 'Wager to the sound of falling water', 297, 211, 5, 4, ['haiko', 'spirits', 'nagariver']],
     ['MN', 'Magic Mushroom Casino', '🍄', 'Neon towers of endless pachinko', 293, 68, 8, 6, ['pachinko', 'slots', 'neonneko', 'coincascade']],
-    ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumo', 'pachinko', 'catparade']],
+    ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumobracket', 'sumo', 'pachinko', 'catparade']],
     ['MN', 'Horizon Park Lookout', '⛩️', 'Views over the beckoning sea', 342, 27, 5, 4, ['pachinko', 'neonneko']],
     ['DG', 'Grand Regatta House', '🐉', 'Dragon boats thunder down the bay', 128, 160, 8, 5, ['regattabets', 'sicbo']],
     ['MN', 'Neon Koi Karaoke', '🎤', 'Sing-offs and long odds till sunrise', 283, 42, 7, 5, ['karaokebets', 'pachinko']],
+    ['FL', 'The Bog of Middling Fortune', '🫧', 'Follow the wisp. Mind your boots.', 78, 108, 6, 4, ['bogwisp']],
   ];
   for (const [p, name, ico, desc, x, y, w, h, games] of LM) {
     stampLandmark({ prov: p, name, ico, desc, x, y, w, h, games });
@@ -1010,6 +1011,9 @@ export function generateWorld() {
     { game: 'nightmarket', prov: 'DG', label: 'Night Market Stall', w: 3, h: 2, spawn: 'urban', n: 2 },
     /* the Republic's homing-Lucklian loft */
     { game: 'homingpost', prov: 'FL', label: 'Homing Post Loft', w: 3, h: 3, spawn: 'urban', n: 1 },
+    /* the Grand Auction House rostrums — the gavel is live in sessions */
+    { game: 'auction', prov: 'TF', label: 'Grand Auction House', w: 4, h: 2, spawn: 'urban', n: 1 },
+    { game: 'auction', prov: 'MN', label: 'Grand Auction House', w: 4, h: 2, spawn: 'urban', n: 1 },
   ];
 
   const events = [];

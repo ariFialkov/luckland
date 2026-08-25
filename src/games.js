@@ -614,6 +614,34 @@ export const GAME_DEFS = {
       { name: 'Sky Potato', lkId: 116, p: 0.12 },
     ],
   },
+  auction: {
+    name: 'The Grand Auction House', ico: '🔨',
+    desc: 'Consign a Lucklian and let the room fight over it. Fair hammer — average sale is face value.',
+    mech: 'auction',
+    // hammer-price factors (x face value); scaled in code so EV is exactly 1.0
+    factors: [
+      { f: 0.55, w: 12, tag: 'cold' }, { f: 0.80, w: 22, tag: 'slow' },
+      { f: 1.00, w: 26, tag: 'fair' }, { f: 1.20, w: 18, tag: 'warm' },
+      { f: 1.50, w: 12, tag: 'spirited' }, { f: 2.10, w: 7, tag: 'war' },
+      { f: 3.60, w: 2.2, tag: 'frenzy' },
+    ],
+  },
+  /* live-station books (played in-scene via liveevents.js) */
+  sumobracket: {
+    name: 'The Basho Book', ico: '🤼',
+    desc: 'Bout by bout to the Emperor\'s Cup — back a shove or back a champion.',
+    mech: 'live',
+  },
+  kiteduel: {
+    name: "String-Cutter's Book", ico: '🪁',
+    desc: 'Glass string against glass string over Kite City. The wind decides the odds.',
+    mech: 'live',
+  },
+  bogwisp: {
+    name: "The Wisp's Bargain", ico: '🫧',
+    desc: 'Tuft by tuft behind the wisp. Bank at the stone, or wade deeper.',
+    mech: 'live',
+  },
 };
 
 /* ------------------------------------------------------------
@@ -2110,6 +2138,145 @@ async function runHoming(def, provCode) {
 }
 
 /* ------------------------------------------------------------
+   Mechanic: auction — the Grand Auction House. A selling channel,
+   not a wager: consign one of your Lucklians and the hammer price
+   is drawn from a factor table scaled so E[price] = face value
+   EXACTLY. The drama (cold rooms, bidding wars, the Anonymous
+   Telephone Bidder) is choreography around that honest draw.
+   Auction sales don't touch the daily market cap.
+   ------------------------------------------------------------ */
+export function auctionWindow() {
+  const A = CONFIG.AUCTION;
+  const into = (Date.now() / 1000) % A.CYCLE_S;
+  return { open: into < A.OPEN_S, left: A.OPEN_S - into, until: A.CYCLE_S - into };
+}
+export function auctionFactors(def) {
+  const ev = def.factors.reduce((a, e) => a + e.f * e.w, 0) / def.factors.reduce((a, e) => a + e.w, 0);
+  return def.factors.map((e) => ({ ...e, f: e.f / ev }));   // EV lands on exactly 1.0
+}
+const AUCTION_BIDDERS = [
+  'Baron von Vole', 'Madame Époque', 'Duke Reginald Plume', 'The Anonymous Telephone Bidder',
+  'Heiress Neko-Signage', 'A Mysterious Monk', 'Twin Magnates Gou & Dou', 'Old Money Maud',
+  'The Kilfenny Syndicate', 'Doctor Prendergast', 'Lady Barnacle', 'A Nervous Intern (on behalf of someone)',
+];
+
+async function runAuction(def, provCode) {
+  const win = auctionWindow();
+  if (!win.open) {
+    const m = Math.floor(win.until / 60), s2 = Math.round(win.until % 60);
+    showModal(`
+      <h2>🔨 ${escapeHtml(def.name)}</h2>
+      <div class="subtitle">The gavel rests between sessions.</div>
+      <div class="stage"><div class="big-sym">🪑</div>
+      <div class="flavor">Chairs are being straightened and paddles counted. The next session opens in <b>${m}m ${s2}s</b>.</div></div>
+      <div class="btn-row"><button class="btn secondary" id="au-ok">Come back then</button></div>
+    `);
+    document.getElementById('au-ok').addEventListener('click', closeModal);
+    return;
+  }
+  session++;
+  const factors = auctionFactors(def);
+  let lotNo = 1 + ((roll() * 40) | 0);
+
+  function lobby() {
+    const owned = LUCKLIANS.filter((l) => (state.lk?.caught[l.id] || 0) > 0);
+    if (!owned.length) {
+      showModal(`
+        <h2>🔨 ${escapeHtml(def.name)}</h2>
+        <div class="subtitle">Session open · ${Math.ceil(win.left / 60)}m left on the clock</div>
+        <div class="stage"><div class="big-sym">🧐</div>
+        <div class="flavor">“Nothing to consign?” The auctioneer looks you up and down. “Catch something worth the room's time.”</div></div>
+        <div class="btn-row"><button class="btn secondary" id="au-none">Slip out the back</button></div>
+      `, { onClose: () => { session++; } });
+      document.getElementById('au-none').addEventListener('click', closeModal);
+      return;
+    }
+    const m = showModal(`
+      <h2>🔨 ${escapeHtml(def.name)}</h2>
+      <div class="subtitle">${escapeHtml(def.desc)}<br>Session open · sales here never touch your market quota</div>
+      <div id="au-list"></div>
+    `, { onClose: () => { session++; } });
+    const box = m.querySelector('#au-list');
+    owned.forEach((l) => {
+      const n = state.lk.caught[l.id];
+      const tier = rarityTier(l.rare);
+      const row = document.createElement('div');
+      row.className = 'race-lane race-pick-btn';
+      row.innerHTML = `<span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">
+          <img src="${getLucklianSprite(l).toDataURL()}" style="width:26px;image-rendering:pixelated" alt="">
+          <span><span style="color:${tier.ink};font-weight:700">${escapeHtml(l.name)}</span>${n > 1 ? ` <span style="opacity:.6">x${n}</span>` : ''}</span></span>
+        <span class="odds">face ${fmtCoins(l.value)} 🪙</span>`;
+      row.addEventListener('click', () => sellLot(l));
+      box.appendChild(row);
+    });
+  }
+
+  async function sellLot(l) {
+    const s = session;
+    if ((state.lk.caught[l.id] || 0) === 0) return;
+    // the hammer price is settled here, honestly, before the theatre starts
+    const pick = weightedPick(factors.map((e) => ({ ...e, weight: e.w })));
+    const price = Math.max(5, Math.round((l.value * pick.f) / 5) * 5);
+    state.lk.caught[l.id] -= 1;
+    const bidders = [...AUCTION_BIDDERS].sort(() => roll() - 0.5).slice(0, 3);
+    const winnerBidder = pick.tag === 'frenzy' ? 'The Anonymous Telephone Bidder' : bidders[0];
+    showModal(`
+      <h2>🔨 Lot ${lotNo++}</h2>
+      <div class="subtitle">One ${escapeHtml(l.name)}, ${escapeHtml(rarityTier(l.rare).name.toLowerCase())}, consigned by a walk-in</div>
+      <div class="stage" id="g-stage">
+        <img src="${getLucklianSprite(l).toDataURL()}" class="lk-sprite big" alt="">
+        <div id="au-feed" style="min-height:96px;font-size:12.5px;line-height:1.7;text-align:left;width:100%"></div>
+      </div>
+    `, { onClose: () => { session++; } });
+    const feed = document.getElementById('au-feed');
+    const say = async (text, ms = 700) => {
+      const el = document.createElement('div');
+      el.innerHTML = text;
+      feed.appendChild(el);
+      while (feed.children.length > 6) feed.removeChild(feed.firstChild);
+      await wait(ms);
+      return alive(s);
+    };
+    if (!await say(`🎩 “Lot ${lotNo - 1}: a fine ${escapeHtml(l.name)}, face value ${fmtCoins(l.value)}. Who'll start me?”`, 900)) return finalize();
+    // the bids climb from ~35% of the hammer to the hammer
+    let bid = Math.max(5, Math.round(price * 0.35 / 5) * 5);
+    let turn = 0;
+    const lines = pick.tag === 'cold'
+      ? ['A cough at the back.', 'Someone studies the ceiling.', 'A paddle rises… halfway.']
+      : pick.tag === 'frenzy'
+        ? ['The telephone rings.', 'Paddles EVERYWHERE.', 'The room is on its feet!']
+        : ['A paddle up.', 'A nod from the third row.', 'Two paddles at once!'];
+    while (bid < price) {
+      const who = bidders[turn % bidders.length];
+      turn++;
+      const step = Math.max(5, Math.round(price * (pick.tag === 'frenzy' ? 0.16 : 0.11) * (0.7 + roll() * 0.6) / 5) * 5);
+      bid = Math.min(price, bid + step);
+      if (!await say(`${bid >= price ? '🔥' : '🪧'} <b>${escapeHtml(who)}</b> bids <b>${fmtCoins(bid)}</b>! <span style="opacity:.6">${escapeHtml(lines[turn % lines.length])}</span>`, pick.tag === 'frenzy' ? 420 : 650)) return finalize();
+    }
+    if (!await say('🎩 “Going once…”', 700)) return finalize();
+    if (!await say('🎩 “Going twice…”', 700)) return finalize();
+    await say(`🔨 <b>SOLD to ${escapeHtml(winnerBidder)} for ${fmtCoins(price)} 🪙</b> ${price > l.value * 1.4 ? '— the room erupts!' : price < l.value * 0.7 ? '— a steal, and everyone knows it.' : ''}`, 400);
+    finalize();
+    function finalize() {
+      // settle instantly no matter when the modal closes — the lot was sold
+      if (finalize.done) return;
+      finalize.done = true;
+      payout(price);
+      renderBalance();
+      toast(`🔨 Your ${escapeHtml(l.name)} hammered at <span class="amt">${fmtCoins(price)}</span> 🪙 (${(price / l.value).toFixed(2)}x face) to ${escapeHtml(winnerBidder)}.`, price > l.value * 1.8);
+    }
+    if (!alive(s)) return;
+    const again = document.createElement('button');
+    again.className = 'btn secondary';
+    again.textContent = 'Consign another lot';
+    again.addEventListener('click', lobby);
+    document.getElementById('g-stage')?.appendChild(again);
+  }
+
+  lobby();
+}
+
+/* ------------------------------------------------------------
    Entry point
    ------------------------------------------------------------ */
 export function openGame(gameId, provCode) {
@@ -2134,6 +2301,7 @@ export function openGame(gameId, provCode) {
     case 'expedition': runExpedition(def, provCode); break;
     case 'market': runMarket(def, provCode); break;
     case 'homing': runHoming(def, provCode); break;
+    case 'auction': runAuction(def, provCode); break;
     // 'lantern' is routed by main.js to the live river race in liveevents.js
   }
 }

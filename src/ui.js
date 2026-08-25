@@ -289,7 +289,7 @@ export function openMapModal(world, player) {
       ${Object.entries(PROV_MAP_COLORS).map(([c, col]) =>
         `<span><span style="color:${col}">■</span> ${escapeHtml(PROVINCES[c].name)}</span>`).join('')}
     </div>
-    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold-ink);font-weight:bold">✖ sunken hoard</span>' : ''}</div>
+    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold-ink);font-weight:bold">✖ sunken hoard</span>' : ''}${state.mig ? `<span style="color:var(--gold-ink);font-weight:bold">🦌 ${escapeHtml(state.mig.name)} herd</span>` : ''}</div>
   `);
   const cv = $('worldmap-canvas');
   const ctx = cv.getContext('2d');
@@ -298,6 +298,11 @@ export function openMapModal(world, player) {
   if (tideSightActive()) {
     ctx.fillStyle = '#5eeaff';
     for (const z of world.zones) if (z.tidal) ctx.fillRect(z.x - 1, z.y - 1, 4, 4);
+  }
+  // the Great Migration, live on the map while the herd is moving
+  if (state.mig) {
+    ctx.fillStyle = '#ffe066';
+    for (const p of state.mig.pts) ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
   }
   // the mapped Sunken Hoard — X marks the spot
   const hoard = state.tmap?.hoard;

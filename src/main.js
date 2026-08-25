@@ -14,10 +14,10 @@ import * as UI from './ui.js';
 import { openGame, openHub, GAME_DEFS, setWorld, nightNow, openCrossingDen } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer, openHoard } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
-import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
+import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia, openEncounter, encounterReady, armEncounterCooldown } from './lucklians.js';
 import { getLucklianSprite, getStationSprite, getDecorSprite, makeFerrySprite } from './sprites.js';
 import { getInterior, updatePatrons } from './interiors.js';
-import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay, openLanternFestival, updateLanternRace, drawLanternRace, getLanternRace } from './liveevents.js';
+import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay, openLanternFestival, updateLanternRace, drawLanternRace, getLanternRace, migrationTick, migrationNear, drawMigration } from './liveevents.js';
 import { tickHunt } from './hunts.js';
 
 /* ---------------- boot ---------------- */
@@ -473,7 +473,7 @@ function interiorTick(dt, now) {
   }
 
   updatePatrons(it, dt);
-  updateLive(it, dt, now);
+  updateLive(it, dt, now, player);
 
   /* interaction target */
   if (!UI.isModalOpen()) {
@@ -626,6 +626,8 @@ function frame(now) {
   UI.renderTide(tideLevel, tideRising);
   UI.renderLuckChip();
 
+  migrationTick(world);   // herd announcements + map marker
+
   /* dusk & dawn announcements (the night markets trade after dark) */
   {
     const isNight = nightNow().night;
@@ -661,7 +663,16 @@ function frame(now) {
       const ntx = Math.floor(player.x / TILE), nty = Math.floor(player.y / TILE);
       if (ntx !== lastStepTile.tx || nty !== lastStepTile.ty) {
         lastStepTile = { tx: ntx, ty: nty };
-        if (!scene && !getLanternRace()) maybeEncounter(world, ntx, nty, currentProv);
+        if (!scene && !getLanternRace() && !crossing) {
+          // walking among a migrating herd springs its species thick and fast
+          const mig = migrationNear(world, player.x, player.y);
+          if (mig && encounterReady() && roll() < CONFIG.MIGRATION.RATE) {
+            armEncounterCooldown(3);
+            openEncounter(mig.def, mig.tx, mig.ty);
+          } else {
+            maybeEncounter(world, ntx, nty, currentProv);
+          }
+        }
       }
     } else player.frame = 0;
   }
@@ -798,6 +809,9 @@ function frame(now) {
       Math.round((b.y * TILE - camY) * zoom),
       spr.width * zoom, spr.height * zoom);
   }
+
+  /* the Great Migration: a herd on the move across the open country */
+  drawMigration(ctx, world, camX, camY, zoom, now);
 
   /* a wild Lucklian mid-encounter, peeking from its habitat tile */
   const enc = getActiveEncounter();

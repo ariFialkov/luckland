@@ -1383,6 +1383,30 @@ function drawEventProp(ctx, game, W16, BH, v) {
       px(ctx, W16 - 6, B - 8, 3, 2, '#d9c49a');
       break;
     }
+    case 'auction': {                          // the Grand Auction House rostrum
+      sh2(ctx, W16, B);
+      px(ctx, 1, B - 26, W16 - 2, 4, '#8a2030');            // grand canopy
+      px(ctx, 1, B - 26, W16 - 2, 1, '#c43a4a');
+      for (let s = 3; s < W16 - 3; s += 5) px(ctx, s, B - 22, 2, 2, '#f0c040');  // gold fringe
+      px(ctx, 2, B - 20, 2, 17, '#5a3a24'); px(ctx, W16 - 4, B - 20, 2, 17, '#5a3a24');
+      px(ctx, 4, B - 20, W16 - 8, 10, '#4a1a24');           // red curtain backdrop
+      for (let c2 = 6; c2 < W16 - 6; c2 += 4) px(ctx, c2, B - 20, 1, 10, '#5e2430');
+      px(ctx, 6, B - 14, 8, 11, '#6a4a28');                 // auctioneer's rostrum
+      px(ctx, 6, B - 14, 8, 2, '#8a6034');
+      px(ctx, 5, B - 16, 10, 2, '#8a6034');                 // rostrum top
+      px(ctx, 8, B - 18, 4, 2, '#5a3a24');                  // the gavel block
+      px(ctx, 9, B - 20, 2, 2, '#a5793f');                  // gavel
+      px(ctx, W16 - 15, B - 13, 8, 3, '#8a8478');           // lot pedestal
+      px(ctx, W16 - 14, B - 10, 6, 7, '#a8a094');
+      px(ctx, W16 - 13, B - 17, 4, 4, '#f0c040');           // something gleaming on it
+      px(ctx, W16 - 12, B - 16, 2, 2, '#ffe066');
+      px(ctx, 17, B - 8, 5, 5, '#6a4a28');                  // bidder bench
+      px(ctx, 17, B - 9, 5, 2, '#8a6034');
+      px(ctx, 4, B - 31, 2, 5, '#5a3a24');                  // SOLD placard
+      px(ctx, 1, B - 33, 8, 4, '#e8d49a');
+      px(ctx, 2, B - 32, 6, 1, '#8a2030'); px(ctx, 2, B - 31, 4, 1, '#8a2030');
+      break;
+    }
     default:
       // No prop art for this game — never spawn one in the world. A grey
       // placeholder slab reads as a rendering bug and leaves an invisible
@@ -2000,6 +2024,72 @@ export function makeDragonBoatSprite(team) {
   return cv;
 }
 
+/* A rikishi: broad-bodied wrestler in a coloured mawashi.
+   Cols: 0 faces right, 1 faces left; rows: stance / shove frames. */
+export function makeSumoSprite(mawashi, skin = '#e8b890') {
+  const CW = 22, CH = 20;
+  const cv = document.createElement('canvas');
+  cv.width = CW * 2; cv.height = CH * 2;
+  const ctx = cv.getContext('2d');
+  const skinD = shade(skin, -22);
+  for (let face = 0; face < 2; face++) for (let f = 0; f < 2; f++) {
+    const ox = face * CW, oy = f * CH;
+    const X = (x, w = 1) => (face === 1 ? ox + CW - x - w : ox + x);
+    const P = (x, y, w, h, c) => px(ctx, X(x, w), oy + y, w, h, c);
+    ctx.fillStyle = 'rgba(0,0,0,0.22)';
+    ctx.fillRect(ox + 3, oy + CH - 2, CW - 6, 2);
+    const lean = f === 1 ? 2 : 0;                    // shove stance leans in
+    P(5 + lean, 6, 12, 9, skin);                     // the great belly
+    P(5 + lean, 6, 12, 2, shade(skin, 12));
+    P(6 + lean, 12, 10, 3, mawashi);                 // mawashi belt
+    P(10 + lean, 15, 2, 3, mawashi);                 // apron
+    P(8 + lean, 2, 6, 5, skin);                      // head
+    P(8 + lean, 2, 6, 1, '#26202c');                 // chonmage topknot
+    P(10 + lean, 1, 3, 2, '#26202c');
+    P(12 + lean, 4, 1, 1, '#181420');                // eye (facing dir)
+    if (f === 0) {                                   // squared stance
+      P(3, 8, 3, 3, skin); P(16, 8, 3, 3, skin);     // arms out
+      P(6, 15, 3, 4, skinD); P(13, 15, 3, 4, skinD); // planted legs
+    } else {                                         // driving shove
+      P(17 + lean, 7, 4, 3, skin);                   // both arms thrust
+      P(17 + lean, 10, 4, 3, skin);
+      P(4 + lean, 15, 3, 4, skinD); P(12 + lean, 16, 3, 3, skinD);
+    }
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
+/* A fighter kite: diamond on a cross-spar with ribbon tails.
+   Cols: tilt left / tilt right; rows: flutter frames. */
+export function makeKiteSprite(color) {
+  const CW = 16, CH = 20;
+  const cv = document.createElement('canvas');
+  cv.width = CW * 2; cv.height = CH * 2;
+  const ctx = cv.getContext('2d');
+  const dark = shade(color, -28), hi = shade(color, 26);
+  for (let tilt = 0; tilt < 2; tilt++) for (let f = 0; f < 2; f++) {
+    const ox = tilt * CW, oy = f * CH;
+    const lean = tilt === 0 ? -1 : 1;
+    const cx = 8 + lean;
+    // diamond, row by row
+    for (let r = 0; r < 11; r++) {
+      const half = r < 5 ? r + 1 : 11 - r;
+      px(ctx, ox + cx - half + (r < 5 ? 0 : lean), oy + 1 + r, half * 2, 1, r % 3 === 0 ? hi : color);
+    }
+    px(ctx, ox + cx - 1, oy + 1, 2, 11, dark);          // spine
+    px(ctx, ox + cx - 5, oy + 5, 10, 1, dark);          // cross-spar
+    px(ctx, ox + cx - 1, oy + 5, 2, 2, '#ffe066');      // eye of the kite
+    // ribbon tail streaming with the flutter
+    const sway = f === 0 ? lean : -lean;
+    px(ctx, ox + cx + sway, oy + 12, 1, 3, color);
+    px(ctx, ox + cx - sway, oy + 15, 1, 3, hi);
+    px(ctx, ox + cx + sway * 2, oy + 18, 1, 2, color);
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
 /* ============================================================
    Interior furniture — game stations you walk into to play,
    and themed hall décor. Footprint-sized, like buildings.
@@ -2090,6 +2180,22 @@ function drawStation(ctx, kind, W16, B, v) {
       px(ctx, W16 / 2 - 2, B - 23, 4, 4, '#f0c040');           // gilded head
       px(ctx, 5, B - 13, 2, 3, '#e05a70'); px(ctx, W16 - 7, B - 13, 2, 3, '#5eeaff'); // candles
       px(ctx, 5, B - 14, 1, 1, '#ffe066'); px(ctx, W16 - 7, B - 14, 1, 1, '#ffe066');
+      break;
+    }
+    case 'dohyo': {                               // the sumo dohyō — clay mound, straw ring
+      px(ctx, 0, 2, W16, B - 2, '#8a6a4a');                    // clay mound
+      px(ctx, 0, 2, W16, 2, '#a5824f');
+      px(ctx, 2, 4, W16 - 4, B - 8, '#b09468');                // packed clay top
+      // straw-bale ring (tawara): an oval of pale bales
+      ctx.fillStyle = '#e0d0a0';
+      const cx2 = W16 / 2, cy2 = (B - 2) / 2 + 2, rx2 = W16 / 2 - 6, ry2 = (B - 6) / 2 - 3;
+      for (let a = 0; a < 26; a++) {
+        const ang = (a / 26) * Math.PI * 2;
+        ctx.fillRect(Math.round(cx2 + Math.cos(ang) * rx2) - 1, Math.round(cy2 + Math.sin(ang) * ry2) - 1, 3, 2);
+      }
+      px(ctx, W16 / 2 - 6, Math.round(cy2) - 1, 4, 2, '#e8e2d4');   // shikiri lines
+      px(ctx, W16 / 2 + 2, Math.round(cy2) - 1, 4, 2, '#e8e2d4');
+      px(ctx, 1, 0, 3, 4, '#8a2030'); px(ctx, W16 - 4, 0, 3, 4, '#8a2030'); // roof tassels
       break;
     }
     case 'ring': {                                // full boxing ring — canvas, ropes, posts
@@ -2362,6 +2468,16 @@ function drawDecor(ctx, kind, W16, B, v) {
         px(ctx, ox + 1, oy + 4, 5, 1, '#ffe066');
         px(ctx, ox + 1, oy + 6, 8, 1, '#5eeaff');
       }
+      break;
+    }
+    case 'tuft': {                                // a grassy bog hummock, barely above the water
+      px(ctx, 3, B - 8, W16 - 6, 5, '#5a6a3e');              // the hump
+      px(ctx, 4, B - 9, W16 - 8, 2, '#7d9a52');
+      px(ctx, 5, B - 11, 2, 3, '#8fae5a');                   // sprouting grass blades
+      px(ctx, 8, B - 12, 1, 4, '#7d9a52');
+      px(ctx, W16 - 8, B - 11, 2, 3, '#8fae5a');
+      px(ctx, W16 - 5, B - 10, 1, 2, '#5a8f3d');
+      px(ctx, 2, B - 4, W16 - 4, 2, 'rgba(40,60,70,0.5)');   // waterline shadow
       break;
     }
     case 'drum': {                                // great festival taiko on a stand

@@ -212,6 +212,34 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   Wrong Way Wanda, Sky Potato…) and watch the whole flight as living dots
   arcing across the **real world map** to a far-off roost, trails, comeback
   drama and live standings included.
+- **The Great Migration** (🦌 everywhere) — every so often a herd of one
+  mid-rare species visibly crosses the continent (announced, and marked
+  live on your map). Walk among the animals and encounters with that
+  species come thick and fast — the snares stay honestly priced; the
+  migration just brings the chances to you.
+- **The Grand Auction House** (🔨 rostrums in Tyche & Maneki) — in timed
+  sessions, consign any Lucklian and let the room fight over it: Baron von
+  Vole, Madame Époque and the Anonymous Telephone Bidder drive the price in
+  a live bidding war. The hammer is drawn from a factor table scaled so the
+  **average sale is exactly face value** — cold rooms, steals, and 3.6×
+  frenzies included — and auction sales never touch the daily market cap.
+- **The Grand Basho** (🤼 Grand Sumo Arena) — the arena is now a rolling
+  **8-man tournament** on a real dohyō: quarters → semis → the final, bouts
+  playing out whether you bet or not, with a momentum bar, named kimarite
+  and a gyōji circling the ring. The book takes bout bets (camera-locked)
+  and **Emperor's Cup outrights** priced by an exact fold of the remaining
+  bracket — verified against Monte Carlo — settled when the Cup is lifted.
+- **Kite Duels** (🪁 Kite Pavilion, Kite City) — the pavilion opens onto a
+  sky court where two named fighter kites (Paper Tiger, The Widow's Razor,
+  The Tax Collector…) swoop on visible strings. Each duel draws its wind —
+  calm, gusting, or typhoon's edge — which sets the odds on first cut,
+  double cut and runaway; severed kites tumble or escape on the wind.
+- **The Bog of Middling Fortune** (🫧 FL) — a walkable, fog-bound bog.
+  Strike the bargain at the keeper's stone and follow the wisp **on foot**,
+  tuft by tuft: each step is an honest gate (firm ground multiplies the pot
+  by `RTP / p`, the wrong tuft swallows the stake and dumps you ashore).
+  Walk back to bank at any time; cross all nine tufts for ~48× and the
+  wisp's blessing.
 - **Tide-treasure maps** — chests occasionally cough up **map fragments**;
   three complete a map and a **Sunken Hoard** (the best chest odds in the
   game) appears on a named tide flat, marked ✖ on your map — but only the
