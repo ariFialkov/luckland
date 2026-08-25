@@ -589,7 +589,7 @@ function interiorTick(dt, now) {
   }
 
   /* in-scene event UI: health bars, clocks, leaderboards, verdicts */
-  drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw);
+  drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw, vh);
 
   /* room ambience tint + gentle lamplight */
   ctx.fillStyle = it.style.tint;

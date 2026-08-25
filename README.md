@@ -229,6 +229,9 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   and a gyōji circling the ring. The book takes bout bets (camera-locked)
   and **Emperor's Cup outrights** priced by an exact fold of the remaining
   bracket — verified against Monte Carlo — settled when the Cup is lifted.
+  A **ladder board** hangs on the hall wall for the whole basho: quarters →
+  semis → final → the Cup, the fallen struck through, the pair on the clay
+  ringed in green, and everyone you have money on ringed in gold.
 - **Kite Duels** (🪁 Kite Pavilion, Kite City) — the pavilion opens onto a
   sky court where two named fighter kites (Paper Tiger, The Widow's Razor,
   The Tax Collector…) swoop on visible strings. Each duel draws its wind —

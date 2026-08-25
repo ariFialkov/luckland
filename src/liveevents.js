@@ -1471,7 +1471,101 @@ function hpBar(ctx, sx, sy, w, frac, zoom) {
   ctx.fillRect(sx, sy, Math.max(0, w * frac), 3 * zoom / 2);
 }
 
-export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
+/* The basho bracket board — a real 8-man ladder pinned to the hall wall,
+   quarters → semis → final → cup, with everything the punter has money
+   on ringed in gold so a glance tells them how their card is going. */
+function drawBashoBracket(ctx, B, vw, vh) {
+  const results = B.results || [[], [], []];
+  const picks = B.picks || [];
+  const k = Math.max(1, Math.min(1.6, (vw || 800) / 420));
+  const F = (px2, bold = true) => `${bold ? 'bold ' : ''}${px2}px "Courier New", monospace`;
+  const nw = 52 * k, eh = 9 * k, pairGap = 5 * k, colGap = 7 * k;
+  const slotH = 2 * eh + pairGap;
+  const bodyH = 4 * slotH - pairGap;
+  const headH = 22 * k;
+  const pw = 4 * nw + 3 * colGap + 12 * k;
+  const ph = bodyH + headH + 8 * k;
+  const px = 10;
+  const py = Math.min(Math.max(96, (vh - ph) / 2), Math.max(96, vh - ph - 14));
+  panel(ctx, px, py, pw, ph);
+  ctx.fillStyle = 'rgba(12,10,20,0.9)';   // second coat: the hall mustn't bleed through
+  ctx.fillRect(px + 1, py + 1, pw - 2, ph - 2);
+
+  const ox = px + 6 * k;
+  const oy = py + headH + 3 * k;
+  const colX = (col) => ox + col * (nw + colGap);
+  const c0 = (i) => oy + (i >> 1) * slotH + (i & 1) * eh + eh / 2;
+  const c1 = (m) => (c0(2 * m) + c0(2 * m + 1)) / 2;
+  const c2 = (q) => (c1(2 * q) + c1(2 * q + 1)) / 2;
+  const c3 = (c2(0) + c2(1)) / 2;
+
+  // header
+  ctx.textAlign = 'left';
+  ctx.font = F(8 * k);
+  ctx.fillStyle = '#ffd75e';
+  ctx.fillText('THE BASHO LADDER', px + 6 * k, py + 9 * k);
+  ctx.textAlign = 'right';
+  ctx.font = F(7 * k, false);
+  ctx.fillStyle = '#b8b4c0';
+  ctx.fillText(picks.length ? 'gold = your money' : 'green = on the clay', px + pw - 6 * k, py + 9 * k);
+
+  // column captions
+  ctx.font = F(6.5 * k);
+  ctx.textAlign = 'left';
+  ['QUARTERS', 'SEMIS', 'FINAL', "THE CUP"].forEach((cap, col) => {
+    ctx.fillStyle = col === B.round || (col === 3 && B.champion !== null && B.champion !== undefined) ? '#ffd75e' : '#8a8496';
+    ctx.fillText(cap, ox + col * (nw + colGap), py + 18 * k);
+  });
+
+  // joining lines first, so the boxes sit on top of them
+  ctx.strokeStyle = 'rgba(200,190,220,0.32)';
+  ctx.lineWidth = Math.max(1, 0.8 * k);
+  const link = (col, ya, yb, ym) => {
+    const x0 = colX(col) + nw, x1 = colX(col + 1), xm = (x0 + x1) / 2;
+    ctx.beginPath();
+    ctx.moveTo(x0, ya); ctx.lineTo(xm, ya); ctx.lineTo(xm, yb); ctx.lineTo(x0, yb);
+    ctx.moveTo(xm, ym); ctx.lineTo(x1, ym);
+    ctx.stroke();
+  };
+  for (let m = 0; m < 4; m++) link(0, c0(2 * m), c0(2 * m + 1), c1(m));
+  for (let q = 0; q < 2; q++) link(1, c1(2 * q), c1(2 * q + 1), c2(q));
+  link(2, c2(0), c2(1), c3);
+
+  const inBout = B.bout ? [B.bout.ai, B.bout.bi] : [];
+  const box = (col, cy, idx, crown) => {
+    const bx = colX(col), by = cy - eh / 2;
+    const r = idx === null || idx === undefined ? null : B.rikishi[idx];
+    ctx.fillStyle = r ? 'rgba(26,20,40,0.9)' : 'rgba(26,20,40,0.45)';
+    ctx.fillRect(bx, by, nw, eh);
+    if (r) { ctx.fillStyle = r.color; ctx.fillRect(bx, by, 3 * k, eh); }
+    const picked = r && picks.includes(idx);
+    const fighting = r && inBout.includes(idx);
+    if (picked || fighting) {
+      ctx.strokeStyle = picked ? '#ffd75e' : '#8fdc9a';
+      ctx.lineWidth = Math.max(1, k);
+      ctx.strokeRect(bx + 0.5, by + 0.5, nw - 1, eh - 1);
+    }
+    ctx.font = F(6.2 * k, picked || crown);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = !r ? '#5c5768' : picked ? '#ffd75e' : r.out ? '#7b7686' : '#e8e2d4';
+    const name = r ? (crown ? '👑' : '') + r.name.slice(0, crown ? 9 : 11) : '·····';
+    ctx.fillText(name, bx + 5.5 * k, cy + 2.5 * k);
+    if (r && r.out) {   // a line through the fallen
+      ctx.strokeStyle = 'rgba(160,150,175,0.5)';
+      ctx.lineWidth = Math.max(1, 0.7 * k);
+      ctx.beginPath();
+      ctx.moveTo(bx + 5 * k, cy + 0.5); ctx.lineTo(bx + nw - 3 * k, cy + 0.5);
+      ctx.stroke();
+    }
+  };
+
+  for (let i = 0; i < 8; i++) box(0, c0(i), i);
+  for (let m = 0; m < 4; m++) box(1, c1(m), results[0][m] ?? null);
+  for (let q = 0; q < 2; q++) box(2, c2(q), results[1][q] ?? null);
+  box(3, c3, B.champion !== null && B.champion !== undefined ? B.champion : (results[2][0] ?? null), true);
+}
+
+export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw, vh) {
   const A = it.arena;
   if (!A) return;
   const S = (wx) => (wx - camX) * zoom;
@@ -1513,6 +1607,7 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
   /* the basho: round marquee + live momentum bar over the dohyō */
   if (A.kind === 'sumo' && A.basho) {
     const B = A.basho;
+    drawBashoBracket(ctx, B, vw || 800, vh || 600);
     let label;
     if (B.champion !== null) label = `👑 ${B.rikishi[B.champion].name.toUpperCase()} — YOKOZUNA OF THE HOUR`;
     else if (B.bout) label = `${ROUND_NAMES[B.round]} · ${B.rikishi[B.bout.ai].name} vs ${B.rikishi[B.bout.bi].name}`;
@@ -1522,27 +1617,32 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     }
     ctx.font = font(10 * zoom / 2);
     const w = ctx.measureText(label).width + 18;
-    panel(ctx, S(A.center.x) - w / 2, Sy(A.rect.y) - 16 * zoom / 2, w, 11 * zoom / 2 + 6);
+    // clear the bet panel when a punt is live — it sits 34..8 above the ring
+    const myY = Sy(A.rect.y) - (live ? 50 : 16) * zoom / 2;
+    panel(ctx, S(A.center.x) - w / 2, myY, w, 11 * zoom / 2 + 6);
     ctx.fillStyle = '#ffd75e';
     ctx.textAlign = 'center';
-    ctx.fillText(label, S(A.center.x), Sy(A.rect.y) - 6 * zoom / 2);
+    ctx.fillText(label, S(A.center.x), myY + 10 * zoom / 2);
     if (B.bout && B.bout.phase === 'clash') {
       // the shoving match, as a two-colour tug bar
-      const bw = 60 * zoom / 2, bx = S(A.center.x) - bw / 2, by = Sy(A.rect.y) + 4;
-      const mid = bw / 2 + (B.bout.mom * bw) / 2.4;
+      const bw = 78 * zoom / 2, bx = S(A.center.x) - bw / 2, by = Sy(A.rect.y) + 4;
+      // more colour = winning the shove; east (ai) grows to the right
+      const mid = Math.max(4, Math.min(bw - 4, bw / 2 + (B.bout.mom * bw) / 2.4));
       ctx.fillStyle = 'rgba(10,8,16,0.85)';
       ctx.fillRect(bx - 1, by - 1, bw + 2, 5 * zoom / 2 + 2);
       ctx.fillStyle = B.rikishi[B.bout.ai].color;
-      ctx.fillRect(bx, by, Math.max(3, mid), 5 * zoom / 2);
+      ctx.fillRect(bx, by, mid, 5 * zoom / 2);
       ctx.fillStyle = B.rikishi[B.bout.bi].color;
-      ctx.fillRect(bx + mid, by, Math.max(3, bw - mid), 5 * zoom / 2);
+      ctx.fillRect(bx + mid, by, bw - mid, 5 * zoom / 2);
       // fighters' names under their colours
       ctx.font = font(7 * zoom / 2);
+      const picked = B.picks || [];
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#f4ecd8';
-      ctx.fillText(B.rikishi[B.bout.ai].name.slice(0, 10), bx, by + 10 * zoom / 2);
+      ctx.fillStyle = picked.includes(B.bout.ai) ? '#ffd75e' : '#f4ecd8';
+      ctx.fillText(B.rikishi[B.bout.ai].name.slice(0, 8), bx, by + 10 * zoom / 2);
       ctx.textAlign = 'right';
-      ctx.fillText(B.rikishi[B.bout.bi].name.slice(0, 10), bx + bw, by + 10 * zoom / 2);
+      ctx.fillStyle = picked.includes(B.bout.bi) ? '#ffd75e' : '#f4ecd8';
+      ctx.fillText(B.rikishi[B.bout.bi].name.slice(0, 8), bx + bw, by + 10 * zoom / 2);
     }
   }
 
@@ -2103,6 +2203,8 @@ function seedBasho(it) {
     bout: null, nextT: 5, champion: null, ceremonyT: 0,
     champBets: [],   // settled at the previous crown; each basho opens a fresh book
     justFinished: null,
+    results: [[], [], []],  // winners per round, kept for the bracket board
+    picks: [],              // everyone the punter has money on this basho
   };
 }
 
@@ -2197,8 +2299,11 @@ function tickBasho(it, dt) {
       if (it.live?.kind === 'sumo') it.live.fx.push({ text: 'TACHIAI!', x: c.x, y: c.y - 20, t: 0, color: '#ffd75e' });
     }
   } else if (bt.phase === 'clash') {
-    // momentum: swings both ways, leaning toward the drawn winner late
-    const bias = (bt.winner === bt.ai ? -1 : 1) * Math.min(1, bt.t / 4.5) * 0.65;
+    // momentum: swings both ways, leaning toward the drawn winner late.
+    // positive = the east man (ai) is driving west (rightward) — which is
+    // also the direction the loser gets shoved in the oshi finish, and the
+    // direction the bar's east colour grows. all three must agree.
+    const bias = (bt.winner === bt.ai ? 1 : -1) * Math.min(1, bt.t / 4.5) * 0.65;
     bt.mom = Math.sin(bt.t * 2.1) * (1 - Math.min(1, bt.t / 5)) * 0.8 + bias;
     const push = bt.mom * 9;
     aA.x = markA.x + 6 + push; aA.y = markA.y + Math.sin(bt.t * 7) * 1.2;
@@ -2223,6 +2328,7 @@ function tickBasho(it, dt) {
     if (bt.t > 1.6) {
       // record and stand down
       B.winners.push(bt.winner);
+      B.results[B.round].push(bt.winner);
       const loserIdx = bt.winner === bt.ai ? bt.bi : bt.ai;
       B.rikishi[loserIdx].out = true;
       B.justFinished = { key: `${bt.ai}v${bt.bi}`, winner: bt.winner, move: bt.move };
@@ -2331,6 +2437,7 @@ function openBashoBook(it, st, provCode) {
       addRow(`<span style="flex:1;text-align:left">🤼 ${escapeHtml(B.rikishi[idx].name)} wins the bout</span><span class="odds">${fmtMult(rtp / p)}x</span>`, () => {
         if (state.balance < bet) { toast('Not enough coins!'); return; }
         spend(bet); state.stats.gamesPlayed++; renderBalance(); closeModal();
+        if (!B.picks.includes(idx)) B.picks.push(idx);
         startSim(it, 'sumo', { label: `${B.rikishi[idx].name} wins the bout`, p, side: idx, key: `${ai}v${bi}` }, bet, rtp);
         B.nextT = Math.min(B.nextT, 1.2);   // the hall doesn't dawdle for a punter
       });
@@ -2343,6 +2450,7 @@ function openBashoBook(it, st, provCode) {
       if (state.balance < bet) { toast('Not enough coins!'); return; }
       spend(bet); state.stats.gamesPlayed++; renderBalance(); closeModal();
       B.champBets.push({ idx: i, name: r.name, bet, mult: rtp / p });
+      if (!B.picks.includes(i)) B.picks.push(i);
       toast(`🏆 Riding <b>${escapeHtml(r.name)}</b> to the Emperor's Cup at ${fmtMult(rtp / p)}x — settles at the final.`);
     });
   });
