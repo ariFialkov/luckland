@@ -1320,6 +1320,69 @@ function drawEventProp(ctx, game, W16, BH, v) {
       px(ctx, W16 - 8, B - 11, 2, 2, '#ffd75e');            // one already glowing afloat
       break;
     }
+    case 'colossus': {                         // base camp: tents, rope line, summit sign
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 16, 12, 12, '#c43a2a');                // expedition tent
+      px(ctx, 3, B - 15, 10, 2, '#e05a4a');
+      px(ctx, 6, B - 11, 4, 7, '#5a1f16');                  // tent mouth
+      px(ctx, 1, B - 17, 14, 2, '#8a2a1e');                 // ridge pole line
+      px(ctx, 17, B - 12, 9, 8, '#e8e2d4');                 // supply tent
+      px(ctx, 18, B - 11, 7, 2, '#f4f0e6');
+      px(ctx, 20, B - 8, 3, 4, '#8a8478');
+      px(ctx, W16 - 16, B - 10, 6, 6, '#6a5038');           // crates + coiled rope
+      px(ctx, W16 - 15, B - 9, 4, 2, '#8a6034');
+      px(ctx, W16 - 9, B - 8, 5, 4, '#a5793f');
+      px(ctx, W16 - 8, B - 7, 3, 2, '#e8d49a');
+      px(ctx, 28, B - 26, 2, 22, '#5a3a24');                // signpost to the summit
+      px(ctx, 24, B - 26, 10, 4, '#e8d49a');
+      px(ctx, 25, B - 25, 5, 1, '#8a6034'); px(ctx, 25, B - 24, 7, 1, '#8a6034');
+      px(ctx, 33, B - 25, 2, 2, '#c43a2a');                 // arrow up
+      px(ctx, W16 - 4, B - 30, 1, 26, '#5a5652');           // prayer-flag mast
+      const FLAGC = ['#c43a2a', '#e8b830', '#3f6ac8', '#4f9c5e', '#e8e2d4'];
+      FLAGC.forEach((c, i2) => px(ctx, W16 - 12 + i2 * 2, B - 29 + (i2 % 2), 2, 2, c));
+      break;
+    }
+    case 'nightmarket': {                      // paper-lantern stall, shuttered by day
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 24, W16 - 4, 5, '#2a2438');            // indigo awning
+      px(ctx, 2, B - 24, W16 - 4, 1, '#3a3452');
+      for (let s = 3; s < W16 - 4; s += 6) px(ctx, s, B - 20, 3, 2, '#e8b830');  // gold trim
+      px(ctx, 3, B - 19, 2, 14, '#5a3a24'); px(ctx, W16 - 5, B - 19, 2, 14, '#5a3a24'); // posts
+      px(ctx, 5, B - 12, W16 - 10, 7, '#6a4a28');           // counter
+      px(ctx, 5, B - 12, W16 - 10, 2, '#8a6034');
+      px(ctx, 7, B - 10, 4, 3, '#c43a2a');                  // crates of wares
+      px(ctx, 12, B - 10, 4, 3, '#3fb0a0');
+      px(ctx, 17, B - 10, 4, 3, '#8a70c0');
+      px(ctx, 6, B - 17, 3, 4, '#e05030');                  // hanging lanterns
+      px(ctx, 7, B - 13, 1, 1, '#ffd75e');
+      px(ctx, W16 - 9, B - 17, 3, 4, '#e8b830');
+      px(ctx, W16 - 8, B - 13, 1, 1, '#ffd75e');
+      px(ctx, (W16 >> 1) - 2, B - 18, 5, 5, '#16121e');     // shadowed sign
+      px(ctx, (W16 >> 1) - 1, B - 17, 3, 3, '#ff6be0');     // glowing character
+      break;
+    }
+    case 'homingpost': {                       // dovecote loft tower with wheeling homers
+      sh2(ctx, W16, B);
+      px(ctx, (W16 >> 1) - 8, B - 14, 16, 12, '#8a8478');   // stone base
+      px(ctx, (W16 >> 1) - 8, B - 14, 16, 2, '#a8a094');
+      px(ctx, (W16 >> 1) - 6, B - 30, 12, 16, '#e8e2d4');   // whitewashed loft
+      px(ctx, (W16 >> 1) - 6, B - 30, 12, 1, '#f4f0e6');
+      for (let r = 0; r < 2; r++) for (let c2 = 0; c2 < 3; c2++) {
+        px(ctx, (W16 >> 1) - 5 + c2 * 4, B - 27 + r * 5, 3, 3, '#3a2a30');   // pigeonholes
+      }
+      px(ctx, (W16 >> 1) - 7, B - 33, 14, 3, '#c43a2a');    // red cap roof
+      px(ctx, (W16 >> 1) - 5, B - 35, 10, 2, '#8a2a1e');
+      px(ctx, (W16 >> 1) - 1, B - 38, 2, 3, '#5a3a24');     // weathervane
+      px(ctx, (W16 >> 1) + 1, B - 38, 3, 1, '#e8b830');
+      px(ctx, (W16 >> 1) - 4, B - 24, 2, 2, '#8a94a0');     // a homer at its hole
+      px(ctx, (W16 >> 1) + 3, B - 19, 2, 2, '#b8bcc0');
+      px(ctx, 2, B - 8, 5, 6, '#6a4a28');                   // race-day ledger stand
+      px(ctx, 2, B - 9, 5, 2, '#8a6034');
+      px(ctx, 3, B - 7, 3, 2, '#e8d49a');
+      px(ctx, W16 - 7, B - 7, 5, 5, '#8a6034');             // seed sacks
+      px(ctx, W16 - 6, B - 8, 3, 2, '#d9c49a');
+      break;
+    }
     default:
       // No prop art for this game — never spawn one in the world. A grey
       // placeholder slab reads as a rendering bug and leaves an invisible

@@ -1003,6 +1003,13 @@ export function generateWorld() {
     /* lantern festival launch docks on the eastern rivers */
     { game: 'lanternfest', prov: 'EP', label: 'Lantern Festival Dock', w: 3, h: 2, spawn: 'stream', n: 2 },
     { game: 'lanternfest', prov: 'DG', label: 'Lantern Festival Dock', w: 3, h: 2, spawn: 'stream', n: 2 },
+    /* Mount Colossus base camp, high in the Dragonspine */
+    { game: 'colossus', prov: 'DG', label: 'Mount Colossus Base Camp', w: 3, h: 2, spawn: 'mountain', n: 1 },
+    /* night market stalls — shuttered until dark */
+    { game: 'nightmarket', prov: 'MN', label: 'Night Market Stall', w: 3, h: 2, spawn: 'urban', n: 2 },
+    { game: 'nightmarket', prov: 'DG', label: 'Night Market Stall', w: 3, h: 2, spawn: 'urban', n: 2 },
+    /* the Republic's homing-Lucklian loft */
+    { game: 'homingpost', prov: 'FL', label: 'Homing Post Loft', w: 3, h: 3, spawn: 'urban', n: 1 },
   ];
 
   const events = [];

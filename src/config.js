@@ -86,6 +86,15 @@ export const CONFIG = {
     OPEN_S: 110,                // launch window at the start of each cycle
     ENTRIES: 8,                 // you + seven other lanterns on the water
   },
+
+  // Day/night: night falls on this cycle; the night markets trade then.
+  NIGHT: {
+    CYCLE_S: 600,               // full day length
+    NIGHT_S: 260,               // how long the dark lasts each cycle
+  },
+
+  // Paradise Ferry crossing (the below-decks den lives inside it).
+  CROSSING_S: 22,               // seconds from dock to dock
 };
 
 /* ------------------------------------------------------------
@@ -142,6 +151,9 @@ export const GAME_RTP = {
   natscav:        0.94,  // the National Hunt caravan's purse
   goldpan:        0.94,  // sluice claims on the FL/HV streams
   lanternfest:    0.95,  // the river festival's communal pot
+  colossus:       0.95,  // the Mount Colossus expedition ladder
+  shipsbones:     0.94,  // the ferry captain's dice, below decks
+  homingpost:     0.93,  // the FL homing-Lucklian post race
   regattabets:    0.93,  // DG — dragon-boat lanes on the bay
   ownersrace:     0.93,  // HV — enter your own Lucklian at the Downs
   beastbout:      0.93,  // TF — your beast on the Coliseum sand

@@ -186,8 +186,31 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   Mother Lode) at the identical RTP.
 - **Lantern Festival** (🏮 EP/DG river docks) — the rivers light up for a
   ~2-minute launch window every few minutes. Your lantern joins seven
-  villagers' on the current; furthest upriver takes the temple pot, with a
-  long-odds podium ladder scaled to the RTP.
+  villagers' **live on the actual river**: the camera rides with the glowing
+  flotilla as it winds downstream, an in-world board tracks the running
+  order, and a petal rope marks the finish. Placement is drawn honestly from
+  a long-odds ladder scaled to the RTP.
+- **Mount Colossus Expedition** (🏔️ base camp in the Dragonspine) — a
+  staged ladder to the summit shrine. Every attempt draws its own weather
+  (clear / high wind / blizzard) which reshapes every stage's odds, and you
+  choose your style — alone for long odds or roped to a sherpa for steadier
+  ones. Each stage pays `RTP / p`; cash out at any camp, and the summit
+  itself grants the mountain's blessing (+3% RTP for 120s).
+- **Night Markets** (🏮 MN/DG streets) — Luckland now has a **day/night
+  cycle**: dusk visibly falls, and the shuttered stalls open. Each night
+  rolls a fresh spread: three crates at posted honest odds (one a genuine
+  98.5% "special"), a black-market Lucklian at a collector's markup — no
+  questions asked, straight into your Lucklipedia — and one species in
+  strange demand that sells above face value, off the books.
+- **Below Decks** (🎲 the Paradise Ferry) — the crossing now takes real
+  time, and a den exists only while the boat is under way: a progress bar
+  crawls dock to dock while the captain rattles Ship's Bones — Port (2–6),
+  Starboard (8–12) or Lucky Sevens, each paying `RTP / p`, with the tide
+  setting the mood of the felt.
+- **The Homing Post** (🕊️ FL) — back one of five homers (Old Reliable,
+  Wrong Way Wanda, Sky Potato…) and watch the whole flight as living dots
+  arcing across the **real world map** to a far-off roost, trails, comeback
+  drama and live standings included.
 - **Tide-treasure maps** — chests occasionally cough up **map fragments**;
   three complete a map and a **Sunken Hoard** (the best chest odds in the
   game) appears on a named tide flat, marked ✖ on your map — but only the

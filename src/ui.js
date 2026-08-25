@@ -245,19 +245,10 @@ export function openStatsModal() {
 /* ---------------- world map ---------------- */
 const PROV_MAP_COLORS = { TF: '#d9c078', FL: '#4faf50', HV: '#c8985a', DG: '#c05050', EP: '#4f9c6e', MN: '#c96ad4' };
 
-export function openMapModal(world, player) {
-  showModal(`
-    <h2>🗺️ Map of Luckland</h2>
-    <div class="subtitle">Six provinces, one tide, endless luck</div>
-    <canvas id="worldmap-canvas" width="${world.W}" height="${world.H}"></canvas>
-    <div class="map-legend">
-      ${Object.entries(PROV_MAP_COLORS).map(([c, col]) =>
-        `<span><span style="color:${col}">■</span> ${escapeHtml(PROVINCES[c].name)}</span>`).join('')}
-    </div>
-    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold)">✖ sunken hoard</span>' : ''}</div>
-  `);
-  const cv = $('worldmap-canvas');
-  const ctx = cv.getContext('2d');
+/* Paint the base continent (terrain + landmark pips) onto any 2d
+   context sized world.W x world.H — shared by the map modal and
+   the Homing Post's live race view. */
+export function paintWorldMap(ctx, world) {
   const img = ctx.createImageData(world.W, world.H);
   for (let y = 0; y < world.H; y++) {
     for (let x = 0; x < world.W; x++) {
@@ -285,9 +276,24 @@ export function openMapModal(world, player) {
     }
   }
   ctx.putImageData(img, 0, 0);
-  // landmarks
   ctx.fillStyle = '#ffb020';
   for (const lm of world.landmarks) ctx.fillRect(lm.x, lm.y, 3, 3);
+}
+
+export function openMapModal(world, player) {
+  showModal(`
+    <h2>🗺️ Map of Luckland</h2>
+    <div class="subtitle">Six provinces, one tide, endless luck</div>
+    <canvas id="worldmap-canvas" width="${world.W}" height="${world.H}"></canvas>
+    <div class="map-legend">
+      ${Object.entries(PROV_MAP_COLORS).map(([c, col]) =>
+        `<span><span style="color:${col}">■</span> ${escapeHtml(PROVINCES[c].name)}</span>`).join('')}
+    </div>
+    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold)">✖ sunken hoard</span>' : ''}</div>
+  `);
+  const cv = $('worldmap-canvas');
+  const ctx = cv.getContext('2d');
+  paintWorldMap(ctx, world);
   // tide secrets while Tide Sight is active
   if (tideSightActive()) {
     ctx.fillStyle = '#5eeaff';

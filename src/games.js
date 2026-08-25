@@ -16,12 +16,17 @@
    ============================================================ */
 
 import { CONFIG } from './config.js';
-import { roll, weightedPick, pick as rpick } from './rng.js';
-import { state, spend, payout, canAfford, effectiveRTP } from './state.js';
-import { showModal, closeModal, buildBetRow, escapeHtml, toast, renderBalance } from './ui.js';
-import { LUCKLIANS, recordCatch, rarityTier } from './lucklians.js';
+import { roll, weightedPick, pick as rpick, hash2 } from './rng.js';
+import { state, spend, payout, canAfford, effectiveRTP, grantLuck } from './state.js';
+import { showModal, closeModal, buildBetRow, escapeHtml, toast, renderBalance, paintWorldMap } from './ui.js';
+import { LUCKLIANS, BY_ID, recordCatch, rarityTier } from './lucklians.js';
 import { getLucklianSprite } from './sprites.js';
 import { openHuntLobby } from './hunts.js';
+import { openConcealer } from './concealers.js';
+
+/* the overworld, registered by main at boot (map races, loft lookups) */
+let worldRef = null;
+export function setWorld(w) { worldRef = w; }
 
 /* ------------------------------------------------------------
    Game definitions
@@ -558,13 +563,70 @@ export const GAME_DEFS = {
   },
   lanternfest: {
     name: 'Lantern Festival', ico: '🏮',
-    desc: 'Float your lantern furthest up the river — the temple pot pays the podium.',
-    mech: 'lantern',
+    desc: 'Race your lantern down the river — the temple pot pays the podium.',
+    mech: 'lantern',   // routed to the live river race (liveevents.js)
     // finishing-order odds for your lantern (8 on the water), tilted long
     Q: [0.075, 0.105, 0.13, 0.14, 0.14, 0.14, 0.14, 0.13],
     K: [6, 2.5, 1, 0, 0, 0, 0, 0],
   },
+  colossus: {
+    name: 'Mount Colossus Expedition', ico: '🏔️',
+    desc: 'Camp by camp toward the summit shrine. Cash out, or climb into the weather.',
+    mech: 'expedition',
+    stages: [
+      { name: 'The Scree Slopes', ico: '🪨', p: { clear: 0.80, wind: 0.74, blizzard: 0.66 },
+        fail: 'The scree gives way — you slide back to camp with your boots full of gravel.' },
+      { name: 'The Icefall', ico: '🧊', p: { clear: 0.68, wind: 0.62, blizzard: 0.52 },
+        fail: 'A serac groans and the ladders come down. Back to camp, shaking.' },
+      { name: 'Knife Ridge', ico: '⛰️', p: { clear: 0.60, wind: 0.50, blizzard: 0.42 },
+        fail: 'The ridge shrugs you off. You cling, crawl, and retreat.' },
+      { name: 'The Death Zone', ico: '☠️', p: { clear: 0.52, wind: 0.44, blizzard: 0.34 },
+        fail: 'The thin air wins. The mountain keeps your stake as a toll.' },
+      { name: 'The Summit Shrine', ico: '⛩️', p: { clear: 0.62, wind: 0.55, blizzard: 0.45 },
+        fail: 'Metres from the shrine, the clouds slam shut. So close.' },
+    ],
+    weathers: [
+      { id: 'clear', label: 'Clear skies', ico: '☀️', w: 5, blurb: 'The mountain is in a rare mood.' },
+      { id: 'wind', label: 'High wind', ico: '🌬️', w: 4, blurb: 'Prayer flags are snapping like whips.' },
+      { id: 'blizzard', label: 'Blizzard', ico: '🌨️', w: 2.5, blurb: 'You can barely see the sherpa tents.' },
+    ],
+  },
+  nightmarket: {
+    name: 'Night Market', ico: '🏮',
+    desc: 'Shuttered by day. After dark: crates, contraband and strange demand.',
+    mech: 'market',
+    crates: [
+      { name: 'Paper Crate', ico: '📦', price: 100, rtp: 0.93 },
+      { name: 'Lacquer Crate', ico: '🎁', price: 300, rtp: 0.95 },
+      { name: "Tonight's Special", ico: '✨', price: 0 /* seeded per night */, rtp: 0.985 },
+    ],
+  },
+  homingpost: {
+    name: 'The Homing Post', ico: '🕊️',
+    desc: 'Five homers, one distant roost, the whole map between. First one home wins.',
+    mech: 'homing',
+    homers: [
+      { name: 'Old Reliable', lkId: 140, p: 0.30 },
+      { name: 'Feathered Lightning', lkId: 90, p: 0.24 },
+      { name: 'The Postmaster General', lkId: 141, p: 0.19 },
+      { name: 'Wrong Way Wanda', lkId: 18, p: 0.15 },
+      { name: 'Sky Potato', lkId: 116, p: 0.12 },
+    ],
+  },
 };
+
+/* ------------------------------------------------------------
+   Shared clocks: the day/night cycle (night markets trade after
+   dark) and the lantern festival window (see liveevents.js).
+   ------------------------------------------------------------ */
+export function nightNow() {
+  const N = CONFIG.NIGHT;
+  const into = (Date.now() / 1000) % N.CYCLE_S;
+  const night = into < N.NIGHT_S;
+  // soft 12s dusk/dawn ramps for the world tint
+  const k = night ? Math.max(0, Math.min(1, into / 12, (N.NIGHT_S - into) / 12)) : 0;
+  return { night, k, until: night ? N.NIGHT_S - into : N.CYCLE_S - into, idx: Math.floor(Date.now() / 1000 / N.CYCLE_S) };
+}
 
 /* ------------------------------------------------------------
    Engine helpers
@@ -1590,10 +1652,9 @@ async function runPanning(def, provCode) {
 }
 
 /* ------------------------------------------------------------
-   Mechanic: lantern — the river festival. Eight lanterns go on
-   the water; your finishing position is drawn from def.Q and
-   the temple pot pays the podium, scaled so E = stake x RTP.
-   Fires only during the periodic festival window.
+   Lantern festival helpers — the race itself now runs LIVE on
+   the river (see liveevents.js: openLanternFestival), which
+   imports these for the window and the honest prize ladder.
    ------------------------------------------------------------ */
 export function lanternWindow() {
   const L = CONFIG.LANTERNS;
@@ -1605,31 +1666,31 @@ export function lanternPrizes(bet, rtp, def) {
   const scale = rtp / evK;
   return def.K.map((k) => Math.round(k * scale * bet));
 }
-const LANTERN_FOLK = [
+export const LANTERN_FOLK = [
   'Old Boonmee', 'Auntie Dao', 'Little Ping', 'Brother Somsak', 'Grandmother Yin',
   'Kai the Ferryman', 'Madame Orchid', 'Two-Coin Tan', 'Sleepy Niran', 'Widow Chen',
   'Lotus-Eyed Lin', 'The Quiet Novice',
 ];
 
-async function runLantern(def, provCode) {
-  const win = lanternWindow();
-  if (!win.open) {
-    const m = Math.floor(win.until / 60), s2 = Math.round(win.until % 60);
-    showModal(`
-      <h2>🏮 ${escapeHtml(def.name)}</h2>
-      <div class="subtitle">The monks are still folding lanterns…</div>
-      <div class="stage"><div class="big-sym">🕯️</div>
-      <div class="flavor">The next launch begins in <b>${m}m ${s2}s</b>. Come back when the river lights up.</div></div>
-      <div class="btn-row"><button class="btn secondary" id="lf-ok">Until then</button></div>
-    `);
-    document.getElementById('lf-ok').addEventListener('click', closeModal);
-    return;
-  }
+/* ------------------------------------------------------------
+   Mechanic: expedition — Mount Colossus. A staged ladder like
+   the dragon gates, but every attempt draws its own WEATHER,
+   every stage has its own odds, and you pick your style: climb
+   alone (longer odds, fatter legs) or rope up with a sherpa
+   (steadier, slimmer). Both pay each stage at RTP / p, so the
+   mountain is honest whichever way you face it. Reaching the
+   summit shrine also earns the mountain's blessing (a luck buff).
+   ------------------------------------------------------------ */
+async function runExpedition(def, provCode) {
   session++;
-  const rtp = effectiveRTP('lanternfest', provCode);
+  const rtp = effectiveRTP('colossus', provCode);
+  const weather = weightedPick(def.weathers.map((w) => ({ ...w, weight: w.w })));
+  let sherpa = false;
+  const stageP = (i) => Math.min(0.90, def.stages[i].p[weather.id] * (sherpa ? 1.15 : 1));
   showModal(`
-    <h2>🏮 ${escapeHtml(def.name)}</h2>
-    <div class="subtitle">${escapeHtml(def.desc)} · RTP ${(rtp * 100).toFixed(1)}% · launch window ${Math.ceil(win.left)}s</div>
+    <h2>${def.ico} ${escapeHtml(def.name)}</h2>
+    <div class="subtitle">${escapeHtml(def.desc)} · RTP ${(rtp * 100).toFixed(1)}%<br>
+      ${weather.ico} <b>${escapeHtml(weather.label)}</b> — ${escapeHtml(weather.blurb)}</div>
     <div class="stage" id="g-stage"></div>
     <div id="g-bet"></div>
     <div class="btn-row" id="g-actions"></div>
@@ -1639,67 +1700,406 @@ async function runLantern(def, provCode) {
   buildBetRow(document.getElementById('g-bet'), (v) => { bet = v; });
   const goBtn = document.createElement('button');
   goBtn.className = 'btn';
-  goBtn.textContent = '🏮 Light yours & launch';
+  goBtn.textContent = '🏔️ Set out';
   document.getElementById('g-actions').appendChild(goBtn);
-  const prizesPreview = lanternPrizes(100, rtp, def);
-  stage.innerHTML = `<div class="big-sym">🏮</div>
-    <div class="flavor">Your offering joins seven others on the current. Furthest upriver wins the temple pot:
-    1st pays ${fmtMult(prizesPreview[0] / 100)}x · 2nd ${fmtMult(prizesPreview[1] / 100)}x · 3rd ${fmtMult(prizesPreview[2] / 100)}x.</div>`;
 
-  goBtn.addEventListener('click', async () => {
+  let at = 0, mult = 1, climbing = false;
+
+  function routeBoard(msg) {
+    const rows = def.stages.map((st, i) => `
+      <div class="race-lane" style="opacity:${i < at ? 0.55 : 1};${i === at && climbing ? 'outline:2px solid var(--gold);border-radius:6px' : ''}">
+        <span style="width:26px">${i < at ? '✅' : st.ico}</span>
+        <span style="flex:1;text-align:left">${escapeHtml(st.name)}</span>
+        <span class="odds">${i >= at ? `${(stageP(i) * 100).toFixed(0)}% · ${fmtMult(rtp / stageP(i))}x` : 'climbed'}</span>
+      </div>`).join('');
+    stage.innerHTML = `
+      <div class="flavor" style="margin-bottom:4px">${escapeHtml(msg)}</div>
+      ${rows}
+      ${climbing ? `<div class="flavor">Pot: <b style="color:var(--gold)">${fmtCoins(bet * mult)}</b> (${fmtMult(mult)}x)</div>
+      <div class="choice-grid">
+        <button class="choice-card" id="ex-go" style="font-size:13px">${def.stages[at].ico}<br>Climb on<br>${fmtMult(rtp / stageP(at))}x</button>
+        <button class="choice-card" id="ex-cash" style="font-size:13px">⛺<br>Descend with<br>${fmtCoins(bet * mult)}</button>
+      </div>` : `<div class="flavor">Style: ${sherpa ? '🧗 roped to a sherpa — steadier odds, slimmer legs' : '🥾 climbing alone — long odds, fat legs'}
+        <button class="btn tiny secondary" id="ex-style">switch</button></div>`}`;
+    if (climbing) {
+      document.getElementById('ex-go').addEventListener('click', ascend);
+      document.getElementById('ex-cash').addEventListener('click', descend);
+    } else {
+      document.getElementById('ex-style').addEventListener('click', () => { sherpa = !sherpa; routeBoard('The route board, chalked fresh this morning:'); });
+    }
+  }
+
+  async function ascend() {
     const s = session;
+    stage.querySelectorAll('.choice-card').forEach((b) => (b.style.pointerEvents = 'none'));
+    const st = def.stages[at], p = stageP(at);
+    stage.querySelector('.flavor').textContent = `${st.ico} You commit to ${st.name}…`;
+    await wait(900);
+    if (!alive(s)) return;
+    if (roll() < p) {
+      mult *= rtp / p;
+      at++;
+      if (at >= def.stages.length) {
+        climbing = false;
+        stage.innerHTML = `<div class="big-sym">⛩️</div>`;
+        settle(bet, mult, stage, 'THE SUMMIT SHRINE! The bells ring only for those who arrive.');
+        grantLuck(0.03, 120);
+        toast('🏔️ <b>The mountain\'s blessing</b> — +3% RTP for 120s', true);
+        goBtn.disabled = false;
+        return;
+      }
+      routeBoard(`${st.ico} ${st.name} falls behind you. The air thins.`);
+    } else {
+      climbing = false;
+      stage.innerHTML = `<div class="big-sym">🌨️</div>`;
+      settle(0, 0, stage, st.fail);
+      goBtn.disabled = false;
+    }
+  }
+
+  function descend() {
+    if (!climbing) return;
+    climbing = false;
+    stage.innerHTML = `<div class="big-sym">⛺</div>`;
+    settle(bet, mult, stage, `You descend from ${def.stages[at - 1]?.name || 'base camp'} with the pot and all your fingers.`);
+    goBtn.disabled = false;
+  }
+
+  routeBoard('The route board, chalked fresh this morning:');
+  goBtn.addEventListener('click', () => {
     if (!playGuard(bet)) return;
     goBtn.disabled = true;
-    const prizes = lanternPrizes(bet, rtp, def);
-    // draw your placement honestly, then choreograph the drift to match
-    let r = roll(), place = def.Q.length - 1;
-    for (let i = 0; i < def.Q.length; i++) { r -= def.Q[i]; if (r <= 0) { place = i; break; } }
-    const folk = [...LANTERN_FOLK].sort(() => roll() - 0.5).slice(0, 7);
-    const names = ['You', ...folk];
-    // finishing order: `place` rivals drift further than yours
-    const rivalRanks = folk.map((_, i) => i).sort(() => roll() - 0.5);
-    const rankOf = new Array(8);
-    rankOf[0] = place;
-    rivalRanks.forEach((ri, j) => { rankOf[ri + 1] = j < place ? j : j + 1; });
-    const drama = names.map(() => ({ amp: 0.05 + roll() * 0.05, freq: 0.8 + roll() * 1.5, phase: roll() * 6.28 }));
-    stage.innerHTML = `<div class="flavor" style="margin-bottom:4px">🕯️ The lanterns take the current…</div>` +
-      names.map((nm, i) => `<div class="race-lane"><span style="width:104px;text-align:left;font-size:11.5px;${i === 0 ? 'color:var(--gold);font-weight:700' : ''}">${escapeHtml(nm)}</span>
-        <div class="track"><div class="runner" data-i="${i}">🏮</div></div>
-        <span class="odds" data-o="${i}"></span></div>`).join('');
-    const runners = [...stage.querySelectorAll('.runner')];
-    const T_TOTAL = 7.5;
-    const finalFrac = names.map((_, i) => 1 - rankOf[i] * 0.09);   // furthest = rank 0
+    at = 0; mult = 1; climbing = true;
+    routeBoard('⛺ You shoulder your pack at base camp.');
+  });
+}
+
+/* ------------------------------------------------------------
+   Mechanic: market — the night market. Stalls trade only after
+   dark. Each night rolls a fresh spread: three crates at their
+   posted (honest) chest odds — one a genuine "special" — plus a
+   black-market Lucklian at a collector's markup and one species
+   in strange demand, bought above face value, off the books.
+   ------------------------------------------------------------ */
+function seededPick(arr, seed, salt) {
+  return arr[Math.floor(hash2(seed, salt, 777) * arr.length) % arr.length];
+}
+
+async function runMarket(def, provCode) {
+  const night = nightNow();
+  if (!night.night) {
+    const m = Math.floor(night.until / 60), s2 = Math.round(night.until % 60);
+    showModal(`
+      <h2>🏮 ${escapeHtml(def.name)}</h2>
+      <div class="subtitle">Shuttered. A note is pinned to the awning:</div>
+      <div class="stage"><div class="big-sym">🌞</div>
+      <div class="flavor">“Back after dark. Night falls in <b>${m}m ${s2}s</b>. Bring coin. Ask no questions.”</div></div>
+      <div class="btn-row"><button class="btn secondary" id="nm-ok">Move along</button></div>
+    `);
+    document.getElementById('nm-ok').addEventListener('click', closeModal);
+    return;
+  }
+  const seed = night.idx * 31 + (provCode === 'MN' ? 7 : 3);
+  const specialPrice = Math.round((500 + hash2(seed, 11, 42) * 400) / 25) * 25;
+  // contraband: a mid-rare species at a collector's markup
+  const contraPool = LUCKLIANS.filter((l) => l.rare >= 0.004 && l.rare < 0.05);
+  const contra = seededPick(contraPool, seed, 1);
+  const markup = 1.05 + hash2(seed, 2, 9) * 0.25;
+  const contraPrice = Math.round((contra.value * markup) / 5) * 5;
+  // demand: one species bought above face, off the market books
+  const demand = seededPick(LUCKLIANS, seed, 3);
+  const demandPay = Math.round((demand.value * 1.15) / 5) * 5;
+  const bought = state.nmBought || (state.nmBought = {});
+  const contraKey = `${night.idx}:${provCode}`;
+
+  function board() {
+    const owned = state.lk?.caught[demand.id] || 0;
+    const tier = rarityTier(contra.rare);
+    showModal(`
+      <h2>🏮 ${escapeHtml(def.name)}</h2>
+      <div class="subtitle">Lanterns lit · the market closes in ${Math.floor(night.until / 60)}m — tonight's spread:</div>
+      <div id="nm-list">
+        ${def.crates.map((c, i) => {
+          const price = c.price || specialPrice;
+          return `<div class="race-lane race-pick-btn" data-crate="${i}">
+            <span style="flex:1;text-align:left">${c.ico} ${escapeHtml(c.name)}<br>
+              <span style="font-size:10.5px;opacity:.75">${c.rtp >= 0.98 ? 'the stallkeeper won\'t meet your eye — a real bargain' : 'sealed, rattling promisingly'}</span></span>
+            <span class="odds">${price} 🪙 · RTP ${(c.rtp * 100).toFixed(1)}%</span></div>`;
+        }).join('')}
+        <div class="race-lane race-pick-btn" id="nm-contra" ${bought[contraKey] ? 'style="opacity:.5;pointer-events:none"' : ''}>
+          <span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">
+            <img src="${getLucklianSprite(contra).toDataURL()}" style="width:26px;image-rendering:pixelated" alt="">
+            <span><span style="color:${tier.color}">${escapeHtml(contra.name)}</span> <span style="opacity:.7">· no questions asked</span><br>
+            <span style="font-size:10.5px;opacity:.75">${bought[contraKey] ? 'sold — come back tomorrow night' : `face value ${fmtCoins(contra.value)} 🪙 — collector's markup`}</span></span></span>
+          <span class="odds">${contraPrice} 🪙</span></div>
+        <div class="race-lane ${owned > 0 ? 'race-pick-btn' : ''}" id="nm-demand" ${owned > 0 ? '' : 'style="opacity:.55"'}>
+          <span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">
+            <img src="${getLucklianSprite(demand, owned === 0).toDataURL()}" style="width:26px;image-rendering:pixelated" alt="">
+            <span>WANTED: ${escapeHtml(demand.name)}<br>
+            <span style="font-size:10.5px;opacity:.75">${owned > 0 ? `you have ${owned} — pays over face, off the books` : 'bring one after dark and name your price'}</span></span></span>
+          <span class="odds">pays ${fmtCoins(demandPay)} 🪙</span></div>
+      </div>
+    `);
+    document.querySelectorAll('[data-crate]').forEach((el) => el.addEventListener('click', () => {
+      const c = def.crates[+el.dataset.crate];
+      openConcealer({ x: 0, y: 0, type: { id: 'nm-' + el.dataset.crate, name: c.name, ico: c.ico, price: c.price || specialPrice, rtp: c.rtp } }, provCode, () => {});
+    }));
+    document.getElementById('nm-contra')?.addEventListener('click', () => {
+      if (bought[contraKey] || !spend(contraPrice)) { if (!bought[contraKey]) toast('Not enough coins for the back shelf.'); return; }
+      bought[contraKey] = true;
+      recordCatch(contra);
+      renderBalance();
+      toast(`🏮 A cloth bundle changes hands — <b>${escapeHtml(contra.name)}</b> is yours. No receipts.`, contra.rare < 0.01);
+      board();
+    });
+    if (owned > 0) document.getElementById('nm-demand')?.addEventListener('click', () => {
+      if ((state.lk.caught[demand.id] || 0) === 0) return;
+      state.lk.caught[demand.id] -= 1;
+      payout(demandPay);
+      renderBalance();
+      toast(`🏮 Sold a ${escapeHtml(demand.name)} for ${fmtCoins(demandPay)} 🪙 — ${(demandPay / demand.value).toFixed(2)}x face, off the books.`);
+      board();
+    });
+  }
+  board();
+}
+
+/* ------------------------------------------------------------
+   The Crossing — the Paradise Ferry's below-decks den. It only
+   exists while the boat is under way: a progress bar crawls
+   dock to dock while the captain rattles two dice. Port (2–6),
+   Starboard (8–12), or Lucky Sevens — each pays RTP / p.
+   ------------------------------------------------------------ */
+const DIE_FACES = ['⚀', '⚁', '⚂', '⚃', '⚄', '⚅'];
+export function openCrossingDen(provCode, destLabel) {
+  session++;
+  const rtp = effectiveRTP('shipsbones', provCode);
+  const seconds = CONFIG.CROSSING_S;
+  const rough = (state.tide ?? 0.5) > 0.6;
+  const WAGERS = [
+    { id: 'port', label: 'Port (2–6)', ico: '⬅️', p: 15 / 36 },
+    { id: 'star', label: 'Starboard (8–12)', ico: '➡️', p: 15 / 36 },
+    { id: 'seven', label: 'Lucky Sevens', ico: '7️⃣', p: 6 / 36 },
+  ];
+  showModal(`
+    <h2>🎲 Below Decks</h2>
+    <div class="subtitle">The den only exists mid-crossing — bound for ${escapeHtml(destLabel)} · RTP ${(rtp * 100).toFixed(1)}%<br>
+    ${rough ? '🌊 Rough water tonight — the dice never sit still.' : '🌙 A flat calm — the lamp barely swings.'}</div>
+    <div id="cr-bar" style="height:10px;background:#17102a;border:1px solid #3a2c58;border-radius:5px;margin:4px 0 8px;overflow:hidden">
+      <div id="cr-fill" style="height:100%;width:0%;background:linear-gradient(90deg,#3fa9f5,#8fe0ff)"></div>
+    </div>
+    <div class="stage" id="g-stage"></div>
+    <div id="g-bet"></div>
+    <div class="btn-row" id="g-actions"></div>
+  `, { onClose: () => { session++; } });
+  const stage = document.getElementById('g-stage');
+  let bet = state.lastBet;
+  buildBetRow(document.getElementById('g-bet'), (v) => { bet = v; });
+  const s0 = session;
+  const t0 = performance.now();
+  let ashoreShown = false;
+  (function barTick() {
+    if (!alive(s0)) return;
+    const k = Math.min(1, (performance.now() - t0) / (seconds * 1000));
+    const fill = document.getElementById('cr-fill');
+    if (fill) fill.style.width = `${(k * 100).toFixed(1)}%`;
+    if (k >= 1 && !ashoreShown) {
+      ashoreShown = true;
+      const acts = document.getElementById('g-actions');
+      if (acts) {
+        const b = document.createElement('button');
+        b.className = 'btn';
+        b.textContent = `⚓ Step ashore at ${destLabel}`;
+        b.addEventListener('click', closeModal);
+        acts.appendChild(b);
+      }
+    }
+    if (k < 1) requestAnimationFrame(barTick);
+  })();
+
+  function board() {
+    stage.innerHTML = `<div class="flavor" style="margin-bottom:6px">🕯️ The captain tips the cup toward you: “Call it, landlubber.”</div>` +
+      WAGERS.map((w, i) => `<div class="race-lane race-pick-btn" data-w="${i}">
+        <span style="flex:1;text-align:left">${w.ico} ${escapeHtml(w.label)}</span>
+        <span class="odds">${fmtMult(rtp / w.p)}x</span></div>`).join('');
+    stage.querySelectorAll('[data-w]').forEach((el) => el.addEventListener('click', () => throwBones(WAGERS[+el.dataset.w])));
+  }
+
+  async function throwBones(w) {
+    const s = session;
+    if (!playGuard(bet)) return;
+    const d1 = 1 + ((roll() * 6) | 0), d2 = 1 + ((roll() * 6) | 0);
+    const sum = d1 + d2;
+    stage.innerHTML = `<div class="big-sym"><span class="shake">🎲</span> <span class="shake">🎲</span></div>
+      <div class="flavor">${rough ? 'The hull heaves — the bones clatter twice as long…' : 'The bones rattle across the felt…'}</div>`;
+    await wait(1000);
+    if (!alive(s)) return;
+    stage.innerHTML = `<div class="big-sym">${DIE_FACES[d1 - 1]} ${DIE_FACES[d2 - 1]}</div><div class="flavor">${sum}!</div>`;
+    const hit = (w.id === 'port' && sum <= 6) || (w.id === 'star' && sum >= 8) || (w.id === 'seven' && sum === 7);
+    await wait(350);
+    if (!alive(s)) return;
+    settle(bet, hit ? rtp / w.p : 0, stage,
+      hit ? (w.id === 'seven' ? 'SEVENS! The captain mutters about beginner\'s luck.' : 'The captain slides your winnings over with two fingers.')
+          : 'The captain sweeps the felt without looking up.');
+    const again = document.createElement('button');
+    again.className = 'btn secondary';
+    again.textContent = 'Throw again';
+    again.addEventListener('click', board);
+    stage.appendChild(again);
+  }
+  board();
+}
+
+/* ------------------------------------------------------------
+   Mechanic: homing — the FL post race, run over the REAL map.
+   Five homers streak from the loft to a far-off roost as living
+   dots on the world map; the winner is drawn honestly and pays
+   RTP / p, with drama shuffling the order along the way.
+   ------------------------------------------------------------ */
+const HOMER_COLORS = ['#ffd75e', '#5eeaff', '#ff6be0', '#8dff6b', '#ff9a6b'];
+
+async function runHoming(def, provCode) {
+  session++;
+  const rtp = effectiveRTP('homingpost', provCode);
+  const world = worldRef;
+  if (!world) return;
+  const loft = world.events.find((e) => e.game === 'homingpost') || { x: 24, y: 100 };
+  const far = world.cities.filter((c) => Math.hypot(c.x - loft.x, c.y - loft.y) > 150);
+  const roost = far[(roll() * far.length) | 0] || world.cities[world.cities.length - 1];
+  let bet = state.lastBet;
+  const m = showModal(`
+    <h2>🕊️ ${escapeHtml(def.name)}</h2>
+    <div class="subtitle">Today's race: the loft to <b>${escapeHtml(roost.name)}</b>, ${Math.round(Math.hypot(roost.x - loft.x, roost.y - loft.y))} leagues as the Lucklian flies · RTP ${(rtp * 100).toFixed(1)}%</div>
+    <div class="stage" id="g-stage"></div>
+    <div id="g-bet"></div>
+  `, { onClose: () => { session++; } });
+  buildBetRow(m.querySelector('#g-bet'), (v) => { bet = v; });
+  const stage = document.getElementById('g-stage');
+
+  function board() {
+    stage.innerHTML = `<div class="flavor" style="margin-bottom:6px">Back a homer — then watch the whole flight on the map:</div>` +
+      def.homers.map((h, i) => {
+        const sp = BY_ID.get(h.lkId);
+        return `<div class="race-lane race-pick-btn" data-i="${i}">
+          <span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">
+            <span style="width:10px;height:10px;border-radius:50%;background:${HOMER_COLORS[i]};display:inline-block"></span>
+            ${escapeHtml(h.name)} <span style="opacity:.65;font-size:11px">· ${escapeHtml(sp?.name || '')}</span></span>
+          <span class="odds">${fmtMult(rtp / h.p)}x</span></div>`;
+      }).join('');
+    stage.querySelectorAll('[data-i]').forEach((el) => el.addEventListener('click', () => fly(+el.dataset.i)));
+  }
+
+  async function fly(pickIdx) {
+    const s = session;
+    if (!playGuard(bet)) return;
+    // draw the winner honestly, then choreograph the flight
+    let r = roll(), winner = 0;
+    for (let i = 0; i < def.homers.length; i++) { r -= def.homers[i].p; if (r <= 0) { winner = i; break; } }
+    const order = def.homers.map((_, i) => i).filter((i) => i !== winner).sort(() => roll() - 0.5);
+    order.unshift(winner);
+    const times = {};
+    order.forEach((idx, rank) => { times[idx] = 11 + rank * (0.5 + roll() * 0.4); });
+    // one curved path per bird: a bowed line with personal wobble
+    const paths = def.homers.map(() => {
+      const mx = (loft.x + roost.x) / 2, my = (loft.y + roost.y) / 2;
+      const dx = roost.x - loft.x, dy = roost.y - loft.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const bow = (roll() - 0.5) * 90;
+      return {
+        cx: mx + (-dy / len) * bow, cy: my + (dx / len) * bow,
+        wAmp: 2 + roll() * 4, wFreq: 6 + roll() * 8, wPhase: roll() * 6.28,
+      };
+    });
+    const drama = def.homers.map(() => ({
+      amp: 0.02 + roll() * 0.03, freq: 0.5 + roll() * 1.2, phase: roll() * 6.28,
+      surgeT: 2 + roll() * 5, surgeLen: 1.2 + roll() * 1.6, surgeBoost: 0.04 + roll() * 0.06,
+    }));
+    stage.innerHTML = `
+      <canvas id="hm-cv" width="${world.W}" height="${world.H}" style="width:100%;image-rendering:pixelated;border-radius:8px;border:2px solid #3a2c58"></canvas>
+      <div id="hm-board" style="font-size:11.5px;text-align:left;line-height:1.5;margin-top:6px"></div>`;
+    const cv = document.getElementById('hm-cv');
+    const cctx = cv.getContext('2d');
+    // paint the base map once, keep it as the backdrop
+    const base = document.createElement('canvas');
+    base.width = world.W; base.height = world.H;
+    paintWorldMap(base.getContext('2d'), world);
+    const prog = def.homers.map(() => 0);
+    const finished = [];
+    const trails = def.homers.map(() => []);
     const t0 = performance.now();
+    const bez = (p0, pc, p1, t) => {
+      const u = 1 - t;
+      return { x: u * u * p0.x + 2 * u * t * pc.x + t * t * p1.x, y: u * u * p0.y + 2 * u * t * pc.y + t * t * p1.y };
+    };
     await new Promise((res) => {
-      const step = () => {
+      function frame() {
         if (!alive(s)) return res();
         const t = (performance.now() - t0) / 1000;
-        const k = Math.min(1, t / T_TOTAL);
-        const ease = 1 - Math.pow(1 - k, 2);
-        names.forEach((_, i) => {
-          const sway = drama[i].amp * Math.sin(t * drama[i].freq + drama[i].phase) * (1 - ease);
-          const frac = Math.max(0, Math.min(1, finalFrac[i] * ease + sway));
-          const tr = runners[i].parentElement;
-          runners[i].style.left = `${frac * (tr.clientWidth - 22)}px`;
+        const winnerDone = finished.includes(winner);
+        cctx.drawImage(base, 0, 0);
+        // loft + roost markers
+        cctx.fillStyle = '#ffffff';
+        cctx.fillRect(loft.x - 1, loft.y - 1, 3, 3);
+        cctx.fillStyle = '#ffd75e';
+        cctx.fillRect(roost.x - 2, roost.y - 2, 5, 5);
+        def.homers.forEach((h, i) => {
+          if (prog[i] < 1) {
+            const base2 = Math.min(1, t / times[i]);
+            const D = drama[i];
+            const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
+            let d = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
+            const fade = Math.max(0, Math.min(1, (1 - base2) * 2.6)) * Math.min(1, base2 * 10);
+            d *= fade;
+            let target = base2 + Math.max(-(1 - base2) * 0.4, Math.min((1 - base2) * 0.4, d));
+            if (i !== winner && !winnerDone) target = Math.min(target, 0.985);
+            prog[i] = Math.min(1, Math.max(prog[i], target));
+            if (prog[i] >= 1 && !finished.includes(i)) finished.push(i);
+          }
+          const P = paths[i];
+          const pt = bez({ x: loft.x, y: loft.y }, { x: P.cx, y: P.cy }, { x: roost.x, y: roost.y }, prog[i]);
+          pt.x += Math.sin(prog[i] * P.wFreq * 6.28 + P.wPhase) * P.wAmp * (1 - prog[i]);
+          pt.y += Math.cos(prog[i] * P.wFreq * 5.1 + P.wPhase) * P.wAmp * 0.6 * (1 - prog[i]);
+          trails[i].push(pt);
+          if (trails[i].length > 14) trails[i].shift();
+          trails[i].forEach((tp, k) => {
+            cctx.globalAlpha = (k / trails[i].length) * 0.5;
+            cctx.fillStyle = HOMER_COLORS[i];
+            cctx.fillRect(tp.x, tp.y, 1, 1);
+          });
+          cctx.globalAlpha = 1;
+          cctx.fillStyle = HOMER_COLORS[i];
+          cctx.fillRect(pt.x - 1, pt.y - 1, 3, 3);
+          cctx.fillStyle = '#ffffff';
+          cctx.fillRect(pt.x, pt.y, 1, 1);
         });
-        if (k >= 1) return res();
-        requestAnimationFrame(step);
-      };
-      step();
+        // live standings under the map
+        const board2 = document.getElementById('hm-board');
+        if (board2) {
+          const ranked = def.homers.map((h, i) => ({ h, i }))
+            .sort((a, b) => (finished.includes(a.i) || finished.includes(b.i))
+              ? (finished.indexOf(a.i) === -1 ? 99 : finished.indexOf(a.i)) - (finished.indexOf(b.i) === -1 ? 99 : finished.indexOf(b.i))
+              : prog[b.i] - prog[a.i]);
+          board2.innerHTML = ranked.map((e, rank) =>
+            `<span style="color:${e.i === pickIdx ? 'var(--gold-2)' : 'inherit'};font-weight:${e.i === pickIdx ? 700 : 400}">
+             ${rank + 1}. <span style="color:${HOMER_COLORS[e.i]}">●</span> ${escapeHtml(e.h.name)}${finished.includes(e.i) ? ' 🏠' : ''}</span>`).join(' &nbsp; ');
+        }
+        if (finished.length >= def.homers.length || t > 18) return res();
+        requestAnimationFrame(frame);
+      }
+      frame();
     });
     if (!alive(s)) return;
-    stage.querySelectorAll('[data-o]').forEach((el) => {
-      const i = +el.dataset.o;
-      el.textContent = `${rankOf[i] + 1}${['st', 'nd', 'rd'][rankOf[i]] || 'th'}`;
-    });
-    const prize = prizes[place] || 0;
-    settle(bet, prize / bet, stage,
-      place === 0 ? 'Yours drifts past the temple steps — the monks ring the bell for YOU!'
-      : place === 1 ? 'Second furthest — the pot honours it.'
-      : place === 2 ? 'Third — a podium lantern.'
-      : 'The current had other plans. The river keeps your offering.');
-    goBtn.disabled = false;
-  });
+    const won = pickIdx === winner;
+    settle(bet, won ? rtp / def.homers[pickIdx].p : 0, stage,
+      won ? `${def.homers[winner].name} folds its wings over ${roost.name} first — your call!`
+          : `${def.homers[winner].name} makes ${roost.name} first. Yours took the scenic route.`);
+    const again = document.createElement('button');
+    again.className = 'btn secondary';
+    again.textContent = 'Next race';
+    again.addEventListener('click', board);
+    stage.appendChild(again);
+  }
+  board();
 }
 
 /* ------------------------------------------------------------
@@ -1724,7 +2124,10 @@ export function openGame(gameId, provCode) {
     case 'fishing': runFishing(def, provCode); break;
     case 'hunt': openHuntLobby(provCode, def.national ? 'national' : 'local'); break;
     case 'panning': runPanning(def, provCode); break;
-    case 'lantern': runLantern(def, provCode); break;
+    case 'expedition': runExpedition(def, provCode); break;
+    case 'market': runMarket(def, provCode); break;
+    case 'homing': runHoming(def, provCode); break;
+    // 'lantern' is routed by main.js to the live river race in liveevents.js
   }
 }
 

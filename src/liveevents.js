@@ -13,11 +13,11 @@
    beast hunt -> naval battle.
    ============================================================ */
 
-import { TILE } from './world.js';
+import { TILE, T } from './world.js';
 import { roll } from './rng.js';
 import { state, spend, payout, effectiveRTP } from './state.js';
 import { showModal, closeModal, escapeHtml, toast, renderBalance, buildBetRow } from './ui.js';
-import { GAME_DEFS } from './games.js';
+import { GAME_DEFS, lanternWindow, lanternPrizes, LANTERN_FOLK } from './games.js';
 import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite, makeDragonBoatSprite, getLucklianSprite } from './sprites.js';
 import { BY_ID, LUCKLIANS, ownedCount } from './lucklians.js';
 
@@ -1599,5 +1599,282 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     ctx.font = font(9 * zoom / 2, false);
     ctx.fillStyle = live.win ? '#ffd75e' : '#b8b4c0';
     ctx.fillText(live.win ? `+${fmt(live.bet * live.mult)} 🪙` : 'better luck at the next card', cx, cy + 8 * zoom / 2 + 6);
+  }
+}
+
+/* ============================================================
+   The Lantern Festival — a LIVE race down the actual river.
+   Eight lanterns take the current from the dock; the camera
+   follows the flotilla, an in-world board tracks the order,
+   and your finishing place — drawn honestly from the festival's
+   long-odds ladder — decides the temple pot.
+   ============================================================ */
+const LANTERN_COLORS = ['#ffd75e', '#e05030', '#3fb0a0', '#e88ab0', '#8dff6b', '#e8b830', '#8a70c0', '#5eeaff'];
+
+let lanternRace = null;
+export function getLanternRace() { return lanternRace; }
+
+/* follow the water from the dock: a winding run of river tiles.
+   Water near a dock can be a dead-end pocket, so every nearby wet
+   tile gets a try and the longest run wins. */
+function riverPath(world, startTx, startTy) {
+  const isW = (x, y) => { const t = world.get(x, y); return t === T.WATER || t === T.SHALLOW; };
+  const starts = [];
+  for (let r = 1; r <= 7 && starts.length < 14; r++) {
+    for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      if (isW(startTx + dx, startTy + dy)) starts.push([startTx + dx, startTy + dy]);
+    }
+  }
+  const walk = (sx, sy) => {
+    const path = [[sx, sy]];
+    const seen = new Set([sy * world.W + sx]);
+    let dir = null;
+    for (let n = 0; n < 46; n++) {
+      const [cx, cy] = path[path.length - 1];
+      const opts = [];
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const nx = cx + dx, ny = cy + dy;
+        if (!isW(nx, ny) || seen.has(ny * world.W + nx)) continue;
+        opts.push({ nx, ny, dx, dy, score: (dir && dx === dir[0] && dy === dir[1]) ? 2 + roll() : 1 + roll() });
+      }
+      if (!opts.length) break;
+      opts.sort((a, b) => b.score - a.score);
+      const o = opts[0];
+      path.push([o.nx, o.ny]);
+      seen.add(o.ny * world.W + o.nx);
+      dir = [o.dx, o.dy];
+    }
+    return path;
+  };
+  let best = null;
+  for (const [sx, sy] of starts) {
+    const p = walk(sx, sy);
+    if (!best || p.length > best.length) best = p;
+    if (best.length >= 30) break;
+  }
+  if (!best || best.length < 8) return null;
+  return best.map(([x, y]) => ({ x: x * TILE + 8, y: y * TILE + 8 }));
+}
+
+export function openLanternFestival(world, provCode, ev) {
+  const def = GAME_DEFS.lanternfest;
+  const win = lanternWindow();
+  if (lanternRace) { toast('🏮 A race is already on the water — watch it home!'); return; }
+  if (!win.open) {
+    const mm = Math.floor(win.until / 60), ss = Math.round(win.until % 60);
+    showModal(`
+      <h2>🏮 ${escapeHtml(def.name)}</h2>
+      <div class="subtitle">The monks are still folding lanterns…</div>
+      <div class="stage"><div class="big-sym">🕯️</div>
+      <div class="flavor">The next launch begins in <b>${mm}m ${ss}s</b>. Come back when the river lights up.</div></div>
+      <div class="btn-row"><button class="btn secondary" id="lf-ok">Until then</button></div>
+    `);
+    document.getElementById('lf-ok').addEventListener('click', closeModal);
+    return;
+  }
+  const path = riverPath(world, Math.round(ev.x + ev.w / 2), Math.round(ev.y + ev.h / 2));
+  if (!path) { toast('The river is too tangled here for a fair race tonight.'); return; }
+  const rtp = effectiveRTP('lanternfest', provCode);
+  let bet = state.lastBet;
+  const preview = lanternPrizes(100, rtp, def);
+  const fmtM = (m) => (m >= 10 ? m.toFixed(1) : m.toFixed(2)).replace(/\.0+$/, '');
+  showModal(`
+    <h2>🏮 ${escapeHtml(def.name)}</h2>
+    <div class="subtitle">${escapeHtml(def.desc)} · RTP ${(rtp * 100).toFixed(1)}% · launch window ${Math.ceil(win.left)}s</div>
+    <div class="stage"><div class="big-sym">🏮</div>
+    <div class="flavor">Your offering joins seven others ON THE RIVER — the race runs right past the dock.
+    Furthest downstream takes the temple pot: 1st pays ${fmtM(preview[0] / 100)}x · 2nd ${fmtM(preview[1] / 100)}x · 3rd ${fmtM(preview[2] / 100)}x.</div></div>
+    <div id="lf-bet"></div>
+    <div class="btn-row"><button class="btn" id="lf-go">🏮 Light yours & launch</button></div>
+  `);
+  buildBetRow(document.getElementById('lf-bet'), (v) => { bet = v; });
+  document.getElementById('lf-go').addEventListener('click', () => {
+    if (state.balance < bet) { toast('Not enough coins for an offering!'); return; }
+    spend(bet);
+    state.stats.gamesPlayed++;
+    renderBalance();
+    closeModal();
+    startLanternRace(def, provCode, path, bet, rtp);
+  });
+}
+
+function startLanternRace(def, provCode, path, bet, rtp) {
+  const prizes = lanternPrizes(bet, rtp, def);
+  // draw your placement honestly, then choreograph the current to match
+  let r = roll(), place = def.Q.length - 1;
+  for (let i = 0; i < def.Q.length; i++) { r -= def.Q[i]; if (r <= 0) { place = i; break; } }
+  const folk = pickN(LANTERN_FOLK, 7);
+  const names = ['You', ...folk];
+  const rivalRanks = folk.map((_, i) => i).sort(() => roll() - 0.5);
+  const rankOf = new Array(8);
+  rankOf[0] = place;
+  rivalRanks.forEach((ri, j) => { rankOf[ri + 1] = j < place ? j : j + 1; });
+  const times = names.map((_, i) => 9.5 + rankOf[i] * (0.45 + roll() * 0.3));
+  const drama = names.map(() => ({
+    amp: 0.02 + roll() * 0.03, freq: 0.5 + roll() * 1.2, phase: roll() * Math.PI * 2,
+    surgeT: 1.5 + roll() * 4, surgeLen: 1 + roll() * 1.5, surgeBoost: 0.04 + roll() * 0.05,
+    lane: (roll() - 0.5) * 9, bobP: roll() * 6.28,
+  }));
+  lanternRace = {
+    def, bet, prizes, place, rankOf, names, path, times, drama,
+    prog: names.map(() => 0), finished: [], t: 0, phase: 'launch',
+    focus: { ...path[0] }, banner: null, doneT: 0, win: place <= 2,
+  };
+  toast('🕯️ The lanterns take the current — the race is on the river!');
+}
+
+function lanternPos(L, i) {
+  const f = Math.min(0.999, L.prog[i]) * (L.path.length - 1);
+  const k = Math.floor(f), fr = f - k;
+  const a = L.path[k], b = L.path[Math.min(L.path.length - 1, k + 1)];
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const D = L.drama[i];
+  const lat = D.lane * (0.4 + 0.6 * Math.sin(L.t * 0.7 + D.bobP));
+  return {
+    x: a.x + dx * fr + (-dy / len) * lat,
+    y: a.y + dy * fr + (dx / len) * lat + Math.sin(L.t * 2.2 + i) * 1.2,
+  };
+}
+
+export function updateLanternRace(dt) {
+  const L = lanternRace;
+  if (!L) return;
+  L.t += dt;
+  if (L.phase === 'launch') {
+    // lanterns wobble off the bank one by one
+    L.names.forEach((_, i) => { L.prog[i] = Math.min(0.02, Math.max(L.prog[i], (L.t - i * 0.15) * 0.012)); });
+    if (L.t > 1.6) { L.phase = 'drift'; L.t0 = L.t; }
+    L.focus = lanternPos(L, 0);
+    return;
+  }
+  if (L.phase === 'done') {
+    L.doneT += dt;
+    if (L.doneT > 3.6) lanternRace = null;
+    return;
+  }
+  const t = L.t - L.t0;
+  const winnerIdx = L.rankOf.indexOf(0);
+  const winnerDone = L.finished.includes(winnerIdx);
+  L.names.forEach((_, i) => {
+    if (L.prog[i] >= 1) return;
+    const base = Math.min(1, t / L.times[i]);
+    const D = L.drama[i];
+    const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
+    let d = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
+    const fade = Math.max(0, Math.min(1, (1 - base) * 2.6)) * Math.min(1, base * 10);
+    d *= fade;
+    let target = base + Math.max(-(1 - base) * 0.4, Math.min((1 - base) * 0.4, d));
+    if (i !== winnerIdx && !winnerDone) target = Math.min(target, 0.985);
+    L.prog[i] = Math.min(1, Math.max(L.prog[i], target));
+    if (L.prog[i] >= 1 && !L.finished.includes(i)) L.finished.push(i);
+  });
+  // camera rides with the front of the flotilla
+  const lead = L.prog.indexOf(Math.max(...L.prog));
+  const lp = lanternPos(L, lead);
+  L.focus.x += (lp.x - L.focus.x) * Math.min(1, dt * 3);
+  L.focus.y += (lp.y - L.focus.y) * Math.min(1, dt * 3);
+  if (L.finished.length >= L.names.length || t > 17) {
+    L.phase = 'done';
+    const prize = L.prizes[L.place] || 0;
+    if (prize > 0) {
+      payout(prize);
+      toast(`🏮 <b>${['GOLD', 'SILVER', 'BRONZE'][L.place]}!</b> Your lantern places ${L.place + 1}${['st', 'nd', 'rd'][L.place]} — the temple pot pays <span class="amt">${fmt(prize)}</span> 🪙!`, L.place === 0);
+    } else {
+      toast(`The current had other plans — your lantern drifts home ${L.place + 1}th of 8.`);
+    }
+    renderBalance();
+    L.banner = prize > 0
+      ? `🏮 ${L.place + 1}${['ST', 'ND', 'RD'][L.place]} PLACE — +${fmt(prize)} 🪙`
+      : `🏮 ${L.place + 1}TH OF 8 — THE RIVER KEEPS IT`;
+  }
+}
+
+/* drawn in world space by main, after entities */
+export function drawLanternRace(ctx, camX, camY, zoom, now, vw) {
+  const L = lanternRace;
+  if (!L) return;
+  const S = (wx) => (wx - camX) * zoom;
+  const Sy = (wy) => (wy - camY) * zoom;
+  const font = (px2, bold = true) => `${bold ? 'bold ' : ''}${px2}px "Courier New", monospace`;
+  // the finish: a moored rope of petals across the river at path's end
+  const end = L.path[L.path.length - 1];
+  ctx.fillStyle = 'rgba(255,215,94,0.7)';
+  for (let k = -2; k <= 2; k++) ctx.fillRect(S(end.x + k * 5) - zoom, Sy(end.y + Math.sin(now / 400 + k) * 2) - zoom, zoom * 2, zoom * 2);
+  // lanterns: glow, paper body, flame, reflection
+  L.names.forEach((_, i) => {
+    const p = lanternPos(L, i);
+    const col = LANTERN_COLORS[i % LANTERN_COLORS.length];
+    const flick = 0.75 + 0.25 * Math.sin(now / 90 + i * 2);
+    ctx.globalAlpha = 0.18 * flick;
+    ctx.fillStyle = col;
+    ctx.fillRect(S(p.x) - 7 * zoom, Sy(p.y) - 7 * zoom, 14 * zoom, 12 * zoom);   // soft glow
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = col;
+    ctx.fillRect(S(p.x) - 2 * zoom, Sy(p.y) - 4 * zoom, 4 * zoom, 4 * zoom);     // paper body
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.fillRect(S(p.x) - zoom, Sy(p.y) - 3 * zoom, 2 * zoom, 2 * zoom);         // hot heart
+    ctx.fillStyle = '#ffd75e';
+    ctx.fillRect(S(p.x) - zoom / 2, Sy(p.y) - 5 * zoom, zoom, zoom);             // flame tip
+    ctx.globalAlpha = 0.35 * flick;
+    ctx.fillStyle = col;
+    ctx.fillRect(S(p.x) - 2 * zoom, Sy(p.y) + zoom, 4 * zoom, zoom);             // reflection
+    ctx.globalAlpha = 1;
+    if (i === 0) {   // your lantern wears a little crown marker
+      ctx.font = font(7 * zoom / 2);
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 2;
+      ctx.strokeText('YOU', S(p.x), Sy(p.y) - 7 * zoom);
+      ctx.fillStyle = '#ffd75e';
+      ctx.fillText('YOU', S(p.x), Sy(p.y) - 7 * zoom);
+    }
+  });
+  /* top panel over the flotilla */
+  {
+    const cx = S(L.focus.x);
+    const topY = Math.max(6, Sy(L.focus.y) - 60 * zoom / 2);
+    const line1 = L.phase === 'launch' ? '🕯️ THE LANTERNS TAKE THE CURRENT…' : L.phase === 'done' ? 'THE RIVER DECIDES' : '🏮 DRIFTING FOR THE TEMPLE';
+    const line2 = `OFFERING ${fmt(L.bet)} → 🥇 ${fmt(L.prizes[0])} · 🥈 ${fmt(L.prizes[1])} · 🥉 ${fmt(L.prizes[2])}`;
+    ctx.font = font(11 * zoom / 2);
+    const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width) + 20;
+    panel(ctx, cx - w / 2, topY, w, 26 * zoom / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffd75e';
+    ctx.fillText(line1, cx, topY + 10 * zoom / 2);
+    ctx.fillStyle = '#e8e2d4';
+    ctx.font = font(9 * zoom / 2, false);
+    ctx.fillText(line2, cx, topY + 21 * zoom / 2);
+  }
+  /* running order, pinned to the right edge */
+  {
+    const rowH = 11 * zoom / 2;
+    const wPanel = 92 * zoom / 2;
+    const lbx = (vw || 800) - wPanel - 10;
+    const lby = 100;
+    panel(ctx, lbx, lby, wPanel, rowH * (L.names.length + 1) + 8);
+    ctx.font = font(9 * zoom / 2);
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#ffd75e';
+    ctx.fillText('— THE CURRENT —', lbx + 8, lby + rowH);
+    const ranked = L.names.map((nm, i) => ({ nm, i }))
+      .sort((a, b) => (L.finished.includes(a.i) || L.finished.includes(b.i))
+        ? (L.finished.indexOf(a.i) === -1 ? 99 : L.finished.indexOf(a.i)) - (L.finished.indexOf(b.i) === -1 ? 99 : L.finished.indexOf(b.i))
+        : L.prog[b.i] - L.prog[a.i]);
+    ranked.forEach((e, rank) => {
+      const done = L.finished.includes(e.i);
+      ctx.fillStyle = e.i === 0 ? '#ffd75e' : done ? '#8fdc9a' : '#e8e2d4';
+      ctx.fillText(`${rank + 1}. ${e.nm.slice(0, 11)}${done ? ' ✓' : ''}`, lbx + 8, lby + rowH * (rank + 2));
+    });
+  }
+  /* verdict banner */
+  if (L.phase === 'done' && L.banner) {
+    const cx = S(L.focus.x), cy = Sy(L.focus.y) - 20;
+    ctx.font = font(13 * zoom / 2);
+    const w = ctx.measureText(L.banner).width + 30;
+    panel(ctx, cx - w / 2, cy - 14 * zoom / 2, w, 24 * zoom / 2);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = L.win ? '#8fdc9a' : '#e8e2d4';
+    ctx.fillText(L.banner, cx, cy + 2 * zoom / 2);
   }
 }

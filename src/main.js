@@ -11,13 +11,13 @@ import { generateWorld, T, TILE, isSolidTile, PROVINCES } from './world.js';
 import { buildTileAtlas, makeCharSprite, getBuildingSprite, getEventSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
 import { state, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
-import { openGame, openHub, GAME_DEFS } from './games.js';
+import { openGame, openHub, GAME_DEFS, setWorld, nightNow, openCrossingDen } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer, openHoard } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
 import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
 import { getLucklianSprite, getStationSprite, getDecorSprite } from './sprites.js';
 import { getInterior, updatePatrons } from './interiors.js';
-import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay } from './liveevents.js';
+import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay, openLanternFestival, updateLanternRace, drawLanternRace, getLanternRace } from './liveevents.js';
 import { tickHunt } from './hunts.js';
 
 /* ---------------- boot ---------------- */
@@ -43,6 +43,13 @@ const npcs = createNpcs(world);
 const bots = createBots(world);
 const citizens = createCitizens(world);
 seedConcealers(world);
+setWorld(world);   // map races and loft lookups read the overworld
+
+/* world-event games that play out IN the world, not in a pop-up */
+function launchGame(gid, prov, ev) {
+  if (gid === 'lanternfest') openLanternFestival(world, prov, ev);
+  else openGame(gid, prov);
+}
 
 const floaters = []; // {x, y, text, color, t}
 function addFloater(x, y, text, color = '#ffd75e') {
@@ -282,7 +289,7 @@ function doInteract() {
   else if (t.kind === 'npc') talkTo(t.obj, prov);
   else if (t.kind === 'concealer') openConcealer(t.obj, prov, () => {});
   else if (t.kind === 'hoard') openHoard(prov);
-  else if (t.kind === 'event') openGame(t.obj.game, prov);
+  else if (t.kind === 'event') launchGame(t.obj.game, prov, t.obj);
   else if (t.kind === 'ferry') offerFerry(t.obj);
 }
 
@@ -327,7 +334,8 @@ function offerFerry({ f, other }) {
     player.x = other.x * TILE + 8;
     player.y = other.y * TILE + 8;
     UI.closeModal();
-    UI.toast(`⛴️ You sail across the Paradise Sea to ${UI.escapeHtml(other.label)}.`);
+    // the crossing takes a while — and there's a den below decks
+    openCrossingDen(world.provAt(other.x, other.y), other.label);
   });
 }
 
@@ -575,6 +583,7 @@ function interiorTick(dt, now) {
 /* ---------------- main loop ---------------- */
 let last = performance.now();
 let waterFrame = 0, waterT = 0;
+let wasNight = null;   // dusk/dawn transition announcements
 
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
@@ -583,6 +592,18 @@ function frame(now) {
   updateTide();
   UI.renderTide(tideLevel, tideRising);
   UI.renderLuckChip();
+
+  /* dusk & dawn announcements (the night markets trade after dark) */
+  {
+    const isNight = nightNow().night;
+    if (wasNight === null) wasNight = isNight;
+    else if (isNight !== wasNight) {
+      wasNight = isNight;
+      UI.toast(isNight
+        ? '🌙 <b>Night falls over Luckland</b> — the night markets are open.'
+        : '🌅 Dawn — the night markets shutter till dark.');
+    }
+  }
 
   /* --- player movement --- */
   if (!UI.isModalOpen()) {
@@ -607,17 +628,18 @@ function frame(now) {
       const ntx = Math.floor(player.x / TILE), nty = Math.floor(player.y / TILE);
       if (ntx !== lastStepTile.tx || nty !== lastStepTile.ty) {
         lastStepTile = { tx: ntx, ty: nty };
-        if (!scene) maybeEncounter(world, ntx, nty, currentProv);
+        if (!scene && !getLanternRace()) maybeEncounter(world, ntx, nty, currentProv);
       }
     } else player.frame = 0;
   }
   tickEncounterCooldown(dt);
   tickHunt(dt);           // scavenger-hunt rivals keep pace indoors and out
+  updateLanternRace(dt);  // a lantern race on the river settles wherever you are
   if (!scene) {
     traderTimer -= dt;
     if (traderTimer <= 0) {
       traderTimer = CONFIG.LUCKLIAN.TRADER_MIN_S + roll() * (CONFIG.LUCKLIAN.TRADER_MAX_S - CONFIG.LUCKLIAN.TRADER_MIN_S);
-      if (roll() < CONFIG.LUCKLIAN.TRADER_CHANCE) maybeTraderOffer();
+      if (roll() < CONFIG.LUCKLIAN.TRADER_CHANCE && !getLanternRace()) maybeTraderOffer();
     }
     resolveTideStranding();
     state.px = player.x; state.py = player.y;
@@ -638,7 +660,7 @@ function frame(now) {
       if (lm) enterLandmark(lm);
     } else if (pendingEvent) {
       doorCooldown = 1.2;
-      openGame(pendingEvent.game, currentProv);
+      launchGame(pendingEvent.game, currentProv, pendingEvent);
     }
   }
   pendingDoor = null; pendingEvent = null; pendingStation = null;
@@ -699,7 +721,11 @@ function frame(now) {
   if (waterT > 0.45) { waterT = 0; waterFrame = (waterFrame + 1) % 4; }
 
   const viewW = vw / zoom, viewH = vh / zoom;
-  let camX = player.x - viewW / 2, camY = player.y - viewH / 2;
+  // the camera rides with a lantern race while one is on the river
+  const lRace = getLanternRace();
+  const focX = lRace ? lRace.focus.x : player.x;
+  const focY = lRace ? lRace.focus.y : player.y;
+  let camX = focX - viewW / 2, camY = focY - viewH / 2;
   camX = Math.max(0, Math.min(world.W * TILE - viewW, camX));
   camY = Math.max(0, Math.min(world.H * TILE - viewH, camY));
 
@@ -814,6 +840,18 @@ function frame(now) {
       drawEmoji('🎉', e.x, e.y - 22, camX, camY, 10, Math.sin(now / 90) * 2);
     }
   }
+
+  /* night falls: a blue-dark wash over the overworld */
+  {
+    const nk = nightNow().k;
+    if (nk > 0) {
+      ctx.fillStyle = `rgba(12,14,48,${(0.30 * nk).toFixed(3)})`;
+      ctx.fillRect(0, 0, vw, vh);
+    }
+  }
+
+  /* a lantern race on the river draws over everything, glowing */
+  drawLanternRace(ctx, camX, camY, zoom, now, vw);
 
   /* floaters */
   for (let i = floaters.length - 1; i >= 0; i--) {
