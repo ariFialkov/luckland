@@ -52,13 +52,39 @@ export const CONFIG = {
     TRADER_CHANCE: 0.55,        // odds an offer actually happens each cycle
   },
 
-  // The Grand Scavenger Hunt.
+  // The Grand Scavenger Hunt (local qualifiers at province tents).
   HUNT: {
     FEE: 200,                   // sign-up fee at the tent
     LIST_SIZE: 4,               // species on each hunt card
     Q: [0.15, 0.30, 0.47, 0.08],  // odds of gold / silver / bronze / off-podium
     K: [3.5, 1.5, 0.6, 0],        // raw prize shape (x total stake), scaled to RTP
     BOTS: 7,                    // rival contestants
+  },
+
+  // The National Hunt — the travelling caravan's cross-country card.
+  HUNT_NAT: {
+    FEE: 750,                   // serious entry money
+    LIST_SIZE: 6,               // six species spanning the whole continent
+    Q: [0.11, 0.24, 0.40, 0.25],  // longer odds of the podium…
+    K: [4.2, 1.7, 0.7, 0],        // …but the gold purse is enormous
+    BOTS: 11,                   // a national field
+    ROTATE_MIN: 8,              // minutes the caravan stays in each pair of cities
+    THEME_CHANCE: 0.35,         // odds a card is themed (all-Sea, all-Neon…)
+  },
+
+  // Tide-treasure maps: chest-dropped fragments point to a sunken hoard.
+  TMAP: {
+    FRAG_CHANCE: 0.07,          // odds an opened chest also coughs up a fragment
+    FRAGS_NEEDED: 3,            // fragments to complete a map
+    HOARD_PRICE: 500,           // crack the barnacled locker
+    HOARD_RTP: 0.97,            // the best chest odds in the game
+  },
+
+  // Lantern festival: how often the rivers light up.
+  LANTERNS: {
+    CYCLE_S: 420,               // full cycle between festivals
+    OPEN_S: 110,                // launch window at the start of each cycle
+    ENTRIES: 8,                 // you + seven other lanterns on the water
   },
 };
 
@@ -113,6 +139,13 @@ export const GAME_RTP = {
   // Coastal & competitive
   fishing:        0.94,  // rod + bait vs the sea's Lucklians
   scavhunt:       0.94,  // the Grand Scavenger Hunt purse
+  natscav:        0.94,  // the National Hunt caravan's purse
+  goldpan:        0.94,  // sluice claims on the FL/HV streams
+  lanternfest:    0.95,  // the river festival's communal pot
+  regattabets:    0.93,  // DG — dragon-boat lanes on the bay
+  ownersrace:     0.93,  // HV — enter your own Lucklian at the Downs
+  beastbout:      0.93,  // TF — your beast on the Coliseum sand
+  karaokebets:    0.94,  // MN — the Neon Mic sing-off book
   // Neon Japan (MN)
   neonneko:       0.94,  // the beckoning paw's colour
   catparade:      0.95,  // cats from the gacha doors

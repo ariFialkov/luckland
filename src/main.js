@@ -12,7 +12,7 @@ import { buildTileAtlas, makeCharSprite, getBuildingSprite, getEventSprite, CELL
 import { state, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
 import { openGame, openHub, GAME_DEFS } from './games.js';
-import { concealers, seedConcealers, updateConcealerSpawns, openConcealer } from './concealers.js';
+import { concealers, seedConcealers, updateConcealerSpawns, openConcealer, openHoard } from './concealers.js';
 import { createNpcs, updateNpc, talkTo, createBots, updateBot, randomBotWinToast, createCitizens, updateCitizen } from './npcs.js';
 import { maybeEncounter, tickEncounterCooldown, getActiveEncounter, maybeTraderOffer, openLucklipedia } from './lucklians.js';
 import { getLucklianSprite, getStationSprite, getDecorSprite } from './sprites.js';
@@ -104,6 +104,7 @@ function updateTide() {
   const phase = (t / CONFIG.TIDE_CYCLE_SECONDS) * Math.PI * 2;
   tideLevel = 0.5 + 0.5 * Math.sin(phase);
   tideRising = Math.cos(phase) > 0;
+  state.tide = tideLevel;   // games read this (gold panning's gravel, etc.)
 }
 
 /* ---------------- interior scene ----------------
@@ -243,6 +244,11 @@ function findTarget() {
       return { kind: 'concealer', obj: c, label: `${c.type.name} · ${c.type.price} 🪙`, ico: c.type.ico };
     }
   }
+  // the mapped Sunken Hoard, if the tide has bared it
+  const hoard = state.tmap?.hoard;
+  if (hoard && near(hoard.x * TILE + 8, hoard.y * TILE + 8, 24)) {
+    return { kind: 'hoard', obj: hoard, label: 'Sunken Hoard · 500 🪙', ico: '💰' };
+  }
   // roadside attractions (solid props — reach scales with their size)
   for (const ev of world.events) {
     const cx = (ev.x + ev.w / 2) * TILE, cy = (ev.y + ev.h / 2) * TILE;
@@ -275,6 +281,7 @@ function doInteract() {
   }
   else if (t.kind === 'npc') talkTo(t.obj, prov);
   else if (t.kind === 'concealer') openConcealer(t.obj, prov, () => {});
+  else if (t.kind === 'hoard') openHoard(prov);
   else if (t.kind === 'event') openGame(t.obj.game, prov);
   else if (t.kind === 'ferry') offerFerry(t.obj);
 }
@@ -514,8 +521,8 @@ function interiorTick(dt, now) {
   const list = [player, ...it.patrons, ...it.actors.filter((a) => a.sprite && !(a.sink > 1.5))].sort((a, b) => a.y - b.y);
   for (const e of list) {
     const { sx, sy } = drawSprite(e, camX, camY);
-    if (e.type === 'ship' && e.crew && e.sink === 0) {
-      // live deckhands walking the boards
+    if ((e.type === 'ship' || e.type === 'boat') && e.crew && e.sink === 0) {
+      // live deckhands (or paddlers) working the boards
       for (const c of e.crew) {
         const csx = Math.round((e.x + c.ox - 5 - camX) * zoom);
         const csy = Math.round((e.y + c.oy - 6 - camY) * zoom);
@@ -752,6 +759,16 @@ function frame(now) {
   }
 
   const bobT = Math.sin(now / 300) * 2;
+
+  /* the mapped Sunken Hoard: a golden beacon over the tide flat */
+  const hoard = state.tmap?.hoard;
+  if (hoard && hoard.x >= x0 - 2 && hoard.x <= x1 + 2 && hoard.y >= y0 - 2 && hoard.y <= y1 + 2) {
+    const hx = hoard.x * TILE + 8, hy = hoard.y * TILE + 8;
+    ctx.fillStyle = `rgba(255,215,94,${0.16 + 0.08 * Math.sin(now / 300)})`;
+    ctx.fillRect((hx - 3 - camX) * zoom, (hy - 46 - camY) * zoom, 6 * zoom, 42 * zoom);
+    drawEmoji('💰', hx, hy + 5, camX, camY, 12, bobT * 0.5);
+    drawEmoji('✨', hx + 6, hy - 8, camX, camY, 7, bobT);
+  }
 
   /* concealers with sparkle */
   for (const c of concealers) {

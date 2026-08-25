@@ -610,3 +610,4 @@ html, body {
   background: rgba(255, 108, 108, 0.12); color: #ff9a8a;
   border: 1px solid rgba(255, 108, 108, 0.4); border-radius: 7px;
 }
+.hw-theme { text-align: center; color: var(--gold); font-weight: 700; font-size: 10.5px; margin-bottom: 3px; opacity: 0.95; }

@@ -1252,6 +1252,74 @@ function drawEventProp(ctx, game, W16, BH, v) {
       px(ctx, 18, B - 20, 3, 2, '#9aa0ac');
       break;
     }
+    case 'natscav': {                          // the National Hunt caravan — a painted wagon-booth
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 22, W16 - 10, 14, '#8a2030');          // wagon body
+      px(ctx, 2, B - 22, W16 - 10, 2, '#c43a4a');
+      px(ctx, 1, B - 26, W16 - 8, 4, '#f0c040');            // gilded arched roof
+      px(ctx, 3, B - 25, W16 - 12, 2, '#ffe066');
+      px(ctx, 4, B - 19, 12, 8, '#3a2a30');                 // open serving hatch
+      px(ctx, 5, B - 13, 10, 2, '#5a3a24');                 // counter
+      px(ctx, 7, B - 18, 3, 3, '#ffd75e');                  // trophy glinting inside
+      px(ctx, 8, B - 19, 1, 1, '#fff4c8');
+      px(ctx, 18, B - 20, 10, 5, '#f4ecd8');                // route board
+      px(ctx, 19, B - 19, 3, 1, '#c43a2a'); px(ctx, 24, B - 19, 3, 1, '#2a4a9a');
+      px(ctx, 19, B - 17, 3, 1, '#4f9c5e'); px(ctx, 24, B - 17, 3, 1, '#e8b830');
+      px(ctx, 4, B - 7, 6, 6, '#3a2a18');                   // wheels
+      px(ctx, 5, B - 6, 4, 4, '#8a6034');
+      px(ctx, W16 - 16, B - 7, 6, 6, '#3a2a18');
+      px(ctx, W16 - 15, B - 6, 4, 4, '#8a6034');
+      px(ctx, W16 - 7, B - 20, 2, 17, '#5a3a24');           // flag mast: six province ribbons
+      const RIB = ['#d9c078', '#4faf50', '#c8985a', '#c05050', '#4f9c6e', '#c96ad4'];
+      RIB.forEach((c, i2) => px(ctx, W16 - 5, B - 20 + i2 * 2, 4, 1, c));
+      px(ctx, W16 - 8, B - 24, 4, 4, '#ffd75e');            // golden horn on the mast top
+      break;
+    }
+    case 'goldpan': {                          // sluice run, gravel heap and the panner's kit
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 14, 26, 4, '#8a6034');                 // sluice box on legs
+      px(ctx, 3, B - 13, 24, 2, '#6a4a28');
+      for (let r = 0; r < 5; r++) px(ctx, 5 + r * 5, B - 13, 1, 2, '#4a3520'); // riffles
+      px(ctx, 4, B - 10, 2, 10, '#5a3a24'); px(ctx, 24, B - 10, 2, 10, '#5a3a24');
+      px(ctx, 0, B - 17, 6, 4, '#3a5a70');                  // headwater trough
+      px(ctx, 1, B - 16, 4, 2, '#8fd0e8');
+      px(ctx, 26, B - 9, 4, 3, '#8fd0e8');                  // tailwater splash
+      px(ctx, W16 - 16, B - 10, 9, 7, '#8a8478');           // gravel heap
+      px(ctx, W16 - 14, B - 12, 5, 3, '#9a948a');
+      px(ctx, W16 - 12, B - 9, 2, 1, '#ffd75e');            // a wink of gold in it
+      px(ctx, W16 - 6, B - 12, 5, 2, '#4a4642');            // the pan on a stump
+      px(ctx, W16 - 5, B - 11, 3, 1, '#ffd75e');
+      px(ctx, W16 - 6, B - 10, 5, 5, '#6a4a28');
+      px(ctx, 8, B - 22, 2, 8, '#5a3a24');                  // claim stake + sign
+      px(ctx, 5, B - 24, 8, 4, '#e8d49a');
+      px(ctx, 6, B - 23, 6, 1, '#8a6034');
+      break;
+    }
+    case 'lanternfest': {                      // festival launch dock strung with paper lanterns
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 6, W16 - 4, 4, '#8a6034');             // dock boards
+      px(ctx, 2, B - 6, W16 - 4, 1, '#a5793f');
+      px(ctx, 4, B - 2, 2, 2, '#5a3a24'); px(ctx, W16 - 6, B - 2, 2, 2, '#5a3a24');
+      px(ctx, 3, B - 26, 2, 20, '#5a3a24');                 // string poles
+      px(ctx, W16 - 5, B - 26, 2, 20, '#5a3a24');
+      px(ctx, 4, B - 25, W16 - 8, 1, '#4a3a2a');            // the line
+      const LCOLS = ['#e05030', '#e8b830', '#e05030', '#3fb0a0'];
+      LCOLS.forEach((c, i2) => {
+        const lx = 7 + i2 * 6;
+        px(ctx, lx, B - 24, 4, 5, c);                       // paper lanterns
+        px(ctx, lx + 1, B - 23, 2, 3, shade(c, 30));
+        px(ctx, lx + 1, B - 25, 2, 1, '#4a3a2a');
+        px(ctx, lx + 1, B - 19, 2, 1, '#ffd75e');           // tassel glow
+      });
+      px(ctx, 6, B - 12, 8, 6, '#c43a2a');                  // stacked lanterns for sale
+      px(ctx, 7, B - 11, 6, 2, '#e86a4a');
+      px(ctx, 15, B - 11, 6, 5, '#e8b830');
+      px(ctx, 16, B - 10, 4, 2, '#ffe066');
+      px(ctx, W16 - 10, B - 13, 7, 7, '#3a5a70');           // launch basin
+      px(ctx, W16 - 9, B - 12, 5, 5, '#8fd0e8');
+      px(ctx, W16 - 8, B - 11, 2, 2, '#ffd75e');            // one already glowing afloat
+      break;
+    }
     default:
       // No prop art for this game — never spawn one in the world. A grey
       // placeholder slab reads as a rendering bug and leaves an invisible
@@ -1782,6 +1850,47 @@ export function makeShipSprite(hull, sail) {
   return cv;
 }
 
+export function makeDragonBoatSprite(team) {
+  const CW = 42, CH = 22;
+  const cv = document.createElement('canvas');
+  cv.width = CW * 2; cv.height = CH * 2;    // cols: 0 = facing right, 1 = facing left; rows: paddle frames
+  const ctx = cv.getContext('2d');
+  const dark = shade(team, -30), hi = shade(team, 25);
+  for (let face = 0; face < 2; face++) for (let f = 0; f < 2; f++) {
+    const ox = face * CW, oy = f * CH;
+    const X = (x, w = 1) => (face === 1 ? ox + CW - x - w : ox + x);
+    const P = (x, y, w, h, c) => px(ctx, X(x, w), oy + y, w, h, c);
+    // long low hull, painted in team colours with scale pattern
+    P(2, 12, 36, 5, team);
+    P(3, 16, 34, 2, dark);
+    P(2, 12, 36, 1, hi);
+    for (let s = 0; s < 8; s++) P(5 + s * 4, 14, 2, 1, dark);   // scales
+    // dragon head prow (points right) with horns and barbels
+    P(38, 8, 4, 6, team);
+    P(40, 10, 2, 2, dark);                                 // snout
+    P(38, 6, 2, 2, '#ffd75e');                             // horn
+    P(39, 9, 1, 1, '#181420');                             // eye
+    P(41, 13, 1, 3, '#e05030');                            // barbel
+    // tall curled tail at the stern
+    P(1, 7, 3, 6, team);
+    P(0, 5, 3, 3, dark);
+    // drummer's platform amidship-stern
+    P(4, 9, 6, 3, '#8a6034');
+    P(5, 7, 4, 2, '#5a3a24');                              // the drum
+    P(5, 6, 4, 1, '#c43a2a');
+    // paddles sweeping (frame-dependent)
+    for (let i = 0; i < 5; i++) {
+      const oxr = 11 + i * 5;
+      if (f === 0) { P(oxr, 17, 1, 4, '#8a6034'); P(oxr - 1, 20, 3, 1, '#a5793f'); }
+      else { P(oxr + 1, 17, 1, 3, '#8a6034'); P(oxr, 19, 3, 1, '#a5793f'); }
+    }
+    // bow wake
+    P(38, 17, 4, 2, 'rgba(220,240,250,0.55)');
+  }
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
+}
+
 /* ============================================================
    Interior furniture — game stations you walk into to play,
    and themed hall décor. Footprint-sized, like buildings.
@@ -2144,6 +2253,32 @@ function drawDecor(ctx, kind, W16, B, v) {
         px(ctx, ox + 1, oy + 4, 5, 1, '#ffe066');
         px(ctx, ox + 1, oy + 6, 8, 1, '#5eeaff');
       }
+      break;
+    }
+    case 'drum': {                                // great festival taiko on a stand
+      sh2(ctx, W16, B);
+      px(ctx, 3, B - 8, W16 - 6, 5, '#5a3a24');              // stand
+      px(ctx, 2, B - 24, W16 - 4, 17, '#8a2030');            // barrel
+      px(ctx, 2, B - 24, W16 - 4, 2, '#c43a4a');
+      px(ctx, 5, B - 22, W16 - 10, 13, '#e8d49a');           // hide face
+      px(ctx, 7, B - 20, W16 - 14, 9, '#d9c49a');
+      px(ctx, (W16 >> 1) - 1, B - 17, 3, 3, '#8a2030');      // mon
+      for (let s = 0; s < 3; s++) { px(ctx, 4 + s * ((W16 - 10) >> 1), B - 25, 2, 2, '#f0c040'); } // studs
+      px(ctx, W16 - 6, B - 30, 2, 8, '#8a6034');             // bachi sticks leaning
+      px(ctx, W16 - 9, B - 29, 2, 7, '#8a6034');
+      break;
+    }
+    case 'speaker': {                             // neon club speaker stack
+      sh2(ctx, W16, B);
+      px(ctx, 2, B - 28, W16 - 4, 25, '#16121e');
+      px(ctx, 2, B - 28, W16 - 4, 1, '#3a3642');
+      for (let r2 = 0; r2 < 2; r2++) {
+        const cy2 = B - 24 + r2 * 11;
+        px(ctx, (W16 >> 1) - 5, cy2, 10, 9, '#26222c');      // cone housing
+        px(ctx, (W16 >> 1) - 3, cy2 + 2, 6, 5, '#3a3642');
+        px(ctx, (W16 >> 1) - 1, cy2 + 4, 2, 2, (v + r2) % 2 ? '#ff6be0' : '#5eeaff'); // glowing coil
+      }
+      px(ctx, 3, B - 27, 2, 2, '#8dff6b');                   // power LED
       break;
     }
     case 'longtable': {                           // feast table groaning with food

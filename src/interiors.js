@@ -13,7 +13,7 @@
 
 import { T, TILE } from './world.js';
 import { hash2, mulberry32 } from './rng.js';
-import { makeCharSprite, makeCourserSprite } from './sprites.js';
+import { makeCharSprite, makeCourserSprite, makeDragonBoatSprite } from './sprites.js';
 import { GAME_DEFS } from './games.js';
 import { BY_ID } from './lucklians.js';
 
@@ -26,6 +26,7 @@ const STATION_KIND = {
   wheeltyche: 'wheel', rainbow: 'wheel', oracle: 'wheel',
   chariots: 'board', ponies: 'board', sumo: 'board', muaythai: 'board', goldencorral: 'board',
   muaythaibout: 'board', coliseumbets: 'board', downsrace: 'kiosk',
+  regattabets: 'kiosk', karaokebets: 'board', ownersrace: 'kiosk', beastbout: 'board',
   amphorae: 'shrine', spirits: 'shrine', cloverbloom: 'shrine', banyan: 'shrine',
   spiritlanterns: 'shrine', fatesthread: 'shrine', dragonhoard: 'shrine',
   catparade: 'shrine', neonneko: 'shrine', faeriering: 'shrine',
@@ -152,7 +153,7 @@ function makeRoom(lm, style, W, H) {
     for (let tries = 0; tries < 80; tries++) {
       const x = 2 + ((rng() * (W - 4)) | 0), y = 3 + ((rng() * (H - 5)) | 0);
       const t = get(x, y);
-      if (t !== style.wall && t !== T.FOUNDATION && t !== T.WALL_MARBLE && t !== T.WALL_STONE) return [x, y];
+      if (t !== style.wall && t !== T.FOUNDATION && t !== T.WALL_MARBLE && t !== T.WALL_STONE && t !== T.WATER) return [x, y];
     }
     return [doorX, H - 4];
   };
@@ -363,6 +364,12 @@ function buildDowns(lm) {        // Horseshoe Downs — paddock, track, bookies,
       if (g === 'downsrace') st.live = true;
     }
   });
+  // the Owners' Gate — enter a Lucklian of your own in a live race
+  if (!it.occupied(12, 4, 2, 2)) {
+    const og = it.addStation(12, 4, 2, 2, 'ownersrace');
+    og.live = true;
+    og.label = "Owners' Gate — enter YOUR Lucklian";
+  }
   // slots corner (bottom-right)
   it.addDecor(24, 15, 4, 2, 'slotbank'); it.addDecor(29, 15, 2, 2, 'crate');
   it.addDecor(20, 15, 3, 2, 'foodstand');
@@ -419,7 +426,106 @@ function buildColiseum(lm) {     // TF — concourse, marble crowds, live games 
   it.addDecor(2, 2, 2, 2, 'statue'); it.addDecor(29, 2, 2, 2, 'statue');
   fillStations(it, [[6, 17], [24, 17], [13, 17], [19, 17]]);
   it.stations.forEach((st) => { if (st.game === 'coliseumbets') st.live = true; });
+  // the Bestiarius Gate — pit a beast of your own on the sand
+  if (!it.occupied(2, 8, 2, 2)) {
+    const bg = it.addStation(2, 8, 2, 2, 'beastbout');
+    bg.live = true;
+    bg.label = 'Bestiarius Gate — pit YOUR beast';
+  }
   scatterPatrons(it, 8, 0.1);
+  return it;
+}
+
+function buildRegatta(lm) {      // DG — the boathouse opens straight onto the bay
+  const style = { wall: T.WALL_STONE, floor: T.PLAZA, tint: 'rgba(30,60,110,0.10)' };
+  const it = makeRoom(lm, style, 34, 20);
+  // the course: real water tiles (solid — nobody walks the bay)
+  const course = { x: 3, y: 3, w: 28, h: 8 };
+  for (let y = course.y; y < course.y + course.h; y++) {
+    for (let x = course.x; x < course.x + course.w; x++) it.set(x, y, T.WATER);
+  }
+  // dock rail along the water's edge + start/finish flavour
+  it.addDecor(3, 11, 4, 2, 'rail'); it.addDecor(9, 11, 4, 2, 'rail');
+  it.addDecor(21, 11, 4, 2, 'rail'); it.addDecor(27, 11, 4, 2, 'rail');
+  it.addDecor(3, 2, 5, 1, 'banner', false);
+  it.addDecor(26, 2, 5, 1, 'banner', false);
+  // the great festival drum + drummer at the start line
+  it.addDecor(1, 13, 2, 2, 'drum');
+  figure(it, 2, 15.6, MONK_DG, 'corner', { dir: 3, emIco: '🥁' });
+  // dockside life: tea, lanterns, crowd
+  it.addDecor(6, 16, 3, 2, 'foodstand'); it.addDecor(29, 16, 2, 2, 'lantern');
+  it.addDecor(25, 16, 3, 2, 'teacorner');
+  for (const [bx, by] of [[7, 12.5], [16, 12.5], [25, 12.5]]) {
+    it.addActor({ type: 'cheer', x: bx * TILE + 8, y: by * TILE });
+  }
+  // the fleet — four crewed dragon boats idling on the water
+  const TEAM_HEX = ['#3f6ac8', '#e8b830', '#c43a2a', '#2f8a5c'];
+  const rect = { x: course.x * TILE, y: course.y * TILE, w: course.w * TILE, h: course.h * TILE };
+  TEAM_HEX.forEach((hex, i) => {
+    const crew = [];
+    for (let k = 0; k < 4; k++) {
+      crew.push({
+        ox: -9 + k * 6, oy: -8,
+        sprite: makeCharSprite(PATRON_PALETTES[(i * 3 + k) % PATRON_PALETTES.length]),
+        dir: 2, frame: 0, wT: 0, drift: 0,
+      });
+    }
+    it.addActor({
+      type: 'boat', arena: true, sprite: makeDragonBoatSprite(hex),
+      x: rect.x + 50 + i * 60, y: rect.y + 24 + (i % 2) * 52,
+      homeX: rect.x + 50 + i * 60, homeY: rect.y + 24 + (i % 2) * 52,
+      dir: 0, frame: 0, lane: i, crew, rumbleT: 0, sink: 0,
+    });
+  });
+  it.arena = {
+    kind: 'regatta', game: 'regattabets',
+    center: { x: (course.x + course.w / 2) * TILE, y: (course.y + course.h / 2) * TILE },
+    rect,
+    course: { x0: rect.x + 30, x1: rect.x + rect.w - 26, laneY: (i) => rect.y + 18 + i * 28 },
+  };
+  // the wager kiosk + a dockside table game
+  const st = it.addStation(14, 13, 3, 2, 'regattabets');
+  st.live = true;
+  st.label = 'The Grand Regatta — lane betting';
+  const rest = (lm.games || []).filter((g) => g !== 'regattabets');
+  rest.forEach((g, i) => { const [sx, sy] = [[19, 16], [10, 16]][i % 2]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
+  scatterPatrons(it, 7, 0.15);
+  return it;
+}
+
+function buildKaraoke(lm) {      // MN — the Neon Koi: stage, crowd, long odds
+  const style = { wall: T.WALL_STONE, floor: T.NEON, tint: 'rgba(90,20,120,0.12)' };
+  const it = makeRoom(lm, style, 28, 18);
+  // the stage: raised platform with speakers and glowing signage
+  it.floorRects.push({ x: 9, y: 3, w: 10, h: 4, color: 'rgba(40,20,60,0.85)' });
+  it.floorRects.push({ x: 10, y: 4, w: 8, h: 2, color: 'rgba(255,107,224,0.25)' });
+  it.addDecor(6, 3, 2, 2, 'speaker'); it.addDecor(20, 3, 2, 2, 'speaker');
+  it.addDecor(10, 2, 8, 1, 'neonsign', false);
+  it.addDecor(2, 2, 2, 2, 'lantern'); it.addDecor(24, 2, 2, 2, 'lantern');
+  // bar + booths
+  it.addDecor(2, 13, 5, 2, 'bar');
+  it.addDecor(23, 8, 3, 2, 'foodstand');
+  it.addDecor(2, 8, 2, 2, 'plant'); it.addDecor(25, 13, 2, 2, 'crate');
+  // the duelling singers, mid-set
+  const sA = figure(it, 12, 5.6, { skin: '#f0c8a0', body: '#ff6be0', legs: '#3a2a48' }, 'singer', { arena: true, dir: 0, name: 'PINK' });
+  const sB = figure(it, 16, 5.6, { skin: '#c89a70', body: '#5eeaff', legs: '#26324a' }, 'singer', { arena: true, dir: 0, name: 'CYAN' });
+  // an adoring crowd facing the stage
+  for (const [cx2, cy2] of [[10, 8.6], [13, 9.2], [16, 8.8], [19, 9.4], [12, 10.4], [17, 10.6]]) {
+    figure(it, cx2, cy2, PATRON_PALETTES[((cx2 + cy2) | 0) % PATRON_PALETTES.length], 'corner', { dir: 3, emIco: '🎵' });
+  }
+  for (const [bx, by] of [[11, 8], [17, 8]]) it.addActor({ type: 'cheer', x: bx * TILE + 8, y: by * TILE });
+  it.arena = {
+    kind: 'karaoke', game: 'karaokebets',
+    center: { x: 14 * TILE, y: 5.5 * TILE },
+    rect: { x: 9 * TILE, y: 3 * TILE, w: 10 * TILE, h: 4 * TILE },
+    singers: [sA, sB],
+  };
+  const st = it.addStation(21, 12, 2, 2, 'karaokebets');
+  st.live = true;
+  st.label = 'The Neon Mic — sing-off book';
+  const rest = (lm.games || []).filter((g) => g !== 'karaokebets');
+  rest.forEach((g, i) => { const [sx, sy] = [[8, 13], [13, 13]][i % 2]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
+  scatterPatrons(it, 7, 0.5);
   return it;
 }
 
@@ -465,6 +571,8 @@ function buildGeneric(lm) {
 }
 
 const BESPOKE = {
+  'Grand Regatta House': buildRegatta,
+  'Neon Koi Karaoke': buildKaraoke,
   'Roaring Elephant Arena': buildFightArena,
   'The Golden Temple': buildZenTemple,
   'Waterfall Park Pavilion': buildZenTemple,
@@ -492,7 +600,7 @@ export function updatePatrons(it, dt) {
     const tx = Math.floor(px2 / TILE), ty = Math.floor(py2 / TILE);
     if (tx < 1 || ty < 2 || tx >= it.W - 1 || ty >= it.H - 1) return true;
     const t = it.tiles[it.idx(tx, ty)];
-    return t === T.FOUNDATION || t === T.WALL_MARBLE || t === T.WALL_STONE;
+    return t === T.FOUNDATION || t === T.WALL_MARBLE || t === T.WALL_STONE || t === T.WATER;
   };
 
   for (const p of it.patrons) {

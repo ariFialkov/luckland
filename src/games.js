@@ -15,6 +15,7 @@
    be touched.
    ============================================================ */
 
+import { CONFIG } from './config.js';
 import { roll, weightedPick, pick as rpick } from './rng.js';
 import { state, spend, payout, canAfford, effectiveRTP } from './state.js';
 import { showModal, closeModal, buildBetRow, escapeHtml, toast, renderBalance } from './ui.js';
@@ -526,6 +527,42 @@ export const GAME_DEFS = {
     name: 'The Grand Scavenger Hunt', ico: '🏆',
     desc: 'Race the field to catch four local Lucklians — podium pays.',
     mech: 'hunt',
+  },
+  natscav: {
+    name: 'The National Hunt', ico: '🌐',
+    desc: 'The travelling caravan\'s six-species, cross-country card. Serious stakes.',
+    mech: 'hunt', national: true,
+  },
+  goldpan: {
+    name: "Panner's Claim", ico: '⛏️',
+    desc: 'Swirl the gravel, watch for colour. The tide decides what the river gives up.',
+    mech: 'panning',
+    // steady water: the everyday gravel
+    tableHigh: [
+      { m: 0, w: 42, sym: '🪨', text: 'Mud, roots and one deeply unimpressed crawdad.' },
+      { m: 0, w: 12, sym: '🌕', text: "Fool's gold. It winked at you and everything." },
+      { m: 1.5, w: 27, sym: '✨', text: 'A pinch of colour in the black sand!' },
+      { m: 3.2, w: 13, sym: '🥇', text: 'Flakes! Real flakes!' },
+      { m: 9, w: 5, sym: '💰', text: 'A nugget the size of a tooth!' },
+      { m: 32, w: 1, sym: '🏆', text: 'A NUGGET THE SIZE OF A BOOT HEEL!' },
+    ],
+    // low tide: fresh gravel bared — wilder swings, same honest return
+    tableLow: [
+      { m: 0, w: 50, sym: '🪨', text: 'The low water bared fresh gravel — none of it for you.' },
+      { m: 0, w: 10, sym: '🦴', text: 'A fossilized… something. The river keeps its secrets.' },
+      { m: 1.3, w: 22, sym: '✨', text: 'Colour in the pan off the fresh bar!' },
+      { m: 4.5, w: 11, sym: '🥇', text: 'Coarse flakes off the tide-cut bank!' },
+      { m: 16, w: 4, sym: '💰', text: 'A waterworn nugget, fat as a knuckle!' },
+      { m: 70, w: 0.6, sym: '🌈', text: 'THE MOTHER LODE — THE LEGEND IS TRUE!' },
+    ],
+  },
+  lanternfest: {
+    name: 'Lantern Festival', ico: '🏮',
+    desc: 'Float your lantern furthest up the river — the temple pot pays the podium.',
+    mech: 'lantern',
+    // finishing-order odds for your lantern (8 on the water), tilted long
+    Q: [0.075, 0.105, 0.13, 0.14, 0.14, 0.14, 0.14, 0.13],
+    K: [6, 2.5, 1, 0, 0, 0, 0, 0],
   },
 };
 
@@ -1508,6 +1545,164 @@ async function runFishing(def, provCode) {
 }
 
 /* ------------------------------------------------------------
+   Mechanic: panning — a sluice claim on the stream. Same honest
+   normalized paytable engine, but the gravel changes with the
+   tide: low water bares a fresh bar with wilder swings (bigger
+   top prizes, longer dry spells) at the identical RTP.
+   ------------------------------------------------------------ */
+async function runPanning(def, provCode) {
+  session++;
+  const lowTide = (state.tide ?? 0.5) < 0.42;
+  const rtp = effectiveRTP('goldpan', provCode);
+  const table = normalizedTable(lowTide ? def.tableLow : def.tableHigh, rtp);
+  showModal(`
+    <h2>${def.ico} ${escapeHtml(def.name)}</h2>
+    <div class="subtitle">${escapeHtml(def.desc)} · RTP ${(rtp * 100).toFixed(1)}%<br>
+      ${lowTide ? '🌊 <b>The tide is out</b> — fresh gravel bared, wilder swings' : '🌊 Steady water — everyday gravel'}</div>
+    <div class="stage" id="g-stage"></div>
+    <div id="g-bet"></div>
+    <div class="btn-row" id="g-actions"></div>
+  `, { onClose: () => { session++; } });
+  const stage = document.getElementById('g-stage');
+  let bet = state.lastBet;
+  buildBetRow(document.getElementById('g-bet'), (v) => { bet = v; });
+  const panBtn = document.createElement('button');
+  panBtn.className = 'btn';
+  panBtn.textContent = '⛏️ Fill the pan';
+  document.getElementById('g-actions').appendChild(panBtn);
+  stage.innerHTML = `<div class="big-sym">🥘</div><div class="flavor">A scoop of river gravel costs your stake. Swirl and pray.</div>`;
+
+  panBtn.addEventListener('click', async () => {
+    const s = session;
+    if (!playGuard(bet)) return;
+    panBtn.disabled = true;
+    const outcome = weightedPick(table.map((e) => ({ ...e, weight: e.w })));
+    const swirls = ['The pan dips into the cold water…', 'Swirl… the light stuff washes over the rim…', 'Swirl… down to the black sand…'];
+    for (const line of swirls) {
+      stage.innerHTML = `<div class="big-sym"><span class="shake">🥘</span></div><div class="flavor">${line}</div>`;
+      await wait(680);
+      if (!alive(s)) return;
+    }
+    stage.innerHTML = `<div class="big-sym">${outcome.sym}</div>`;
+    settle(bet, outcome.m, stage, outcome.text);
+    panBtn.disabled = false;
+  });
+}
+
+/* ------------------------------------------------------------
+   Mechanic: lantern — the river festival. Eight lanterns go on
+   the water; your finishing position is drawn from def.Q and
+   the temple pot pays the podium, scaled so E = stake x RTP.
+   Fires only during the periodic festival window.
+   ------------------------------------------------------------ */
+export function lanternWindow() {
+  const L = CONFIG.LANTERNS;
+  const into = (Date.now() / 1000) % L.CYCLE_S;
+  return { open: into < L.OPEN_S, left: L.OPEN_S - into, until: L.CYCLE_S - into };
+}
+export function lanternPrizes(bet, rtp, def) {
+  const evK = def.Q.reduce((a, q, i) => a + q * def.K[i], 0);
+  const scale = rtp / evK;
+  return def.K.map((k) => Math.round(k * scale * bet));
+}
+const LANTERN_FOLK = [
+  'Old Boonmee', 'Auntie Dao', 'Little Ping', 'Brother Somsak', 'Grandmother Yin',
+  'Kai the Ferryman', 'Madame Orchid', 'Two-Coin Tan', 'Sleepy Niran', 'Widow Chen',
+  'Lotus-Eyed Lin', 'The Quiet Novice',
+];
+
+async function runLantern(def, provCode) {
+  const win = lanternWindow();
+  if (!win.open) {
+    const m = Math.floor(win.until / 60), s2 = Math.round(win.until % 60);
+    showModal(`
+      <h2>🏮 ${escapeHtml(def.name)}</h2>
+      <div class="subtitle">The monks are still folding lanterns…</div>
+      <div class="stage"><div class="big-sym">🕯️</div>
+      <div class="flavor">The next launch begins in <b>${m}m ${s2}s</b>. Come back when the river lights up.</div></div>
+      <div class="btn-row"><button class="btn secondary" id="lf-ok">Until then</button></div>
+    `);
+    document.getElementById('lf-ok').addEventListener('click', closeModal);
+    return;
+  }
+  session++;
+  const rtp = effectiveRTP('lanternfest', provCode);
+  showModal(`
+    <h2>🏮 ${escapeHtml(def.name)}</h2>
+    <div class="subtitle">${escapeHtml(def.desc)} · RTP ${(rtp * 100).toFixed(1)}% · launch window ${Math.ceil(win.left)}s</div>
+    <div class="stage" id="g-stage"></div>
+    <div id="g-bet"></div>
+    <div class="btn-row" id="g-actions"></div>
+  `, { onClose: () => { session++; } });
+  const stage = document.getElementById('g-stage');
+  let bet = state.lastBet;
+  buildBetRow(document.getElementById('g-bet'), (v) => { bet = v; });
+  const goBtn = document.createElement('button');
+  goBtn.className = 'btn';
+  goBtn.textContent = '🏮 Light yours & launch';
+  document.getElementById('g-actions').appendChild(goBtn);
+  const prizesPreview = lanternPrizes(100, rtp, def);
+  stage.innerHTML = `<div class="big-sym">🏮</div>
+    <div class="flavor">Your offering joins seven others on the current. Furthest upriver wins the temple pot:
+    1st pays ${fmtMult(prizesPreview[0] / 100)}x · 2nd ${fmtMult(prizesPreview[1] / 100)}x · 3rd ${fmtMult(prizesPreview[2] / 100)}x.</div>`;
+
+  goBtn.addEventListener('click', async () => {
+    const s = session;
+    if (!playGuard(bet)) return;
+    goBtn.disabled = true;
+    const prizes = lanternPrizes(bet, rtp, def);
+    // draw your placement honestly, then choreograph the drift to match
+    let r = roll(), place = def.Q.length - 1;
+    for (let i = 0; i < def.Q.length; i++) { r -= def.Q[i]; if (r <= 0) { place = i; break; } }
+    const folk = [...LANTERN_FOLK].sort(() => roll() - 0.5).slice(0, 7);
+    const names = ['You', ...folk];
+    // finishing order: `place` rivals drift further than yours
+    const rivalRanks = folk.map((_, i) => i).sort(() => roll() - 0.5);
+    const rankOf = new Array(8);
+    rankOf[0] = place;
+    rivalRanks.forEach((ri, j) => { rankOf[ri + 1] = j < place ? j : j + 1; });
+    const drama = names.map(() => ({ amp: 0.05 + roll() * 0.05, freq: 0.8 + roll() * 1.5, phase: roll() * 6.28 }));
+    stage.innerHTML = `<div class="flavor" style="margin-bottom:4px">🕯️ The lanterns take the current…</div>` +
+      names.map((nm, i) => `<div class="race-lane"><span style="width:104px;text-align:left;font-size:11.5px;${i === 0 ? 'color:var(--gold);font-weight:700' : ''}">${escapeHtml(nm)}</span>
+        <div class="track"><div class="runner" data-i="${i}">🏮</div></div>
+        <span class="odds" data-o="${i}"></span></div>`).join('');
+    const runners = [...stage.querySelectorAll('.runner')];
+    const T_TOTAL = 7.5;
+    const finalFrac = names.map((_, i) => 1 - rankOf[i] * 0.09);   // furthest = rank 0
+    const t0 = performance.now();
+    await new Promise((res) => {
+      const step = () => {
+        if (!alive(s)) return res();
+        const t = (performance.now() - t0) / 1000;
+        const k = Math.min(1, t / T_TOTAL);
+        const ease = 1 - Math.pow(1 - k, 2);
+        names.forEach((_, i) => {
+          const sway = drama[i].amp * Math.sin(t * drama[i].freq + drama[i].phase) * (1 - ease);
+          const frac = Math.max(0, Math.min(1, finalFrac[i] * ease + sway));
+          const tr = runners[i].parentElement;
+          runners[i].style.left = `${frac * (tr.clientWidth - 22)}px`;
+        });
+        if (k >= 1) return res();
+        requestAnimationFrame(step);
+      };
+      step();
+    });
+    if (!alive(s)) return;
+    stage.querySelectorAll('[data-o]').forEach((el) => {
+      const i = +el.dataset.o;
+      el.textContent = `${rankOf[i] + 1}${['st', 'nd', 'rd'][rankOf[i]] || 'th'}`;
+    });
+    const prize = prizes[place] || 0;
+    settle(bet, prize / bet, stage,
+      place === 0 ? 'Yours drifts past the temple steps — the monks ring the bell for YOU!'
+      : place === 1 ? 'Second furthest — the pot honours it.'
+      : place === 2 ? 'Third — a podium lantern.'
+      : 'The current had other plans. The river keeps your offering.');
+    goBtn.disabled = false;
+  });
+}
+
+/* ------------------------------------------------------------
    Entry point
    ------------------------------------------------------------ */
 export function openGame(gameId, provCode) {
@@ -1527,7 +1722,9 @@ export function openGame(gameId, provCode) {
     case 'pickchain': runPickchain(def, provCode); break;
     case 'reels': runReels(def, provCode); break;
     case 'fishing': runFishing(def, provCode); break;
-    case 'hunt': openHuntLobby(provCode); break;
+    case 'hunt': openHuntLobby(provCode, def.national ? 'national' : 'local'); break;
+    case 'panning': runPanning(def, provCode); break;
+    case 'lantern': runLantern(def, provCode); break;
   }
 }
 

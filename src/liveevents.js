@@ -18,8 +18,8 @@ import { roll } from './rng.js';
 import { state, spend, payout, effectiveRTP } from './state.js';
 import { showModal, closeModal, escapeHtml, toast, renderBalance, buildBetRow } from './ui.js';
 import { GAME_DEFS } from './games.js';
-import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite } from './sprites.js';
-import { BY_ID } from './lucklians.js';
+import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite, makeDragonBoatSprite, getLucklianSprite } from './sprites.js';
+import { BY_ID, LUCKLIANS, ownedCount } from './lucklians.js';
 
 const fmt = (v) => Math.round(v).toLocaleString('en-US');
 const fmtMult = (m) => (m >= 10 ? m.toFixed(1) : m.toFixed(2)).replace(/\.0+$/, '');
@@ -59,6 +59,23 @@ const GLAD_NAMES = [
   'Ferrox', 'Cassivus', 'Urso the Unbowed', 'Nervanus', 'Spurius Drax', 'Volpex',
   'Tigrannus', 'Maximo of Ostia', 'Callidus', 'Barbo', 'Aquilo', 'Dentatus',
 ];
+const REGATTA_TEAMS = [
+  ['Azure Serpent', '#3f6ac8'], ['Gilded Pearl', '#e8b830'], ['Thunder Drum', '#8a2a5a'],
+  ['River Ghost', '#8a94a0'], ['Jade Typhoon', '#2f8a5c'], ['Crimson Carp', '#c43a2a'],
+  ['Moon Lotus', '#b8a8d8'], ['Iron Junk', '#5a5652'], ['Silk Lightning', '#e88ab0'],
+  ['Old Dragon', '#6a3a1a'], ['Nine Oars', '#9ac82a'], ['Whirlpool', '#2fa8a0'],
+];
+const KARAOKE_SINGERS = [
+  'DJ Tanuki', 'Miki Starlight', 'Neon Grandpa', 'Sakura Static', 'Kappa Kid',
+  'Momo Volt', 'Little Enka', 'Vending Machine Vinnie', 'Glitter Shark', 'Yuzu Boy',
+  'Madame Metronome', 'Pachinko Patti',
+];
+const KARAOKE_SONGS = [
+  'Neon Heart Shinkansen', 'Tears of the Vending Machine', 'Mushroom Boogie 3AM',
+  'Koi in the Rain', 'My Cat Owns This Town', 'Last Train to Luckland',
+  '10,000 Koban Moon', 'Static Love (Remix)', 'Sardine Nights', 'Karaoke Forever',
+  'Umbrella for Two (and a Ghost)', 'Big in Dragonia',
+];
 const pickN = (arr, n) => [...arr].sort(() => roll() - 0.5).slice(0, n);
 const shuffled = (arr) => [...arr].sort(() => roll() - 0.5);
 
@@ -76,6 +93,58 @@ function newChariotField() {
   const cols = pickN(CHARIOT_COLORS, 4);
   const ps = shuffled([0.30, 0.27, 0.23, 0.20]);
   return cols.map(([cname, hex], i) => ({ name: `The ${cname}s`, color: hex, p: ps[i], chariot: true }));
+}
+/* a fresh regatta card: four crews off the bay */
+function newRegattaField() {
+  const crews = pickN(REGATTA_TEAMS, 4);
+  const ps = shuffled([0.30, 0.26, 0.24, 0.20]);
+  return crews.map(([cname, hex], i) => ({ name: cname, color: hex, p: ps[i], boat: true }));
+}
+/* a fresh sing-off: two performers, two songs */
+function newKaraokeBout() {
+  const [a, b] = pickN(KARAOKE_SINGERS, 2);
+  const [sa, sb] = pickN(KARAOKE_SONGS, 2);
+  return { names: [a, b], songs: [sa, sb] };
+}
+const KARAOKE_PROPS_P = { winA: 0.52, winB: 0.48, singalong: 0.40, encore: 0.25, micdrop: 0.30, streak: 0.18 };
+const KARAOKE_MOVES = [
+  { name: 'HIGH NOTE', pts: [6, 11], w: 12 }, { name: 'KEY CHANGE', pts: [7, 12], w: 8 },
+  { name: 'FALSETTO', pts: [4, 9], w: 12 }, { name: 'RAP BREAK', pts: [5, 10], w: 10 },
+  { name: 'DANCE BREAK', pts: [5, 9], w: 10 }, { name: 'CROWD WAVE', pts: [3, 8], w: 12 },
+  { name: 'WHISTLE NOTE', pts: [8, 13], w: 5 }, { name: 'POWER SLIDE', pts: [6, 10], w: 7 },
+  { name: 'AIR GUITAR', pts: [2, 6], w: 9 }, { name: 'SPARKLE CANNON', pts: [9, 14], w: 3 },
+];
+/* the beasts' arts — claws, horns and drama */
+const BEAST_MOVES = [
+  { name: 'POUNCE', dmg: [6, 11], w: 14 }, { name: 'RAKE', dmg: [4, 8], w: 16 },
+  { name: 'BITE', dmg: [5, 10], w: 14 }, { name: 'TAIL LASH', dmg: [3, 7], w: 12 },
+  { name: 'GORE', dmg: [8, 13], w: 7 }, { name: 'SCREECH', dmg: [2, 5], w: 10 },
+  { name: 'BODY SLAM', dmg: [7, 12], w: 8 }, { name: 'DEATH ROLL', dmg: [9, 15], w: 4 },
+];
+function pickFrom(bank) {
+  let tot = 0; for (const m of bank) tot += m.w;
+  let r = roll() * tot;
+  for (const m of bank) { r -= m.w; if (r <= 0) return m; }
+  return bank[0];
+}
+
+/* a Lucklian blown up into an arena combatant: 2 columns (right, left-mirrored) */
+function beastSprite(def) {
+  const src = getLucklianSprite(def);
+  const SCALE = 1.6;
+  const CW = Math.ceil(src.width * SCALE), CH = Math.ceil(src.height * SCALE);
+  const cv = document.createElement('canvas');
+  cv.width = CW * 2; cv.height = CH;
+  const ctx = cv.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(src, 0, 0, CW, CH);
+  ctx.save();
+  ctx.translate(CW * 2, 0);
+  ctx.scale(-1, 1);
+  ctx.drawImage(src, 0, 0, CW, CH);
+  ctx.restore();
+  cv.cellW = CW; cv.cellH = CH;
+  return cv;
 }
 /* a fresh bout: two named fighters for the card */
 function newBout(kind) {
@@ -346,6 +415,23 @@ export function updateLive(it, dt, now) {
         }
         break;
       }
+      case 'boat': {     // dragon boats: bob at moorings until the race takes over
+        if (it.live && it.live.kind === 'race' && a.race) break;   // sim steers it
+        a.x = a.homeX + Math.sin(a.t * 0.7 + a.lane) * 6;
+        a.y = a.homeY + Math.sin(a.t * 1.1 + a.lane * 2) * 2.5;
+        a.dir = 0;
+        stepAnim(a, dt, 0.55);          // lazy warm-up strokes
+        for (const c of a.crew || []) c.frame = a.frame;
+        break;
+      }
+      case 'singer': {   // stage sway between sets — the sim choreographs the duel
+        if (it.live && it.live.kind === 'karaoke') break;
+        a.homeX = a.homeX ?? a.x;
+        a.x = a.homeX + Math.sin(a.t * 1.6) * 4;
+        a.frame = ((a.t * 2.4) | 0) % 2;
+        if (!a.emote && Math.random() < dt * 0.25) a.emote = { ico: '🎵', t: 1 };
+        break;
+      }
     }
     if (a.emote) { a.emote.t -= dt; if (a.emote.t <= 0) a.emote = null; }
   }
@@ -361,6 +447,8 @@ export function stationIsLive(it, st) {
 }
 
 export function openLiveBet(it, st, provCode) {
+  if (st.game === 'ownersrace') return openOwnersRace(it, st, provCode);
+  if (st.game === 'beastbout') return openBeastBout(it, st, provCode);
   const A = it.arena;
   let title, ico, choices, eventKind, sub = '';
   const fightChoices = (names, ps) => {
@@ -384,6 +472,25 @@ export function openLiveBet(it, st, provCode) {
     title = 'The Lucklian Stakes'; ico = '🏁'; eventKind = 'race';
     A.pendingField = newDownsField();
     choices = A.pendingField.map((r, i) => ({ label: `${r.name} · ${r.species}`, ico: '🐎', p: r.p, idx: i }));
+  } else if (A.kind === 'regatta') {
+    title = 'The Grand Regatta'; ico = '🐉'; eventKind = 'race';
+    A.pendingField = newRegattaField();
+    sub = 'Four crews, one bay · ';
+    choices = A.pendingField.map((r, i) => ({ label: r.name, ico: '🛶', p: r.p, idx: i }));
+  } else if (A.kind === 'karaoke') {
+    if (!A.bout) A.bout = newKaraokeBout();
+    A.singers?.forEach((s, i) => { s.name = A.bout.names[i]; });
+    title = 'The Neon Mic'; ico = '🎤'; eventKind = 'karaoke';
+    const P = KARAOKE_PROPS_P;
+    sub = `Tonight: <b>${escapeHtml(A.bout.names[0])}</b> sings “${escapeHtml(A.bout.songs[0])}” vs <b>${escapeHtml(A.bout.names[1])}</b> with “${escapeHtml(A.bout.songs[1])}” · `;
+    choices = [
+      { kind: 'winA', label: `${A.bout.names[0]} takes the room`, ico: '💗', p: P.winA },
+      { kind: 'winB', label: `${A.bout.names[1]} takes the room`, ico: '💙', p: P.winB },
+      { kind: 'singalong', label: 'The whole bar sings along', ico: '🎶', p: P.singalong },
+      { kind: 'encore', label: 'The room demands an encore', ico: '🔁', p: P.encore },
+      { kind: 'micdrop', label: 'Mic-drop finish', ico: '🎤', p: P.micdrop },
+      { kind: 'streak', label: 'A perfect high-note streak', ico: '💫', p: P.streak },
+    ];
   } else {
     const ev = A.program;
     title = PROGRAM_LABEL[ev]; ico = '🏟️';
@@ -431,6 +538,145 @@ export function openLiveBet(it, st, provCode) {
 }
 
 /* ============================================================
+   Owners' entries — race or fight a Lucklian of your OWN.
+   The creature is never at risk; it earns its keep. Odds are
+   derived from the species' face value and priced at RTP / p.
+   ============================================================ */
+const RUNNER_ARCH = ['quad', 'hare', 'fox', 'deer', 'feline', 'ram', 'rodent', 'primate', 'lizard'];
+const NO_SAND_ARCH = ['fish', 'ceph', 'ray', 'seal'];   // nothing that needs water on the sand
+
+function ownedEligible(pred) {
+  return LUCKLIANS.filter((l) => pred(l) && ownedCount(l.id) > 0);
+}
+function lkImg(def, px2 = 30) {
+  return `<img src="${getLucklianSprite(def).toDataURL()}" style="width:${px2}px;height:auto;image-rendering:pixelated" alt="">`;
+}
+
+/* speed from pedigree: pricier species run truer, capped so races stay races */
+function ownerRaceP(def) {
+  return Math.min(0.42, Math.max(0.15, 0.14 + 0.30 * (1 - Math.exp(-def.value / 600))));
+}
+
+function openOwnersRace(it, st, provCode) {
+  const mine = ownedEligible((l) => RUNNER_ARCH.includes(l.a));
+  if (!mine.length) {
+    toast("🏇 The stewards look you over: “No runner, no race.” Catch a courser-shaped Lucklian first.");
+    return;
+  }
+  const rtp = effectiveRTP('ownersrace', provCode);
+  const m = showModal(`
+    <h2>🏇 The Owners' Gate</h2>
+    <div class="subtitle">Enter a Lucklian of your own in a live race. It runs, you collect — it is never at risk.</div>
+    <div id="og-list"></div>
+  `);
+  const box = m.querySelector('#og-list');
+  mine.forEach((def) => {
+    const p = ownerRaceP(def);
+    const row = document.createElement('div');
+    row.className = 'race-lane race-pick-btn';
+    row.innerHTML = `<span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">${lkImg(def)} ${escapeHtml(def.name)}</span>
+      <span class="odds">${fmtMult(rtp / p)}x to win</span>`;
+    row.addEventListener('click', () => pickRunner(def));
+    box.appendChild(row);
+  });
+
+  function pickRunner(def) {
+    const pYou = ownerRaceP(def);
+    const house = newDownsField().slice(0, 5);
+    const S = house.reduce((a, r) => a + r.p, 0);
+    house.forEach((r) => { r.p = r.p * (1 - pYou) / S; });
+    const field = [{ name: `${def.name} (YOURS)`, species: def.name, lkId: def.id, p: pYou, rider: 'cowboy', yours: true }, ...house];
+    let bet = state.lastBet;
+    const m2 = showModal(`
+      <h2>🏇 ${escapeHtml(def.name)} goes under starter's orders</h2>
+      <div class="subtitle">RTP ${(rtp * 100).toFixed(1)}% — back any runner, then watch the race live</div>
+      <div id="og-field"></div>
+      <div id="og-bet"></div>
+    `);
+    buildBetRow(m2.querySelector('#og-bet'), (v) => { bet = v; });
+    const fbox = m2.querySelector('#og-field');
+    field.forEach((r, i) => {
+      const row = document.createElement('div');
+      row.className = 'race-lane race-pick-btn';
+      row.innerHTML = `<span style="flex:1;text-align:left;${r.yours ? 'color:var(--gold);font-weight:700' : ''}">${r.yours ? '⭐' : '🐎'} ${escapeHtml(r.name)}${r.yours ? '' : ` · ${escapeHtml(r.species)}`}</span>
+        <span class="odds">${fmtMult(rtp / r.p)}x</span>`;
+      row.addEventListener('click', () => {
+        if (state.balance < bet) { toast('Not enough coins!'); return; }
+        spend(bet);
+        state.stats.gamesPlayed++;
+        renderBalance();
+        closeModal();
+        it.arena.pendingField = field;
+        startSim(it, 'race', { label: r.name, p: r.p, idx: i }, bet, rtp);
+      });
+      fbox.appendChild(row);
+    });
+  }
+}
+
+function openBeastBout(it, st, provCode) {
+  const mine = ownedEligible((l) => !NO_SAND_ARCH.includes(l.a));
+  if (!mine.length) {
+    toast('🐆 The bestiarius shrugs: “Bring me a beast and we\'ll talk.” Catch a Lucklian first.');
+    return;
+  }
+  const rtp = effectiveRTP('beastbout', provCode);
+  const m = showModal(`
+    <h2>🐆 The Bestiarius Gate</h2>
+    <div class="subtitle">Pit a Lucklian of your own against the house's beast. Yours walks away whatever happens.</div>
+    <div id="bb-list"></div>
+  `);
+  const box = m.querySelector('#bb-list');
+  mine.forEach((def) => {
+    const row = document.createElement('div');
+    row.className = 'race-lane race-pick-btn';
+    row.innerHTML = `<span style="flex:1;text-align:left;display:flex;align-items:center;gap:8px">${lkImg(def)} ${escapeHtml(def.name)}</span>
+      <span class="odds">worth ${fmt(def.value)}</span>`;
+    row.addEventListener('click', () => pickBeast(def));
+    box.appendChild(row);
+  });
+
+  function pickBeast(def) {
+    // the house matches your champion pound-for-pound where it can
+    let cands = LUCKLIANS.filter((l) => !NO_SAND_ARCH.includes(l.a) && l.id !== def.id &&
+      l.value >= def.value * 0.45 && l.value <= def.value * 2.2);
+    if (!cands.length) cands = LUCKLIANS.filter((l) => !NO_SAND_ARCH.includes(l.a) && l.id !== def.id);
+    const house = cands[(roll() * cands.length) | 0];
+    const pYou = Math.min(0.85, Math.max(0.15, def.value / (def.value + house.value)));
+    const choices = [
+      { kind: 'winYou', label: `${def.name} (YOURS) wins`, ico: '⭐', p: pYou },
+      { kind: 'winHouse', label: `${house.name} (house) wins`, ico: '🏛️', p: 1 - pYou },
+      { kind: 'firstblood', label: 'First blood to yours', ico: '🩸', p: 0.5 },
+    ];
+    let bet = state.lastBet;
+    const m2 = showModal(`
+      <h2>🐆 ${escapeHtml(def.name)} vs ${escapeHtml(house.name)}</h2>
+      <div class="subtitle">The editor draws the card · RTP ${(rtp * 100).toFixed(1)}% — pick your wager, then watch the sand</div>
+      <div style="display:flex;justify-content:center;gap:22px;margin:6px 0">${lkImg(def, 46)}<span style="align-self:center;font-weight:700">VS</span>${lkImg(house, 46)}</div>
+      <div id="bb-choices"></div>
+      <div id="bb-bet"></div>
+    `);
+    buildBetRow(m2.querySelector('#bb-bet'), (v) => { bet = v; });
+    const cbox = m2.querySelector('#bb-choices');
+    choices.forEach((c) => {
+      const row = document.createElement('div');
+      row.className = 'race-lane race-pick-btn';
+      row.innerHTML = `<span style="flex:1;text-align:left">${c.ico} ${escapeHtml(c.label)}</span><span class="odds">${fmtMult(rtp / c.p)}x</span>`;
+      row.addEventListener('click', () => {
+        if (state.balance < bet) { toast('Not enough coins!'); return; }
+        spend(bet);
+        state.stats.gamesPlayed++;
+        renderBalance();
+        closeModal();
+        it.arena.pendingBB = { you: def, house, pYou };
+        startSim(it, 'bbout', c, bet, rtp);
+      });
+      cbox.appendChild(row);
+    });
+  }
+}
+
+/* ============================================================
    Sim construction — the outcome is drawn honestly up front,
    then the show is choreographed to match it.
    ============================================================ */
@@ -472,7 +718,8 @@ function startSim(it, kind, choice, bet, rtp) {
     });
   } else if (kind === 'race') {
     const field = it.arena.pendingField ||
-      (it.arena.kind === 'race' ? newDownsField() : newChariotField());
+      (it.arena.kind === 'race' ? newDownsField()
+        : it.arena.kind === 'regatta' ? newRegattaField() : newChariotField());
     it.arena.pendingField = null;
     let r = roll(), winner = 0;
     for (let i = 0; i < field.length; i++) { r -= field[i].p; if (r <= 0) { winner = i; break; } }
@@ -492,26 +739,86 @@ function startSim(it, kind, choice, bet, rtp) {
       surgeBoost: 0.05 + roll() * 0.07,
     }));
     live.race = { winner, field, times, drama, prog: field.map(() => 0), finished: [], started: false, gateT: 0 };
-    /* conscript the ambient lappers and re-skin them as this card's field */
-    const o = it.arena.oval;
-    let lappers = it.actors.filter((a) => a.type === 'lapper' && a.arena);
-    for (let i = lappers.length; i < field.length; i++) {
-      it.addActor({ type: 'lapper', show: it.arena.kind !== 'race', arena: true, sprite: null, ang: 0, speed: 1, o, x: 0, y: 0, dir: 2, frame: 0 });
-    }
-    lappers = it.actors.filter((a) => a.type === 'lapper' && a.arena);
-    field.forEach((f, i) => {
-      const a = lappers[i];
-      if (f.chariot) {
-        a.sprite = makeCourserSprite({ body: '#3a3642', mane: '#c8ccd8', accent: '#e8a020' }, { chariot: true, teamColor: f.color });
-      } else {
-        const d = BY_ID.get(f.lkId);
-        const pal = d ? { body: d.c[0], mane: d.c[1], accent: d.c[2] } : { body: '#8a5a2a', mane: '#4a3222', accent: '#e8dcc0' };
-        a.sprite = makeCourserSprite(pal, { rider: f.rider || 'cowboy' });
+    if (it.arena.kind === 'regatta') {
+      /* the moored fleet paints up in this card's colours */
+      const boats = it.actors.filter((a) => a.type === 'boat');
+      field.forEach((f, i) => {
+        const a = boats[i];
+        if (!a) return;
+        a.sprite = makeDragonBoatSprite(f.color);
+        a.race = { lane: i };
+        a.raceIdx = i;
+      });
+      live.race.actors = boats.slice(0, field.length);
+    } else {
+      /* conscript the ambient lappers and re-skin them as this card's field */
+      const o = it.arena.oval;
+      let lappers = it.actors.filter((a) => a.type === 'lapper' && a.arena);
+      for (let i = lappers.length; i < field.length; i++) {
+        it.addActor({ type: 'lapper', show: it.arena.kind !== 'race', arena: true, sprite: null, ang: 0, speed: 1, o, x: 0, y: 0, dir: 2, frame: 0 });
       }
-      a.race = { lane: i };
-      a.raceIdx = i;
-    });
-    live.race.actors = lappers.slice(0, field.length);
+      lappers = it.actors.filter((a) => a.type === 'lapper' && a.arena);
+      field.forEach((f, i) => {
+        const a = lappers[i];
+        if (f.chariot) {
+          a.sprite = makeCourserSprite({ body: '#3a3642', mane: '#c8ccd8', accent: '#e8a020' }, { chariot: true, teamColor: f.color });
+        } else {
+          const d = BY_ID.get(f.lkId);
+          const pal = d ? { body: d.c[0], mane: d.c[1], accent: d.c[2] } : { body: '#8a5a2a', mane: '#4a3222', accent: '#e8dcc0' };
+          a.sprite = makeCourserSprite(pal, { rider: f.rider || 'cowboy' });
+        }
+        a.race = { lane: i };
+        a.raceIdx = i;
+      });
+      live.race.actors = lappers.slice(0, field.length);
+    }
+  } else if (kind === 'karaoke') {
+    const P = KARAOKE_PROPS_P;
+    const hit = roll() < choice.p;
+    let winner = roll() < P.winA ? 0 : 1;
+    if (choice.kind === 'winA') winner = hit ? 0 : 1;
+    else if (choice.kind === 'winB') winner = hit ? 1 : 0;
+    const flag = (k) => (choice.kind === k ? hit : roll() < P[k]);
+    live.win = hit;
+    live.kar = {
+      winner,
+      singalong: flag('singalong'), encore: flag('encore'),
+      micdrop: flag('micdrop'), streak: flag('streak'),
+      hype: [10, 10], verse: 1, verseT: 0, exchT: 0, turn: (roll() * 2) | 0,
+      streakDone: false, singDone: false,
+      singers: it.arena.singers,
+    };
+    it.arena.singers?.forEach((s) => { s.homeX = s.homeX ?? s.x; });
+  } else if (kind === 'bbout') {
+    const BB = it.arena.pendingBB;
+    it.arena.pendingBB = null;
+    const hit = roll() < choice.p;
+    let winner = roll() < BB.pYou ? 0 : 1;    // 0 = yours, 1 = house
+    if (choice.kind === 'winYou') winner = hit ? 0 : 1;
+    else if (choice.kind === 'winHouse') winner = hit ? 1 : 0;
+    const firstBlood = choice.kind === 'firstblood' ? (hit ? 0 : 1) : ((roll() * 2) | 0);
+    live.win = hit;
+    // the sand clears for the private card
+    it.arena.savedProgram = it.arena.program;
+    if (it.arena.kind === 'coliseum') clearShow(it);
+    const c = it.arena.center;
+    const mk = (def, side) => {
+      const a = {
+        type: 'bbeast', show: true, arena: true, sprite: beastSprite(def),
+        x: c.x + side * 22, y: c.y + 4, dir: side === -1 ? 0 : 1, frame: 0,
+        hp: 100, name: side === -1 ? `${def.name} ★` : def.name, def,
+      };
+      it.actors.push(a);
+      return a;
+    };
+    live.bb = {
+      winner, firstBlood, firstDone: false,
+      actors: [mk(BB.you, -1), mk(BB.house, 1)],
+      hp: [100, 100], exchT: 0.8, attacker: firstBlood, t: 0,
+      pairX: c.x, pairY: c.y + 4, tgtX: c.x, tgtY: c.y + 4, driftT: 0,
+      rect: { x: it.arena.rect.x + 26, y: it.arena.rect.y + 26, w: it.arena.rect.w - 52, h: it.arena.rect.h - 36 },
+      koAt: 12 + roll() * 3,
+    };
   } else if (kind === 'chase') {
     const hit = roll() < choice.p;
     const L = choice.label.toLowerCase();
@@ -577,6 +884,17 @@ function updateSim(it, dt, now) {
       const lappers = it.actors.filter((a) => a.type === 'lapper' && a.arena);
       lappers.slice(keep).forEach((a) => { it.actors = it.actors.filter((x) => x !== a); });
       lappers.forEach((a) => { a.race = null; });
+      it.actors.filter((a) => a.type === 'boat').forEach((a) => { a.race = null; });
+      if (live.kind === 'karaoke') {
+        // fresh names step up to the mic for the next card
+        it.arena.bout = newKaraokeBout();
+        it.arena.singers?.forEach((s, i) => { s.name = it.arena.bout.names[i]; s.anim = null; if (s.homeY !== undefined) s.y = s.homeY; });
+      }
+      if (live.kind === 'bbout') {
+        // the private card ends: clear the beasts, resume the programme
+        it.actors = it.actors.filter((a) => a.type !== 'bbeast');
+        if (it.arena.kind === 'coliseum') setProgram(it, it.arena.savedProgram || 'chariots');
+      }
       if (it.arena.kind === 'coliseum') it.arena.programT = 20; // move the card along soon
     }
     return;
@@ -589,6 +907,8 @@ function updateSim(it, dt, now) {
   else if (live.kind === 'race') updateRace(it, live, dt);
   else if (live.kind === 'chase') updateChase(it, live, dt);
   else if (live.kind === 'naval') updateNaval(it, live, dt);
+  else if (live.kind === 'karaoke') updateKaraoke(it, live, dt);
+  else if (live.kind === 'bbout') updateBeastBout(it, live, dt);
 }
 
 function updateFight(it, live, dt) {
@@ -681,7 +1001,67 @@ function updateFight(it, live, dt) {
   }
 }
 
+/* the regatta: a straight sprint down the bay, drummed off the line */
+function updateRegattaRace(it, live, dt) {
+  const R = live.race;
+  const C = it.arena.course;
+  if (!R.started) {
+    R.gateT += dt;
+    R.actors.forEach((a, i) => {
+      a.x += (C.x0 - a.x) * 0.07;
+      a.y += (C.laneY(i) - a.y) * 0.07;
+      a.dir = 0; a.frame = 0;
+      for (const c2 of a.crew || []) c2.frame = 0;
+    });
+    if (R.gateT > 1.1 && !R.drummed) { R.drummed = true; live.fx.push({ text: '🥁 DOOM… DOOM…', x: C.x0, y: it.arena.rect.y + 6, t: 0, color: '#ffd75e' }); }
+    if (R.gateT > 2.4) {
+      R.started = true; live.raceT = 0;
+      live.fx.push({ text: 'PADDLES IN!', x: (C.x0 + C.x1) / 2, y: it.arena.rect.y + 6, t: 0, color: '#ffd75e' });
+    }
+    return;
+  }
+  live.raceT = (live.raceT || 0) + dt;
+  const t = live.raceT;
+  const winnerDone = R.finished.includes(R.winner);
+  R.drumT = (R.drumT || 0) - dt;
+  if (R.drumT <= 0) {
+    R.drumT = 0.9;
+    const lead = R.prog.indexOf(Math.max(...R.prog));
+    const a = R.actors[lead];
+    if (a) live.fx.push({ text: '♪', x: a.x - 14, y: a.y - 16, t: 0.4, color: '#ffd75e' });
+  }
+  R.actors.forEach((a, i) => {
+    if (R.prog[i] >= 1) { a.frame = 0; (a.crew || []).forEach((c2) => { c2.frame = 0; }); return; }
+    const T2 = R.times[i];
+    const base = Math.min(1, t / T2);
+    const D = R.drama[i];
+    const inSurge = t > D.surgeT && t < D.surgeT + D.surgeLen;
+    let drama = D.amp * Math.sin(t * D.freq + D.phase) + (inSurge ? D.surgeBoost : 0);
+    const fade = Math.max(0, Math.min(1, (1 - base) * 2.6)) * Math.min(1, base * 10);
+    drama *= fade;
+    drama = Math.max(-(1 - base) * 0.4, Math.min((1 - base) * 0.4, drama));
+    let target = base + drama;
+    if (i !== R.winner && !winnerDone) target = Math.min(target, 0.985);
+    R.prog[i] = Math.min(1, Math.max(R.prog[i], target));
+    a.x = C.x0 + R.prog[i] * (C.x1 - C.x0);
+    a.y = C.laneY(i) + Math.sin(t * 5 + i * 2) * 1.5;
+    a.dir = 0;
+    stepAnim(a, dt, 0.16);                       // paddles digging hard
+    (a.crew || []).forEach((c2) => { c2.frame = a.frame; c2.dir = 2; });
+    if (R.prog[i] >= 1 && !R.finished.includes(i)) {
+      R.finished.push(i);
+      live.fx.push({ text: `${R.field[i].name} ACROSS!`, x: C.x1, y: a.y - 18, t: 0, color: '#8fdc9a' });
+    }
+  });
+  const leadProg = Math.max(...R.prog);
+  live.focus = { x: C.x0 + leadProg * (C.x1 - C.x0), y: it.arena.center.y };
+  if (R.finished.length >= R.actors.length || live.raceT > 17) {
+    endSim(it, `🐉 ${R.field[R.winner].name.toUpperCase()} TAKES THE BAY!`);
+  }
+}
+
 function updateRace(it, live, dt) {
+  if (it.arena.kind === 'regatta') return updateRegattaRace(it, live, dt);
   const R = live.race;
   const o = it.arena.oval;
   const startAng = Math.PI / 2;    // gates at the bottom of the oval
@@ -860,6 +1240,142 @@ function updateNaval(it, live, dt) {
   }
 }
 
+/* the sing-off: verses trade blows on the hype meters instead of health */
+function updateKaraoke(it, live, dt) {
+  const K = live.kar;
+  const [a, b] = K.singers || [];
+  if (!a || !b) { endSim(it, 'The set is over.'); return; }
+  K.verseT += dt;
+  const VERSE_LEN = 5.4;
+
+  K.exchT += dt;
+  if (K.exchT > 1.05) {
+    K.exchT = 0;
+    K.turn = 1 - K.turn;
+    const singer = K.singers[K.turn];
+    const move = pickFrom(KARAOKE_MOVES);
+    let pts = move.pts[0] + roll() * (move.pts[1] - move.pts[0]);
+    pts *= K.turn === K.winner ? 1.3 : 0.78;
+    if (K.streak && K.turn === K.winner && K.verse === 2 && !K.streakDone) {
+      K.streakDone = true;
+      pts += 12;
+      live.fx.push({ text: '💫 PERFECT STREAK!', x: singer.x, y: singer.y - 34, t: 0, color: '#ff6be0' });
+    }
+    K.hype[K.turn] = Math.min(100, K.hype[K.turn] + pts);
+    singer.anim = { t: 0 };
+    singer.emote = { ico: ['🎵', '🎶', '✨'][(roll() * 3) | 0], t: 0.7 };
+    live.fx.push({ text: move.name, x: singer.x, y: singer.y - 26, t: 0, color: '#ffd75e' });
+    live.fx.push({ text: `+${Math.round(pts)}`, x: singer.x + (roll() * 10 - 5), y: singer.y - 18, t: 0, color: '#8fdc9a' });
+  }
+
+  /* stagecraft: the active singer works the boards, the other sways */
+  for (let i = 0; i < 2; i++) {
+    const s = K.singers[i];
+    s.homeX = s.homeX ?? s.x;
+    if (s.anim) {
+      s.anim.t += dt;
+      const pulse = Math.sin(Math.min(1, s.anim.t / 0.4) * Math.PI);
+      s.y = (s.homeY ?? (s.homeY = s.y)) - pulse * 5;       // a little jump
+      if (s.anim.t > 0.4) s.anim = null;
+    } else if (s.homeY !== undefined) s.y = s.homeY;
+    s.x = s.homeX + Math.sin(live.t * (i === K.turn ? 2.6 : 1.4) + i * 3) * (i === K.turn ? 7 : 3);
+    s.frame = ((live.t * (i === K.turn ? 6 : 2) + i) | 0) % 2;
+    s.dir = 0;
+  }
+  live.focus = { x: it.arena.center.x, y: it.arena.center.y + 10 };
+
+  if (K.singalong && K.verse === 2 && !K.singDone) {
+    K.singDone = true;
+    live.fx.push({ text: '🎶 THE WHOLE ROOM SINGS ALONG!', x: it.arena.center.x, y: it.arena.rect.y + it.arena.rect.h + 10, t: 0, color: '#5eeaff' });
+  }
+
+  if (K.verseT > VERSE_LEN) {
+    K.verseT = 0;
+    K.verse++;
+    if (K.verse > 3) {
+      const winner = K.singers[K.winner], loser = K.singers[1 - K.winner];
+      K.hype[K.winner] = Math.max(K.hype[K.winner], Math.min(100, K.hype[1 - K.winner] + 14));
+      winner.emote = { ico: '🏆', t: 3 };
+      loser.emote = { ico: '😅', t: 3 };
+      if (K.micdrop) live.fx.push({ text: '🎤 MIC. DROP.', x: winner.x, y: winner.y - 30, t: 0, color: '#ffd75e' });
+      endSim(it, `🎤 ${(winner.name || '').toUpperCase()} TAKES THE ROOM${K.encore ? ' — ENCORE! ENCORE!' : ''}`);
+    } else {
+      live.fx.push({ text: `VERSE ${K.verse}`, x: it.arena.center.x, y: it.arena.rect.y - 4, t: 0, color: '#e8e2d4' });
+    }
+  }
+}
+
+/* the beast bout: two Lucklians circle and trade on the sand */
+function updateBeastBout(it, live, dt) {
+  const B = live.bb;
+  const [ya, ha] = B.actors;
+  if (!ya || !ha) { endSim(it, 'The sand is empty.'); return; }
+  B.t += dt;
+
+  /* the tangle prowls around the arena */
+  B.driftT -= dt;
+  if (B.driftT <= 0) {
+    B.driftT = 1.6 + roll() * 1.8;
+    B.tgtX = B.rect.x + 14 + roll() * (B.rect.w - 28);
+    B.tgtY = B.rect.y + 10 + roll() * (B.rect.h - 20);
+  }
+  B.pairX += (B.tgtX - B.pairX) * Math.min(1, dt * 1.3);
+  B.pairY += (B.tgtY - B.pairY) * Math.min(1, dt * 1.3);
+
+  B.exchT += dt;
+  if (B.exchT > 0.85) {
+    B.exchT = 0;
+    if (!B.firstDone) { B.attacker = B.firstBlood; B.firstDone = true; }
+    else B.attacker = 1 - B.attacker;
+    const atk = B.actors[B.attacker], def = B.actors[1 - B.attacker];
+    const move = pickFrom(BEAST_MOVES);
+    atk.anim = { t: 0, dirTo: def.x >= atk.x ? 1 : -1 };
+    def.hitT = 0.22;
+    def.knock = { dx: def.x >= atk.x ? 6 : -6, t: 0.2 };
+    const loserIdx = 1 - B.winner;
+    let dmg = move.dmg[0] + roll() * (move.dmg[1] - move.dmg[0]);
+    dmg *= (1 - B.attacker) === loserIdx ? 1.35 : 0.55;
+    if (B.t > B.koAt - 3 && (1 - B.attacker) === loserIdx) dmg += 8;
+    B.hp[1 - B.attacker] = Math.max(0, B.hp[1 - B.attacker] - dmg);
+    if ((1 - B.attacker) === B.winner) B.hp[B.winner] = Math.max(30, B.hp[B.winner]);   // the victor stays on its feet
+    live.fx.push({ text: move.name, x: atk.x, y: atk.y - 26, t: 0, color: '#ffd75e' });
+    live.fx.push({ text: `-${Math.round(dmg)}`, x: def.x + (roll() * 8 - 4), y: def.y - 16, t: 0, color: '#ff8a7a' });
+    if (B.firstDone && !B.bloodShown) { B.bloodShown = true; live.fx.push({ text: '🩸 FIRST BLOOD!', x: def.x, y: def.y - 36, t: 0, color: '#e05548' }); }
+  }
+
+  /* choreography: circle, lunge, recoil */
+  for (let i = 0; i < 2; i++) {
+    const a = B.actors[i];
+    const side = i === 0 ? -1 : 1;
+    let ox = 0;
+    if (a.anim) {
+      a.anim.t += dt;
+      const pulse = Math.sin(Math.min(1, a.anim.t / 0.3) * Math.PI);
+      ox = a.anim.dirTo * 10 * pulse;
+      if (a.anim.t > 0.3) a.anim = null;
+    }
+    let kx = 0;
+    if (a.knock) { a.knock.t -= dt; kx = a.knock.dx * Math.max(0, a.knock.t / 0.2); if (a.knock.t <= 0) a.knock = null; }
+    const orbit = Math.sin(B.t * 1.7 + i * Math.PI) * 5;
+    a.x = B.pairX + side * (17 + orbit) + ox + kx;
+    a.y = B.pairY + Math.cos(B.t * 1.3 + i * 2) * 4;
+    a.dir = a.x <= B.pairX ? 0 : 1;    // always squared up
+    a.frame = 0;
+  }
+  live.focus = { x: B.pairX, y: B.pairY };
+
+  const loserIdx = 1 - B.winner;
+  if (B.hp[loserIdx] <= 0 && !B.koDone) {
+    B.koDone = true;
+    const winA = B.actors[B.winner], losA = B.actors[loserIdx];
+    losA.emote = { ico: '😵', t: 3 };
+    winA.emote = { ico: '🏆', t: 3 };
+    endSim(it, `🐆 ${(winA.def?.name || '').toUpperCase()} STANDS ALONE!`);
+  } else if (B.t > 20 && !B.koDone) {
+    B.hp[loserIdx] = 0;    // the editor waves it off — never let a card stall
+  }
+}
+
 /* ============================================================
    In-scene overlay UI — drawn straight onto the canvas
    ============================================================ */
@@ -896,6 +1412,26 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     ctx.fillText(label, S(A.center.x), Sy(A.rect.y) - 4 * zoom / 2);
   }
 
+  /* the regatta course: start line and finish buoys, always on the water */
+  if (A.kind === 'regatta' && A.course) {
+    const C = A.course;
+    ctx.strokeStyle = 'rgba(240,192,64,0.55)';
+    ctx.lineWidth = zoom / 2;
+    ctx.setLineDash([zoom * 2, zoom * 2]);
+    for (const wx of [C.x0 - 14, C.x1 + 12]) {
+      ctx.beginPath();
+      ctx.moveTo(S(wx), Sy(A.rect.y + 4));
+      ctx.lineTo(S(wx), Sy(A.rect.y + A.rect.h - 4));
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    for (let k = 0; k < 4; k++) {   // finish buoys bobbing
+      const by = A.rect.y + 10 + k * ((A.rect.h - 20) / 3) + Math.sin(now / 500 + k) * 2;
+      ctx.fillStyle = k % 2 ? '#e05030' : '#ffd75e';
+      ctx.fillRect(S(C.x1 + 12) - zoom, Sy(by) - zoom, zoom * 2, zoom * 2);
+    }
+  }
+
   /* health bars on ambient + sim performers */
   for (const a of it.actors) {
     if (!a.arena) continue;
@@ -903,17 +1439,25 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     const needsBar = (live && !(a.sink > 0) && !a.down &&
       ((live.kind === 'fight' && a.type === 'fighter') ||
       (live.kind === 'chase' && a.type === 'prey') ||
-      (live.kind === 'naval' && a.type === 'ship')));
-    if (needsBar && a.hp !== undefined) {
-      const w = (a.type === 'ship' ? 30 : 16) * zoom / 2;
-      let frac = a.hp / 100;
+      (live.kind === 'naval' && a.type === 'ship') ||
+      (live.kind === 'karaoke' && a.type === 'singer') ||
+      (live.kind === 'bbout' && a.type === 'bbeast')));
+    if (needsBar && (a.hp !== undefined || a.type === 'singer')) {
+      const w = (a.type === 'ship' ? 30 : a.type === 'bbeast' ? 22 : 16) * zoom / 2;
+      let frac = (a.hp ?? 100) / 100;
       if (live.kind === 'fight') {
         const F = live.fight;
         frac = (F.actors[0] === a ? F.hp[0] : F.hp[1]) / 100;
+      } else if (live.kind === 'karaoke') {
+        const K = live.kar;
+        frac = (K.singers[0] === a ? K.hype[0] : K.hype[1]) / 100;   // hype, not health
+      } else if (live.kind === 'bbout') {
+        const B = live.bb;
+        frac = (B.actors[0] === a ? B.hp[0] : B.hp[1]) / 100;
       }
-      const barY = Sy(a.y) - (a.type === 'ship' ? 34 : 26) * zoom / 2;
+      const barY = Sy(a.y) - (a.type === 'ship' ? 34 : a.type === 'bbeast' ? 32 : 26) * zoom / 2;
       hpBar(ctx, S(a.x) - w / 2, barY, w, Math.max(0, frac), zoom);
-      if (a.name && (live.kind === 'fight' || live.kind === 'naval')) {
+      if (a.name && (live.kind === 'fight' || live.kind === 'naval' || live.kind === 'karaoke' || live.kind === 'bbout')) {
         ctx.font = font(7 * zoom / 2);
         ctx.textAlign = 'center';
         ctx.strokeStyle = 'rgba(0,0,0,0.75)'; ctx.lineWidth = 2;
@@ -993,9 +1537,11 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw) {
     const topY = Sy(A.rect.y) - 34 * zoom / 2;
     let line1 = '', line2 = `BET ${fmt(live.bet)} → WIN ${fmt(live.bet * live.mult)} (${fmtMult(live.mult)}x)`;
     if (live.kind === 'fight') line1 = live.phase === 'done' ? 'FIGHT OVER' : `ROUND ${Math.min(3, live.fight.roundNow)} · 0:${String(Math.max(0, Math.round((5.2 - live.fight.roundT) * 11))).padStart(2, '0')}`;
-    else if (live.kind === 'race') line1 = live.race.started ? '🏁 RACING' : 'THE FIELD LOADS THE GATES…';
+    else if (live.kind === 'race') line1 = live.race.started ? (A.kind === 'regatta' ? '🥁 PADDLES DIGGING' : '🏁 RACING') : (A.kind === 'regatta' ? 'THE CREWS TAKE THE LINE…' : 'THE FIELD LOADS THE GATES…');
     else if (live.kind === 'chase') line1 = `SURVIVE: 0:${String(Math.max(0, Math.ceil(live.chase.timer))).padStart(2, '0')}`;
     else if (live.kind === 'naval') line1 = `${live.naval.ships.filter((s) => s.sink === 0).length} SHIPS AFLOAT`;
+    else if (live.kind === 'karaoke') line1 = live.phase === 'done' ? 'THE SET ENDS' : `🎤 VERSE ${Math.min(3, live.kar.verse)} OF 3`;
+    else if (live.kind === 'bbout') line1 = live.phase === 'done' ? 'THE SAND SETTLES' : '🐆 ON THE SAND';
     ctx.font = font(11 * zoom / 2);
     const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width) + 20;
     panel(ctx, cx - w / 2, topY, w, 26 * zoom / 2);

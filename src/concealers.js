@@ -111,7 +111,9 @@ export function updateConcealerSpawns(world, dt) {
   }
 }
 
+let worldRef = null;
 export function seedConcealers(world) {
+  worldRef = world;
   for (let i = 0; i < CONFIG.CONCEALER_MAX_ACTIVE * 0.8; i++) trySpawnConcealer(world);
 }
 
@@ -176,6 +178,7 @@ export function openConcealer(c, provCode, onDone) {
     if (loot.tier === 'legendary' || loot.tier === 'mythic') {
       toast(`<span class="who">You</span> pulled <span class="amt">${escapeHtml(loot.name)}</span> from a ${escapeHtml(type.name)}!`, true);
     }
+    if (type.id !== 'hoard') maybeMapFragment();
 
     const stage = document.getElementById('chest-stage');
     const ico = document.getElementById('chest-ico');
@@ -228,4 +231,52 @@ export function openConcealer(c, provCode, onDone) {
       renderBalance();
     }, rumbleMs);
   });
+}
+
+/* ------------------------------------------------------------
+   Tide-treasure maps — chests sometimes cough up fragments of
+   a torn treasure map. Complete one and a Sunken Hoard appears
+   on a tide-bared flat: the best chest odds in the game, but
+   only the low tide will let you reach it.
+   ------------------------------------------------------------ */
+const TM = CONFIG.TMAP;
+export const HOARD_TYPE = {
+  id: 'hoard', name: 'Sunken Hoard', ico: '💰',
+  price: TM.HOARD_PRICE, rtp: TM.HOARD_RTP, weight: 0, biomes: '*',
+};
+
+function placeHoard() {
+  if (!worldRef) return null;
+  const zones = [...worldRef.zones.filter((z) => z.tidal)].sort(() => roll() - 0.5);
+  for (const z of zones) {
+    for (let tries = 0; tries < 250; tries++) {
+      const x = Math.round(z.x + (roll() - 0.5) * z.r * 2);
+      const y = Math.round(z.y + (roll() - 0.5) * z.r * 2);
+      if (x < 2 || y < 2 || x >= worldRef.W - 2 || y >= worldRef.H - 2) continue;
+      if (worldRef.tiles[y * worldRef.W + x] === T.TIDAL) return { x, y, region: z.name || 'a tide-bared shore' };
+    }
+  }
+  return null;
+}
+
+function maybeMapFragment() {
+  const tm = state.tmap || (state.tmap = { frags: 0, hoard: null });
+  if (tm.hoard || roll() >= TM.FRAG_CHANCE) return;
+  tm.frags = Math.min(TM.FRAGS_NEEDED, (tm.frags || 0) + 1);
+  if (tm.frags >= TM.FRAGS_NEEDED) {
+    const spot = placeHoard();
+    if (!spot) { tm.frags = TM.FRAGS_NEEDED - 1; return; }
+    tm.hoard = spot;
+    tm.frags = 0;
+    toast(`🗺️ <b>The map is complete!</b> A Sunken Hoard lies at <b>${escapeHtml(spot.region)}</b> — only the low tide will bare it. It's marked on your map.`, true);
+  } else {
+    toast(`🗺️ Tucked beneath the loot: a <b>map fragment</b> (${tm.frags}/${TM.FRAGS_NEEDED})… someone tore up a treasure map.`);
+  }
+}
+
+export function openHoard(provCode) {
+  const tm = state.tmap;
+  if (!tm?.hoard) return;
+  const c = { x: tm.hoard.x, y: tm.hoard.y, type: HOARD_TYPE };
+  openConcealer(c, provCode, () => { tm.hoard = null; });
 }

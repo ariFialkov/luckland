@@ -610,7 +610,8 @@ export function generateWorld() {
       : /Golden Temple/.test(n) ? 'stupa'
       : /Light\b/.test(n) ? 'lighthouse'
       : lm.prov === 'DG' && /Temple|Palace|Pavilion|Hall/.test(n) ? 'pagoda'
-      : /Harbourhouse|Docks/.test(n) ? 'warehouse'
+      : /Harbourhouse|Docks|Regatta/.test(n) ? 'warehouse'
+      : /Karaoke/.test(n) ? 'casino'
       : null;
     lm.sub = sub;   // interiors style themselves by this too
     buildings.push({ x, y, w, h, prov: lm.prov, kind: 'landmark', sub, v: (hash2(x, y, seed + 74) * 1e6) | 0, doorPx: (w >> 1) * 16 + 8 });
@@ -686,6 +687,8 @@ export function generateWorld() {
     ['MN', 'Magic Mushroom Casino', '🍄', 'Neon towers of endless pachinko', 293, 68, 8, 6, ['pachinko', 'slots', 'neonneko', 'coincascade']],
     ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumo', 'pachinko', 'catparade']],
     ['MN', 'Horizon Park Lookout', '⛩️', 'Views over the beckoning sea', 342, 27, 5, 4, ['pachinko', 'neonneko']],
+    ['DG', 'Grand Regatta House', '🐉', 'Dragon boats thunder down the bay', 128, 160, 8, 5, ['regattabets', 'sicbo']],
+    ['MN', 'Neon Koi Karaoke', '🎤', 'Sing-offs and long odds till sunrise', 283, 42, 7, 5, ['karaokebets', 'pachinko']],
   ];
   for (const [p, name, ico, desc, x, y, w, h, games] of LM) {
     stampLandmark({ prov: p, name, ico, desc, x, y, w, h, games });
@@ -985,6 +988,21 @@ export function generateWorld() {
     { game: 'scavhunt', prov: 'DG', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
     { game: 'scavhunt', prov: 'EP', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
     { game: 'scavhunt', prov: 'MN', label: 'Scavenger Hunt Tent', w: 3, h: 2, spawn: 'urban', n: 1 },
+    /* the National Hunt caravan — one grand booth per province, but the
+       caravan itself is only ever "in town" at a rotating pair of them */
+    { game: 'natscav', prov: 'TF', label: 'National Hunt Caravan', w: 4, h: 2, spawn: 'urban', n: 1 },
+    { game: 'natscav', prov: 'FL', label: 'National Hunt Caravan', w: 4, h: 2, spawn: 'urban', n: 1 },
+    { game: 'natscav', prov: 'HV', label: 'National Hunt Caravan', w: 4, h: 2, spawn: 'urban', n: 1 },
+    { game: 'natscav', prov: 'DG', label: 'National Hunt Caravan', w: 4, h: 2, spawn: 'urban', n: 1 },
+    { game: 'natscav', prov: 'EP', label: 'National Hunt Caravan', w: 4, h: 2, spawn: 'urban', n: 1 },
+    { game: 'natscav', prov: 'MN', label: 'National Hunt Caravan', w: 4, h: 2, spawn: 'urban', n: 1 },
+    /* gold panning claims on the western streams (FL's becks are wee —
+       any bank will do there; HV pans the true inland rivers) */
+    { game: 'goldpan', prov: 'FL', label: "Panner's Claim", w: 3, h: 2, spawn: 'water', n: 3 },
+    { game: 'goldpan', prov: 'HV', label: "Panner's Claim", w: 3, h: 2, spawn: 'stream', n: 3 },
+    /* lantern festival launch docks on the eastern rivers */
+    { game: 'lanternfest', prov: 'EP', label: 'Lantern Festival Dock', w: 3, h: 2, spawn: 'stream', n: 2 },
+    { game: 'lanternfest', prov: 'DG', label: 'Lantern Festival Dock', w: 3, h: 2, spawn: 'stream', n: 2 },
   ];
 
   const events = [];
@@ -1053,6 +1071,15 @@ export function generateWorld() {
           if (inB(x + dx, y + dy) && PROV_LIST[prov[idx(x + dx, y + dy)]] === 'SEA') return true;
         }
         return false;                                 // fresh water only — a lake, not the sea
+      }
+      case 'stream': {                                // inland banks: rivers and lakes, never the sea
+        if (!(t === T.GRASS || t === T.SAND || t === T.MEADOW || t === T.TRAIL ||
+              t === T.HILL || t === T.DUST || t === T.SCRUB)) return false;
+        if (!nearTile(x, y, 3, (q) => q === T.WATER || q === T.SHALLOW)) return false;
+        for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) {
+          if (inB(x + dx, y + dy) && PROV_LIST[prov[idx(x + dx, y + dy)]] === 'SEA') return false;
+        }
+        return true;                                  // salt water anywhere near disqualifies it
       }
       default: return false;
     }

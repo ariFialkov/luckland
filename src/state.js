@@ -24,7 +24,9 @@ export const state = {
   metNpcs: [],               // npc ids greeted at least once
   lk: { caught: {}, seen: {}, sales: 0, salesDay: '' },   // Lucklians
   gear: { rod: false },      // one-time equipment (fishing rod)
-  hunt: null,                // active Grand Scavenger Hunt (see hunts.js)
+  hunt: null,                // active scavenger hunt, local or national (see hunts.js)
+  tmap: { frags: 0, hoard: null },   // tide-treasure map progress
+  tide: 0,                   // live tide level (written by main each frame, not saved)
   buffs: {
     luckUntil: 0,            // epoch ms; while active, +rtp bonus
     luckBonus: 0,
@@ -105,6 +107,7 @@ export function saveGame() {
       lk: state.lk,
       gear: state.gear,
       hunt: state.hunt,
+      tmap: state.tmap,
     }));
   } catch { /* storage full / private mode — play on without saving */ }
 }
@@ -126,6 +129,7 @@ export function loadGame() {
     }
     if (d.gear && typeof d.gear === 'object') state.gear = { rod: !!d.gear.rod };
     if (d.hunt && typeof d.hunt === 'object' && Array.isArray(d.hunt.list)) state.hunt = d.hunt;
+    if (d.tmap && typeof d.tmap === 'object') state.tmap = { frags: d.tmap.frags || 0, hoard: d.tmap.hoard || null };
     return true;
   } catch { return false; }
 }

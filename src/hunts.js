@@ -26,13 +26,29 @@ import { getLucklianSprite } from './sprites.js';
 import { PROVINCES } from './world.js';
 
 const H = CONFIG.HUNT;
+const HN = CONFIG.HUNT_NAT;
+const cfgFor = (kind) => (kind === 'national' ? HN : H);
 
 const RIVAL_NAMES = [
   'Poppy Bramblefoot', 'Old Silas', 'Nixie Two-Snares', 'Bao the Patient',
   'Colm Quickstep', 'Sadie Longeye', 'Kenji Dawnrunner', 'Marnie Whistlewind',
   'Ptolemy the Younger', 'Granny Ashvale', 'Tuk of the Reeds', 'Vera Nightlark',
   'Duffy McBride', 'Anong Swiftgrass', 'Reverend Toe', 'Little Miss Mireille',
+  'The Kilfenny Kid', 'Chalerm the Shadow', 'Two-Left-Boots Betts', 'Professor Nyx',
 ];
+
+/* ---- the National Hunt caravan: which cities it is parked in ---- */
+const CARAVAN_STOPS = [
+  ['TF', 'Tyche'], ['FL', 'Ballyclover'], ['HV', 'Downtown Horseshoeville'],
+  ['DG', 'Tiger City'], ['EP', 'Sawan City'], ['MN', 'Downtown Maneki'],
+];
+export function caravanStatus() {
+  const period = HN.ROTATE_MIN * 60000;
+  const idx = Math.floor(Date.now() / period) % CARAVAN_STOPS.length;
+  const here = [CARAVAN_STOPS[idx], CARAVAN_STOPS[(idx + 1) % CARAVAN_STOPS.length]];
+  const minsLeft = Math.ceil((period - (Date.now() % period)) / 60000);
+  return { here, minsLeft };
+}
 
 const fmt = (v) => Math.round(v).toLocaleString('en-US');
 const MEDALS = ['🥇', '🥈', '🥉'];
@@ -63,72 +79,139 @@ function rollCard(prov) {
   return card;
 }
 
-export function prizeLadder(stake, rtp) {
-  const evK = H.Q.reduce((a, q, i) => a + q * H.K[i], 0);
-  const scale = rtp / evK;
-  return H.K.map((k) => Math.round(k * scale * stake));
+/* ------------------------------------------------------------
+   The national card: six species spanning the continent —
+   sometimes themed (all-Sea, all-Neon…), always harder.
+   ------------------------------------------------------------ */
+const NAT_THEMES = [
+  { name: 'Sea Legs', ico: '🌊', filter: (l) => l.type === 'Sea' },
+  { name: 'Neon Nights', ico: '🌃', filter: (l) => l.type === 'Neon' },
+  { name: 'Snowbound', ico: '❄️', filter: (l) => l.type === 'Snow' },
+  { name: 'Birds of a Feather', ico: '🪶', filter: (l) => ['bird', 'raptor', 'owl'].includes(l.a) },
+  { name: 'Mountain Majesty', ico: '⛰️', filter: (l) => l.type === 'Mountain' },
+  { name: 'Creepy-Crawlies', ico: '🐞', filter: (l) => ['beetle', 'crab', 'moth'].includes(l.a) },
+];
+function take(arr, n) {
+  const pool = [...arr], out = [];
+  while (out.length < n && pool.length) out.push(pool.splice((roll() * pool.length) | 0, 1)[0]);
+  return out;
+}
+function rollNationalCard() {
+  const catchable = LUCKLIANS.filter((l) => l.rare >= 0.004);   // no month-long mythic grinds
+  if (roll() < HN.THEME_CHANCE) {
+    const themes = [...NAT_THEMES].sort(() => roll() - 0.5);
+    for (const th of themes) {
+      const pool = catchable.filter(th.filter);
+      if (pool.length < HN.LIST_SIZE) continue;
+      const byRare = [...pool].sort((a, b) => b.rare - a.rare);
+      const half = Math.ceil(byRare.length / 2);
+      const card = take(byRare.slice(0, half), HN.LIST_SIZE - 2)
+        .concat(take(byRare.slice(half), 2));
+      if (card.length === HN.LIST_SIZE) return { card, theme: th };
+    }
+  }
+  // untamed variety: four everyday species from four different provinces,
+  // plus a mid-rare and a genuine star from elsewhere
+  const provs = take(['TF', 'FL', 'HV', 'DG', 'EP', 'MN'], 6);
+  const card = [];
+  for (const p of provs) {
+    if (card.length >= HN.LIST_SIZE - 2) break;
+    const pool = catchable.filter((l) => l.prov === p && l.rare >= 0.05 && !card.includes(l));
+    if (pool.length) card.push(pool[(roll() * pool.length) | 0]);
+  }
+  const mids = catchable.filter((l) => l.rare >= 0.02 && l.rare < 0.05 && !card.includes(l) && !card.some((c) => c.prov === l.prov));
+  const stars = catchable.filter((l) => l.rare >= 0.005 && l.rare < 0.025 && !card.includes(l));
+  card.push(...take(mids.length ? mids : catchable.filter((l) => l.rare >= 0.02 && l.rare < 0.05 && !card.includes(l)), 1));
+  card.push(...take(stars, 1));
+  // backstop: fill from anywhere, commonest first
+  const rest = catchable.filter((l) => !card.includes(l)).sort((a, b) => b.rare - a.rare);
+  while (card.length < HN.LIST_SIZE && rest.length) card.push(rest.shift());
+  return { card, theme: null };
 }
 
-function drawPosition() {
+export function prizeLadder(stake, rtp, cfg = H) {
+  const evK = cfg.Q.reduce((a, q, i) => a + q * cfg.K[i], 0);
+  const scale = rtp / evK;
+  return cfg.K.map((k) => Math.round(k * scale * stake));
+}
+
+function drawPosition(cfg) {
   let r = roll();
-  for (let i = 0; i < H.Q.length; i++) { r -= H.Q[i]; if (r <= 0) return i; }
-  return H.Q.length - 1;
+  for (let i = 0; i < cfg.Q.length; i++) { r -= cfg.Q[i]; if (r <= 0) return i; }
+  return cfg.Q.length - 1;
 }
 
 /* ------------------------------------------------------------
-   Sign-up lobby (opened by bumping a tent)
+   Sign-up lobby (opened by bumping a tent or the caravan booth)
    ------------------------------------------------------------ */
-export function openHuntLobby(provCode) {
+export function openHuntLobby(provCode, kind = 'local') {
   if (state.hunt) {
     collapsed = false;
     renderWidget(true);
     toast('🏆 You\'re already mid-hunt — the tracker in the corner has your card.');
     return;
   }
-  const card = rollCard(provCode);
-  if (card.length < H.LIST_SIZE) { toast('The organisers are still drawing up a card — try another tent.'); return; }
-  const rtp = effectiveRTP('scavhunt', provCode);
+  if (kind === 'national') {
+    const cs = caravanStatus();
+    if (!cs.here.some(([p]) => p === provCode)) {
+      const where = cs.here.map(([, city]) => city).join(' and ');
+      toast(`🌐 The caravan is parked in <b>${escapeHtml(where)}</b> right now — it moves on in ${cs.minsLeft}m.`);
+      return;
+    }
+  }
+  const cfg = cfgFor(kind);
+  const gameId = kind === 'national' ? 'natscav' : 'scavhunt';
+  const { card, theme } = kind === 'national' ? rollNationalCard() : { card: rollCard(provCode), theme: null };
+  if (card.length < cfg.LIST_SIZE) { toast('The organisers are still drawing up a card — try again shortly.'); return; }
+  const rtp = effectiveRTP(gameId, provCode);
   const V = card.reduce((a, l) => a + l.value, 0);
-  const stake = H.FEE + V;
-  const prizes = prizeLadder(stake, rtp);
+  const stake = cfg.FEE + V;
+  const prizes = prizeLadder(stake, rtp, cfg);
   const rows = card.map((l) => {
     const tier = rarityTier(l.rare);
     return `<div class="hunt-row">${sprImg(l)}
-      <span class="hunt-nm" style="color:${tier.color}">${escapeHtml(l.name)}</span>
+      <span class="hunt-nm" style="color:${tier.color}">${escapeHtml(l.name)}<span style="opacity:.6;font-weight:400"> · ${escapeHtml(PROVINCES[l.prov]?.name || l.prov)}</span></span>
       <span class="hunt-val">${fmt(l.value)} 🪙</span></div>`;
   }).join('');
-  const m = showModal(`
-    <h2>🏆 The Grand Scavenger Hunt</h2>
-    <div class="subtitle">${escapeHtml(PROVINCES[provCode]?.name || provCode)} qualifier · ${H.BOTS} rivals · RTP ${(rtp * 100).toFixed(1)}%</div>
+  const title = kind === 'national' ? '🌐 The National Hunt' : '🏆 The Grand Scavenger Hunt';
+  const subtitle = kind === 'national'
+    ? `${theme ? `${theme.ico} Theme: <b>${escapeHtml(theme.name)}</b>` : 'Open card — the whole continent'} · ${cfg.BOTS} rivals · RTP ${(rtp * 100).toFixed(1)}%`
+    : `${escapeHtml(PROVINCES[provCode]?.name || provCode)} qualifier · ${cfg.BOTS} rivals · RTP ${(rtp * 100).toFixed(1)}%`;
+  showModal(`
+    <h2>${title}</h2>
+    <div class="subtitle">${subtitle}</div>
     <div class="hunt-card">${rows}</div>
-    <div class="lk-desc">Catch all four, in any order, before the field does. Every listed Lucklian you catch
+    <div class="lk-desc">Catch all ${cfg.LIST_SIZE === 6 ? 'six' : 'four'}, in any order, before the field does. Every listed Lucklian you catch
       can be <b>contributed</b> to your card — it forfeits its sale value — or kept to sell as usual.
-      Contributed value (${fmt(V)} 🪙) plus the ${fmt(H.FEE)} 🪙 entry makes your true stake of <b>${fmt(stake)} 🪙</b>.</div>
+      Contributed value (${fmt(V)} 🪙) plus the ${fmt(cfg.FEE)} 🪙 entry makes your true stake of <b>${fmt(stake)} 🪙</b>.</div>
     <div class="hunt-prizes">
       <span>🥇 ${fmt(prizes[0])}</span><span>🥈 ${fmt(prizes[1])}</span><span>🥉 ${fmt(prizes[2])}</span><span>4th+ nothing</span>
     </div>
     <div class="btn-row">
-      <button class="btn" id="hunt-enter" ${canAfford(H.FEE) ? '' : 'disabled'}>Sign up · ${fmt(H.FEE)} 🪙</button>
+      <button class="btn" id="hunt-enter" ${canAfford(cfg.FEE) ? '' : 'disabled'}>Sign up · ${fmt(cfg.FEE)} 🪙</button>
       <button class="btn secondary" id="hunt-no">Not today</button>
     </div>
   `);
   document.getElementById('hunt-no').addEventListener('click', closeModal);
   document.getElementById('hunt-enter').addEventListener('click', () => {
-    if (state.hunt || !spend(H.FEE)) return;
+    if (state.hunt || !spend(cfg.FEE)) return;
     renderBalance();
-    startHunt(provCode, card, stake, prizes);
+    startHunt(provCode, kind, theme, card, stake, prizes);
     closeModal();
-    toast('🏁 <b>The hunt is on!</b> Four Lucklians, any order — the field is already moving.', true);
+    toast(kind === 'national'
+      ? '🌐 <b>The National Hunt is on!</b> Six species, the whole continent — travel well.'
+      : '🏁 <b>The hunt is on!</b> Four Lucklians, any order — the field is already moving.', true);
   });
 }
 
-function startHunt(prov, card, stake, prizes) {
-  const pos = drawPosition();
-  // rivals destined to finish ahead of you; off the podium means 3-5 do
-  const nAhead = pos < 3 ? pos : 3 + ((roll() * 3) | 0);
+function startHunt(prov, kind, theme, card, stake, prizes) {
+  const cfg = cfgFor(kind);
+  const pos = drawPosition(cfg);
+  // rivals destined to finish ahead of you; off the podium means 3+ do
+  const nAhead = pos < 3 ? pos : 3 + ((roll() * Math.min(3, cfg.BOTS - 3)) | 0);
   const names = [...RIVAL_NAMES];
   const bots = [];
-  for (let i = 0; i < H.BOTS; i++) {
+  for (let i = 0; i < cfg.BOTS; i++) {
     const name = names.splice((roll() * names.length) | 0, 1)[0];
     const ahead = i < nAhead;
     bots.push({
@@ -139,7 +222,10 @@ function startHunt(prov, card, stake, prizes) {
       frac: 0,
     });
   }
-  state.hunt = { prov, list: card.map((l) => l.id), done: {}, stake, pos, prizes, bots, t: 0 };
+  state.hunt = {
+    prov, kind, theme: theme ? { name: theme.name, ico: theme.ico } : null,
+    list: card.map((l) => l.id), done: {}, stake, pos, prizes, bots, t: 0,
+  };
   collapsed = false;
   renderWidget(true);
 }
@@ -198,11 +284,12 @@ export function tickHunt(dt) {
   if (!h) { if (widget) removeWidget(); return; }
   if (!widget) renderWidget(true);
   h.t += dt;
+  const SIZE = h.list.length;
   const mine = h.list.filter((id) => h.done[id]).length;
   for (const b of h.bots) {
     const target = b.ahead
-      ? Math.min(H.LIST_SIZE, mine + b.lead)                       // just out in front
-      : Math.min(H.LIST_SIZE - 0.6, mine * b.lag + h.t / 900);     // trailing off your pace
+      ? Math.min(SIZE, mine + b.lead)                              // just out in front
+      : Math.min(SIZE - 0.6, mine * b.lag + h.t / 900);            // trailing off your pace
     b.frac = Math.min(target, b.frac + Math.max(0, target - b.frac) * Math.min(1, dt * 0.22) + dt * 0.002);
   }
   // anything visible changed? (a rival's count, a catch of a listed
@@ -216,9 +303,10 @@ export function tickHunt(dt) {
 function finishHunt() {
   const h = state.hunt;
   // the destined leaders cross the line; everyone else is caught mid-card
-  for (const b of h.bots) if (b.ahead) b.frac = H.LIST_SIZE;
+  const SIZE = h.list.length;
+  for (const b of h.bots) if (b.ahead) b.frac = SIZE;
   const prize = h.prizes[h.pos] || 0;
-  const place = h.bots.filter((b) => b.frac >= H.LIST_SIZE).length + 1;
+  const place = h.bots.filter((b) => b.frac >= SIZE).length + 1;
   const standings = [
     ...h.bots.filter((b) => b.ahead).sort((a, b2) => b2.lead - a.lead).map((b) => b.name),
     'You',
@@ -253,7 +341,7 @@ function abandonHunt() {
   const given = h.list.filter((id) => h.done[id]).length;
   showModal(`
     <h2>🚪 Leave the hunt?</h2>
-    <div class="lk-desc">Your ${fmt(H.FEE)} 🪙 entry${given ? ` and the ${given} contributed Lucklian${given > 1 ? 's' : ''}` : ''} stay with the organisers. There's no coming back to this card.</div>
+    <div class="lk-desc">Your ${fmt(cfgFor(h.kind).FEE)} 🪙 entry${given ? ` and the ${given} contributed Lucklian${given > 1 ? 's' : ''}` : ''} stay with the organisers. There's no coming back to this card.</div>
     <div class="btn-row">
       <button class="btn danger" id="hunt-quit-yes">Walk away</button>
       <button class="btn secondary" id="hunt-quit-no">Keep hunting</button>
@@ -301,12 +389,13 @@ function renderWidget(full = false) {
   }
   widget.innerHTML = `
     <button class="hw-head" id="hw-toggle">
-      <span>🏆 ${mine}/${H.LIST_SIZE}</span>
+      <span>${h.kind === 'national' ? '🌐' : '🏆'} ${mine}/${h.list.length}</span>
       <span class="hw-place">P${place}</span>
       <span class="hw-arrow">${collapsed ? '▸' : '▾'}</span>
     </button>
     ${collapsed ? '' : `
     <div class="hw-body">
+      ${h.theme ? `<div class="hw-theme">${h.theme.ico} ${escapeHtml(h.theme.name)}</div>` : ''}
       <div class="hw-list">${h.list.map((id) => {
         const def = BY_ID.get(id);
         const got = !!h.done[id];
@@ -338,6 +427,6 @@ function boardHtml(h, mine) {
     ...h.bots.map((b) => ({ name: b.name, frac: b.frac, me: false })),
   ].sort((a, b) => b.frac - a.frac);
   return rows.map((r, i) => `<div class="hw-rival${r.me ? ' me' : ''}">
-    <span>${i + 1}. ${escapeHtml(r.name)}</span><span>${Math.floor(r.frac + 1e-6)}/${H.LIST_SIZE}</span>
+    <span>${i + 1}. ${escapeHtml(r.name)}</span><span>${Math.floor(r.frac + 1e-6)}/${h.list.length}</span>
   </div>`).join('');
 }

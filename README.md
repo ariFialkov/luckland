@@ -168,6 +168,52 @@ leaning long-odds/high-reward. A collapsible corner tracker shows your card,
 the live leaderboard and an exit button; the rivals' pace is choreographed
 around yours so the board always agrees with the honestly drawn result.
 
+### The National Hunt
+
+Above the local qualifiers, the **National Hunt Caravan** — a gilded painted
+wagon — is parked in only **two main cities at a time**, rotating every 8
+minutes (bump an empty booth and it tells you where the caravan is now). Its
+card is serious: **six species spanning the continent**, sometimes drawn to a
+**theme** (Sea Legs, Neon Nights, Snowbound, Birds of a Feather…), a 750 🪙
+entry, eleven rivals and longer podium odds with a monster gold purse — same
+honest ladder, same contribute-or-keep mechanic, same tracker.
+
+### Geography games
+
+- **Panner's Claim** (⛏️ FL/HV riverbanks) — pay for a scoop of gravel and
+  swirl. **The tide decides what the river gives up**: low water bares a
+  fresh bar with wilder swings (longer dry spells, fatter nuggets, the
+  Mother Lode) at the identical RTP.
+- **Lantern Festival** (🏮 EP/DG river docks) — the rivers light up for a
+  ~2-minute launch window every few minutes. Your lantern joins seven
+  villagers' on the current; furthest upriver takes the temple pot, with a
+  long-odds podium ladder scaled to the RTP.
+- **Tide-treasure maps** — chests occasionally cough up **map fragments**;
+  three complete a map and a **Sunken Hoard** (the best chest odds in the
+  game) appears on a named tide flat, marked ✖ on your map — but only the
+  low tide will let you reach it.
+
+### Live arenas, round two
+
+- **The Grand Regatta** (🐉 Grand Regatta House, Dragon's Bay) — the
+  boathouse opens onto real water where four **crewed dragon boats** idle at
+  their moorings. Back a lane and the drum sounds: a live sprint down the
+  bay with paddlers digging, comeback drama, a locking leaderboard and
+  finish buoys.
+- **The Neon Mic** (🎤 Neon Koi Karaoke, Downtown Maneki) — two named
+  singers (Momo Volt, Neon Grandpa, Vending Machine Vinnie…) duel over
+  three verses with **hype meters** instead of health bars, named flourishes
+  (KEY CHANGE, WHISTLE NOTE, SPARKLE CANNON) and a six-prop book: winner,
+  sing-along, encore, mic-drop, perfect streak.
+- **The Owners' Gate** (🏇 Horseshoe Downs) — enter a Lucklian of **your
+  own** in a live race. Its odds derive from its pedigree (face value), it
+  runs in its own species colours, and it is **never at risk** — it earns
+  purses without being sold.
+- **The Bestiarius Gate** (🐆 Coliseum of Pontium) — pit your own beast
+  against a house beast matched pound-for-pound. Two blown-up Lucklians
+  circle and trade named moves (POUNCE, GORE, DEATH ROLL) with health bars
+  on the sand; your beast walks away whatever happens.
+
 ## Tuning the economy (RTP)
 
 Everything lives in **`src/config.js`**:

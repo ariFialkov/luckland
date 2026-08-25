@@ -254,7 +254,7 @@ export function openMapModal(world, player) {
       ${Object.entries(PROV_MAP_COLORS).map(([c, col]) =>
         `<span><span style="color:${col}">■</span> ${escapeHtml(PROVINCES[c].name)}</span>`).join('')}
     </div>
-    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}</div>
+    <div class="map-legend"><span>⭐ you</span><span>🔶 landmark</span>${tideSightActive() ? '<span>💠 tide secret</span>' : ''}${state.tmap?.hoard ? '<span style="color:var(--gold)">✖ sunken hoard</span>' : ''}</div>
   `);
   const cv = $('worldmap-canvas');
   const ctx = cv.getContext('2d');
@@ -292,6 +292,16 @@ export function openMapModal(world, player) {
   if (tideSightActive()) {
     ctx.fillStyle = '#5eeaff';
     for (const z of world.zones) if (z.tidal) ctx.fillRect(z.x - 1, z.y - 1, 4, 4);
+  }
+  // the mapped Sunken Hoard — X marks the spot
+  const hoard = state.tmap?.hoard;
+  if (hoard) {
+    ctx.strokeStyle = '#ffd75e';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(hoard.x - 3, hoard.y - 3); ctx.lineTo(hoard.x + 4, hoard.y + 4);
+    ctx.moveTo(hoard.x + 4, hoard.y - 3); ctx.lineTo(hoard.x - 3, hoard.y + 4);
+    ctx.stroke();
   }
   // player
   ctx.fillStyle = '#ffffff';
