@@ -213,10 +213,14 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   arcing across the **real world map** to a far-off roost, trails, comeback
   drama and live standings included.
 - **The Great Migration** (🦌 everywhere) — every so often a herd of one
-  mid-rare species visibly crosses the continent (announced, and marked
-  live on your map). Walk among the animals and encounters with that
-  species come thick and fast — the snares stay honestly priced; the
-  migration just brings the chances to you.
+  mid-rare species visibly crosses the continent. It announces itself with
+  a gold toast, then holds a **pulsing HUD chip** for the whole crossing —
+  species, time left on the move, and a compass bearing with the distance
+  in tiles, which flips to *among them!* when you arrive. Tap the chip for
+  the map, where the herd shows as a gold trail with a ring on the leader.
+  Walk among the animals and encounters with that species come thick and
+  fast — the snares stay honestly priced; the migration just brings the
+  chances to you. Roughly a **3-minute crossing every ~9 minutes**.
 - **The Grand Auction House** (🔨 rostrums in Tyche & Maneki) — in timed
   sessions, consign any Lucklian and let the room fight over it: Baron von
   Vole, Madame Époque and the Anonymous Telephone Bidder drive the price in

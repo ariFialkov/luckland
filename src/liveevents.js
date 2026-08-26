@@ -17,7 +17,7 @@ import { CONFIG } from './config.js';
 import { TILE, T } from './world.js';
 import { roll, hash2 } from './rng.js';
 import { state, spend, payout, effectiveRTP, grantLuck } from './state.js';
-import { showModal, closeModal, escapeHtml, toast, renderBalance, buildBetRow } from './ui.js';
+import { showModal, closeModal, escapeHtml, toast, renderBalance, buildBetRow, renderMigChip } from './ui.js';
 import { GAME_DEFS, lanternWindow, lanternPrizes, LANTERN_FOLK } from './games.js';
 import { makeDrama, stepRacer } from './racing.js';
 import { makeCourserSprite, makeBigCatSprite, makeShipSprite, makeCharSprite, makeDragonBoatSprite, makeSumoSprite, makeKiteSprite, getLucklianSprite } from './sprites.js';
@@ -2693,7 +2693,7 @@ function migMembers(world) {
 }
 
 let migWasActive = false;
-export function migrationTick(world) {
+export function migrationTick(world, player) {
   const st2 = migState(world);
   if (!!st2 !== migWasActive) {
     migWasActive = !!st2;
@@ -2703,11 +2703,26 @@ export function migrationTick(world) {
       toast('🦌 The migration has passed on. The plains are quiet again.');
     }
   }
-  // transient marker for the map screen
+  // transient marker for the map screen + the HUD chip
   if (st2) {
     const m2 = migMembers(world);
     state.mig = { name: st2.def.name, pts: m2.pts.map((p) => ({ x: Math.round(p.x / TILE), y: Math.round(p.y / TILE) })) };
-  } else state.mig = null;
+    const info = { name: st2.def.name, secs: CONFIG.MIGRATION.ACTIVE_S * (1 - st2.k) };
+    if (player) {
+      let bd = 1e9, bp = null;
+      for (const p of m2.pts) {
+        const d = Math.hypot(p.x - player.x, p.y - player.y);
+        if (d < bd) { bd = d; bp = p; }
+      }
+      info.dx = (bp.x - player.x) / TILE;
+      info.dy = (bp.y - player.y) / TILE;
+      info.dist = bd / TILE;
+    }
+    renderMigChip(info);
+  } else {
+    state.mig = null;
+    renderMigChip(null);
+  }
 }
 
 /* is the player walking among the herd? -> the species + a visual anchor */

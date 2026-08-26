@@ -111,6 +111,17 @@ html, body {
 }
 
 #tide-chip { font-size: 12px; display: flex; align-items: center; gap: 6px; }
+
+/* the herd is on the move — pulses so it's hard to miss */
+#mig-chip {
+  font-size: 12px; cursor: pointer;
+  color: var(--gold); border-color: var(--gold);
+  animation: migpulse 1.6s ease-in-out infinite;
+}
+@keyframes migpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,215,94,0.55); }
+  50%      { box-shadow: 0 0 0 6px rgba(255,215,94,0); }
+}
 #tide-bar {
   width: 64px; height: 8px;
   background: #0d2438; border: 1px solid #3d6a8a; border-radius: 4px;

@@ -19,6 +19,8 @@ export const els = {
   tideFill: $('tide-fill'),
   tideLabel: $('tide-label'),
   tideIco: $('tide-ico'),
+  migChip: $('mig-chip'),
+  migLabel: $('mig-label'),
   actBtn: $('btn-act'),
   statsBtn: $('btn-stats'),
   mapBtn: $('btn-map'),
@@ -58,6 +60,22 @@ export function renderTide(level, rising) {
   const phase = level > 0.62 ? 'High tide' : level < 0.38 ? 'Low tide' : rising ? 'Rising' : 'Falling';
   els.tideLabel.textContent = phase;
   els.tideIco.textContent = level > 0.62 ? '🌊' : level < 0.38 ? '🏖️' : rising ? '↗️' : '↘️';
+}
+
+/* The Great Migration chip: what's crossing, how long it's on the move,
+   and which way to walk. Tap it for the map. */
+const COMPASS = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+export function renderMigChip(info) {
+  if (!info) { els.migChip.classList.add('hidden'); return; }
+  els.migChip.classList.remove('hidden');
+  const mm = Math.floor(info.secs / 60), ss = String(Math.floor(info.secs % 60)).padStart(2, '0');
+  let where = '';
+  if (info.dist !== undefined) {
+    // 8-point bearing, screen-up = north
+    const oct = (Math.round(Math.atan2(info.dx, -info.dy) / (Math.PI / 4)) + 8) % 8;
+    where = info.dist < 9 ? ' · among them!' : ` · ${COMPASS[oct]} ${Math.round(info.dist)}`;
+  }
+  els.migLabel.textContent = `${info.name} herd · ${mm}:${ss}${where}`;
 }
 
 let lastProv = null, lastArea = null, lastSpot = null;
@@ -299,10 +317,29 @@ export function openMapModal(world, player) {
     ctx.fillStyle = '#5eeaff';
     for (const z of world.zones) if (z.tidal) ctx.fillRect(z.x - 1, z.y - 1, 4, 4);
   }
-  // the Great Migration, live on the map while the herd is moving
-  if (state.mig) {
-    ctx.fillStyle = '#ffe066';
-    for (const p of state.mig.pts) ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+  // the Great Migration, live on the map while the herd is moving:
+  // a dark halo under gold dots so the herd reads on any terrain,
+  // with a line back down the trail to show which way they came
+  if (state.mig && state.mig.pts.length) {
+    const P = state.mig.pts;
+    ctx.strokeStyle = 'rgba(255,224,102,0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(P[0].x, P[0].y);
+    for (const p of P) ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    for (const p of P) {
+      ctx.fillStyle = 'rgba(20,14,6,0.85)';
+      ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+      ctx.fillStyle = '#ffe066';
+      ctx.fillRect(p.x - 1.5, p.y - 1.5, 3, 3);
+    }
+    // the head of the herd gets a ring so you can tell where they're bound
+    ctx.strokeStyle = '#ffe066';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(P[0].x, P[0].y, 5, 0, Math.PI * 2);
+    ctx.stroke();
   }
   // the mapped Sunken Hoard — X marks the spot
   const hoard = state.tmap?.hoard;

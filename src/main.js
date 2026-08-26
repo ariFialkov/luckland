@@ -84,6 +84,7 @@ UI.setupJoystick();
 UI.els.actBtn.addEventListener('click', () => { if (!UI.isModalOpen()) doInteract(); });
 UI.els.statsBtn.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openStatsModal(); });
 UI.els.mapBtn.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openMapModal(world, playerTilePos()); });
+UI.els.migChip.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openMapModal(world, playerTilePos()); });
 document.getElementById('btn-dex').addEventListener('click', () => { if (!UI.isModalOpen()) openLucklipedia(); });
 
 function playerTilePos() {
@@ -626,7 +627,9 @@ function frame(now) {
   UI.renderTide(tideLevel, tideRising);
   UI.renderLuckChip();
 
-  migrationTick(world);   // herd announcements + map marker
+  // herd announcements, map marker + HUD chip. indoors the player's
+  // coords are room-local, so the bearing is withheld until they step out.
+  migrationTick(world, scene ? null : player);
 
   /* dusk & dawn announcements (the night markets trade after dark) */
   {
