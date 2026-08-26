@@ -121,7 +121,7 @@ collection ledger.
 
 ## Lucklians
 
-**157 native creatures** hide across the provinces, from 27%-common prairie
+**176 native creatures** hide across the provinces, from 27%-common prairie
 hoppers to the 0.01% Mugenrai. Walking through habitat — especially the
 **tall grass and brush** tiles — can spring a hidden patch: a wild Lucklian
 appears on (walkable types: grass, dust, dirt, sand, streets) or peering out
@@ -135,7 +135,7 @@ tunable in `src/config.js` → `LUCKLIAN`), so a throw's expected return is
 always `snare cost × species RTP`; rarer species are worth more and are
 proportionally harder to hold. Failed throws risk the creature bolting.
 
-Captures live in the **Lucklipedia** (🧿 / L key): an encyclopedia of all 157
+Captures live in the **Lucklipedia** (🧿 / L key): an encyclopedia of all 176
 species — unknown, seen (silhouette), or caught — where creatures can be sold
 at face value, capped at **8 open-market sales a day**. Wandering traders
 periodically offer off-market deals at 0.62–1.38× face value that *don't*
@@ -366,7 +366,7 @@ src/world.js                seeded worldgen: provinces, landmarks, roads, tides
 src/sprites.js              procedural pixel-art tiles & character sprites
 src/games.js                wager engine (paytable/pick/race/hi-lo) + 18 games
 src/concealers.js           chest spawning, loot rolls, opening ceremonies
-src/lucklians.js            157 creatures: encounters, snares, Lucklipedia, traders
+src/lucklians.js            176 creatures: encounters, snares, Lucklipedia, traders
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker

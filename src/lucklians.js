@@ -184,6 +184,29 @@ const D = [
   [155, 'Yamako', 'Mountain', 'MN', 16, 'fox', '#b0602a', '#e8dcc0', '#26202c', 'Compact island fox with soot-tipped ears and tail, trotting the shrine steps above the neon line.'],
   [156, 'Shioneri', 'Sea', 'MN', 22, 'fish', '#8fb8c8', '#c8ccd8', '#ff8ac0', 'Slim tide-runner with a rosy lateral stripe that surges up the strait with every incoming flood.'],
   [157, 'Glaslin', 'River', 'FL', 20, 'fish', '#3d8a5c', '#b8bcc0', '#4f8a3d', 'Little emerald stream trout with silver speckles, flickering between the stones of every highland beck.'],
+
+  /* ---- the freshwater expansion: rivers got busier ---- */
+  [158, 'Nishikoi', 'River', 'MN', 21, 'fish', '#e05a30', '#f4f0e6', '#e8a020', 'Plump orange-and-white canal koi with mirror scales that catch the neon; considered lucky by everyone except the odds.'],
+  [159, 'Pontifin', 'River', 'TF', 23, 'fish', '#e8e0d0', '#3f6ac8', '#c49038', 'Marble-white aqueduct fish with cobalt fin edging, schooling wherever engineered water runs straight and cool.'],
+  [160, 'Jangyu', 'River', 'DG', 19, 'toad', '#4f8a3d', '#e8c040', '#8a5a2a', 'Round paddy toad with a gold throat and mud-brown saddle, croaking the water level to anyone who listens.'],
+  [161, 'Silttoe', 'River', 'HV', 20, 'crab', '#8a6a4a', '#c4a878', '#c43a2a', 'Creek crawdad-crab caked in dried mud, waving one chipped red claw at prospectors panning its gravel.'],
+  [162, 'Bramblegill', 'River', 'FL', 9, 'fish', '#7a3040', '#a8d078', '#2f5a2a', 'Wine-dark highland perch with thorn-spined green fins, lurking under brambles that overhang slow pools.'],
+  [163, 'Lomduang', 'River', 'EP', 18, 'bird', '#e8e4dc', '#e08a2a', '#26202c', 'Slim ivory river-wader with a saffron bill, standing motionless midstream for hours between lightning strikes at minnows.'],
+  [164, 'Jinweaver', 'River', 'DG', 0.8, 'serpent', '#e8c040', '#c43a2a', '#f0e0a0', 'Gold-scaled eel that braids the current itself into slow spirals; the braids persist minutes after it leaves.'],
+  [165, 'Naga Chandra', 'River', 'EP', 0.14, 'serpent', '#d8d4dc', '#3a3080', '#c8e8f0', 'The moon naga of the Cyan River: a pearl-white serpent with indigo crescent markings, surfacing only where moonlight touches moving water.'],
+
+  /* ---- the saltwater expansion: the coasts fill in ---- */
+  [166, 'Buoybelly', 'Sea', 'TF', 22, 'fish', '#e8a020', '#f4f0e6', '#c43a2a', 'Round harbour puffer striped like a mooring buoy; inflates when startled and drifts off on the current, resigned.'],
+  [167, 'Amphoraxi', 'Sea', 'TF', 6.5, 'ceph', '#c46a3a', '#e8dcc0', '#2a5a9a', 'Small terracotta octopus that homes in sunken amphorae, decorating its jar mouth with blue pottery shards.'],
+  [168, 'Denglongyu', 'Sea', 'DG', 20, 'fish', '#c43a2a', '#e8c040', '#ffe066', 'Crimson bay fish with a glowing lantern-shaped tail lure, trailing junks at dusk in bobbing red strings.'],
+  [169, 'Perlong', 'Sea', 'DG', 2.9, 'ray', '#3d8a5c', '#e8e4dc', '#f0e0c8', 'Jade ray of Dragon\'s Bay with a back inlaid in nacre lumps; divers swear each pearl marks a storm it outswam.'],
+  [170, 'Gullysnap', 'Sea', 'HV', 21, 'toad', '#c4a878', '#3fb0a0', '#26202c', 'Leathery tidepool toad with a teal throat sac, snapping brine-flies off the rocks between waves.'],
+  [171, 'Sailspur', 'Sea', 'HV', 7.2, 'fish', '#b0602a', '#e8dcc0', '#4a4642', 'Rangy copper garfish with a ragged dorsal sail and a jaw like a bent nail, cruising the surf line at a swagger.'],
+  [172, 'Cockleglim', 'Sea', 'FL', 19, 'crab', '#8fb8c8', '#4f9c5e', '#ffe066', 'Wee hermit crab housed in a faintly glowing cockle shell; beaches full of them read as fallen constellations at night.'],
+  [173, 'Finnbarra', 'Sea', 'FL', 1.1, 'seal', '#26222c', '#b8bcc0', '#c8e8f0', 'A great black selkie bull with a silver storm-mantle, hauled out alone on skerries no boat can approach twice.'],
+  [174, 'Talaykot', 'Sea', 'EP', 20, 'crab', '#5a8f3d', '#c49038', '#e05a30', 'Mangrove crab with a moss-green shell and orange-tipped legs, farming neat gardens of algae between the roots.'],
+  [175, 'Morakot', 'Sea', 'EP', 8.4, 'tortoise', '#2f8a5c', '#e8dcc0', '#e8c040', 'Emerald sea turtle whose shell plates hold the exact green of the shallows; surfaces in pairs on the warmest tides.'],
+  [176, 'Chao Thalay', 'Sea', 'EP', 0.2, 'ceph', '#3a3080', '#e8a020', '#ff6be0', 'The Lord of the Warm Water: a deep-indigo cephalopod crowned in gold-ringed tentacles, said to surface once per reign to inspect the fishing fleet.'],
 ];
 
 const LK = CONFIG.LUCKLIAN;
