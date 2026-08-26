@@ -27,7 +27,7 @@ const STATION_KIND = {
   chariots: 'board', ponies: 'board', sumo: 'board', muaythai: 'board', goldencorral: 'board',
   muaythaibout: 'board', coliseumbets: 'board', downsrace: 'kiosk',
   regattabets: 'kiosk', karaokebets: 'board', ownersrace: 'kiosk', beastbout: 'board',
-  sumobracket: 'dohyo', kiteduel: 'kiosk', bogwisp: 'counter',
+  sumobracket: 'dohyo', kiteduel: 'kiosk', bogwisp: 'counter', cliffdive: 'kiosk',
   amphorae: 'shrine', spirits: 'shrine', cloverbloom: 'shrine', banyan: 'shrine',
   spiritlanterns: 'shrine', fatesthread: 'shrine', dragonhoard: 'shrine',
   catparade: 'shrine', neonneko: 'shrine', faeriering: 'shrine',
@@ -684,6 +684,104 @@ function buildGeneric(lm) {
   return it;
 }
 
+function buildOasis(lm) {        // EP — Waterfall Park: an indoor oasis with a diving cliff
+  const style = { wall: T.WALL_STONE, floor: T.MEADOW, tint: 'rgba(40,140,90,0.08)' };
+  const it = makeRoom(lm, style, 32, 22);
+
+  // scattered grass/flower texture so the greenhouse floor isn't flat
+  for (let y = 2; y < 21; y++) for (let x = 1; x < 31; x++) {
+    const h = hash2(x, y, 91);
+    if (it.get(x, y) === T.MEADOW && h < 0.16) it.set(x, y, T.GRASS);
+    else if (it.get(x, y) === T.MEADOW && h > 0.965) it.set(x, y, T.FLOWERS);
+  }
+
+  // the diving cliff: a rock shoulder in the northwest, ledge at its lip
+  for (let y = 2; y <= 8; y++) for (let x = 2; x <= 10; x++) it.set(x, y, T.CLIFF);
+  // the plunge pool beneath the big fall
+  for (let y = 9; y <= 13; y++) for (let x = 7; x <= 14; x++) it.set(x, y, T.WATER);
+  // the lazy river: a ring off the pool around a tea island
+  for (let y = 11; y <= 12; y++) for (let x = 15; x <= 27; x++) it.set(x, y, T.WATER);   // top run
+  for (let y = 13; y <= 17; y++) for (let x = 26; x <= 27; x++) it.set(x, y, T.WATER);   // east run
+  for (let y = 16; y <= 17; y++) for (let x = 15; x <= 27; x++) it.set(x, y, T.WATER);   // south run
+  for (let y = 13; y <= 15; y++) for (let x = 15; x <= 16; x++) it.set(x, y, T.WATER);   // west run
+  for (let y = 13; y <= 15; y++) for (let x = 17; x <= 25; x++) it.set(x, y, T.MEADOW);  // the island
+  for (let y = 16; y <= 17; y++) for (let x = 20; x <= 21; x++) it.set(x, y, T.BRIDGE);  // the way over
+  // the spring: a thin second fall off a rock spur down into the river
+  for (let y = 2; y <= 4; y++) for (let x = 27; x <= 29; x++) it.set(x, y, T.CLIFF);
+
+  // greenhouse dressing
+  for (const [px2, py2] of [[12, 2], [15, 2], [18, 2], [21, 2], [24, 2]]) it.addDecor(px2, py2, 1, 2, 'plant');
+  it.addDecor(2, 18, 2, 2, 'lantern');
+  it.addDecor(28, 18, 2, 2, 'plant');
+  it.addDecor(24, 19, 3, 2, 'foodstand');
+  it.addDecor(29, 8, 2, 2, 'zenrock');
+  // boulders breaking up the cliff face (non-solid: the rock stays rock beneath)
+  it.addDecor(3, 3, 2, 2, 'zenrock', false);
+  it.addDecor(6, 6, 2, 2, 'zenrock', false);
+  it.addDecor(2, 7, 2, 2, 'zenrock', false);
+  it.addDecor(27, 2, 2, 2, 'zenrock', false);
+  it.addDecor(18, 13, 2, 2, 'teacorner');
+  it.addDecor(24, 15, 1, 1, 'plant');
+
+  // the judges' bench facing the plunge pool
+  it.addDecor(8, 14, 4, 2, 'longtable');
+  const JUDGE_PALS = [
+    { skin: '#e8b890', body: '#8a8ea0', legs: '#5a5e70' },
+    { skin: '#f0c8a0', body: '#e08a2a', legs: '#b06a20' },
+    { skin: '#c89a70', body: '#5a76c8', legs: '#33305a' },
+  ];
+  const judges = JUDGE_PALS.map((pal, i) => figure(it, 8.8 + i * 1.2, 16.6, pal, 'judge', { dir: 3 }));
+
+  // resident cliff divers, toweling off between practice runs
+  const DIVER_PALS = [
+    { skin: '#c89a70', body: '#c89a70', legs: '#c8402e' },   // bare-chested, red trunks
+    { skin: '#f0c8a0', body: '#f0c8a0', legs: '#2a4a9a' },   // bare-chested, blue trunks
+  ];
+  const divers = DIVER_PALS.map((pal, i) =>
+    figure(it, 4 + i * 1.4, 14.5, pal, 'diver', { arena: true, dir: 2, dnum: i }));
+
+  // swimmers drifting the lazy river on their backs
+  const RIVER_LOOP = [[18, 11.8], [24, 11.8], [26.6, 13.5], [26.6, 15.5], [24, 16.8], [18, 16.8], [15.8, 15.2], [15.8, 13.2]]
+    .map(([x, y]) => ({ x: x * TILE, y: y * TILE }));
+  for (let i = 0; i < 3; i++) {
+    const start = RIVER_LOOP[(i * 3) % RIVER_LOOP.length];
+    it.addActor({
+      type: 'swimmer', arena: true, sprite: makeCharSprite(PATRON_PALETTES[(i * 2 + 1) % PATRON_PALETTES.length]),
+      x: start.x, y: start.y, dir: 0, frame: 0, wp: (i * 3 + 1) % RIVER_LOOP.length, sink: 0.5, ph: i * 2.1,
+    });
+  }
+
+  it.arena = {
+    kind: 'oasis', game: 'cliffdive',
+    center: { x: 10.5 * TILE, y: 9.5 * TILE },
+    rect: { x: 5 * TILE, y: 2.5 * TILE, w: 12 * TILE, h: 12 * TILE },
+    cliff: {
+      ledge: { x: 9.6 * TILE, y: 3.3 * TILE },     // where the diver sets their toes
+      launch: { x: 10.6 * TILE, y: 3.1 * TILE },   // the push-off point over the water
+      pool: { x: 10.8 * TILE, y: 10.6 * TILE },    // the entry mark
+      out: { x: 6.2 * TILE, y: 13.6 * TILE },      // where they haul out
+      marshal: { x: 4.6 * TILE, y: 14.6 * TILE },  // the waiting mat
+    },
+    falls: [
+      { x: 8.6 * TILE, w: 2.6 * TILE, y0: 3.6 * TILE, y1: 9.8 * TILE, big: true },
+      { x: 27.2 * TILE, w: 0.9 * TILE, y0: 4.2 * TILE, y1: 11.6 * TILE },
+    ],
+    riverLoop: RIVER_LOOP,
+    judges, divers,
+    splashes: [], fx: [],
+  };
+
+  // the diver's book by the pool + the pavilion's table games
+  const st = it.addStation(3, 17, 3, 2, 'cliffdive', 'kiosk');
+  st.live = true;
+  st.label = 'The Cascade Classic — diver’s book';
+  const rest = (lm.games || []).filter((g) => g !== 'cliffdive');
+  const spots = [[21, 13], [13, 19], [28, 14]];
+  rest.forEach((g, i) => { const [sx, sy] = spots[i % spots.length]; if (!it.occupied(sx, sy, 2, 2)) it.addStation(sx, sy, 2, 2, g); });
+  scatterPatrons(it, 6, 0);
+  return it;
+}
+
 const BESPOKE = {
   'Grand Sumo Arena': buildSumoArena,
   'Kite Pavilion': buildKitePavilion,
@@ -692,7 +790,7 @@ const BESPOKE = {
   'Neon Koi Karaoke': buildKaraoke,
   'Roaring Elephant Arena': buildFightArena,
   'The Golden Temple': buildZenTemple,
-  'Waterfall Park Pavilion': buildZenTemple,
+  'Waterfall Park Pavilion': buildOasis,
   'Shady Temple': buildShadyTemple,
   'Hidden Temple': buildShadyTemple,
   'Ballyclover Castle': buildCastleFeast,

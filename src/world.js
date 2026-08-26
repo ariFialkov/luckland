@@ -683,7 +683,7 @@ export function generateWorld() {
     ['DG', 'Peekaboo Palace', '🏯', 'Now you see your winnings…', 236, 153, 7, 5, ['mahjong', 'teahouse', 'dragonhoard']],
     ['EP', 'The Golden Temple', '🛕', 'Bells, bells, and blessed bells', 233, 164, 7, 5, ['spirits', 'haiko', 'spiritlanterns', 'banyan']],
     ['EP', 'Roaring Elephant Arena', '🥊', "Khrueang's ring of glory", 333, 178, 8, 6, ['muaythaibout', 'muaythai', 'haiko', 'nagariver']],
-    ['EP', 'Waterfall Park Pavilion', '⛲', 'Wager to the sound of falling water', 297, 211, 5, 4, ['haiko', 'spirits', 'nagariver']],
+    ['EP', 'Waterfall Park Pavilion', '⛲', 'Wager to the sound of falling water', 297, 211, 5, 4, ['cliffdive', 'haiko', 'spirits', 'nagariver']],
     ['MN', 'Magic Mushroom Casino', '🍄', 'Neon towers of endless pachinko', 293, 68, 8, 6, ['pachinko', 'slots', 'neonneko', 'coincascade']],
     ['MN', 'Grand Sumo Arena', '🏟️', 'Where mountains collide', 314, 61, 7, 5, ['sumobracket', 'sumo', 'pachinko', 'catparade']],
     ['MN', 'Horizon Park Lookout', '⛩️', 'Views over the beckoning sea', 342, 27, 5, 4, ['pachinko', 'neonneko']],

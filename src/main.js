@@ -648,8 +648,9 @@ function frame(now) {
     }
   }
 
-  /* --- player movement --- */
-  if (!UI.isModalOpen()) {
+  /* --- player movement (a live event can borrow your legs — e.g. your
+         own dive at the Cascade Classic) --- */
+  if (!UI.isModalOpen() && !scene?.it?.live?.lockPlayer) {
     let dx = 0, dy = 0;
     if (keys.has('w') || keys.has('arrowup')) dy -= 1;
     if (keys.has('s') || keys.has('arrowdown')) dy += 1;

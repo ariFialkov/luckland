@@ -241,6 +241,19 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   The Tax Collector…) swoop on visible strings. Each duel draws its wind —
   calm, gusting, or typhoon's edge — which sets the odds on first cut,
   double cut and runaway; severed kites tumble or escape on the wind.
+- **The Cascade Classic** (🤸 Waterfall Park Pavilion, EP) — the pavilion
+  is now an **indoor oasis**: a diving cliff with a tall animated waterfall
+  pouring into a plunge pool, a lazy-river loop around a tea island (with a
+  footbridge the swimmers duck under), a second spring-fall, and judges at
+  a poolside bench. Between meets the resident divers put in practice runs.
+  Enter the **cliff-diving meet** at the diver's book: you and two residents,
+  two dives each, priced at honest form odds up front. Every dive is acted
+  out in the scene — the walk up the rock, the set at the ledge, named
+  tricks (Monsoon Pike, The Falling Star, The Impossible Teardrop…) spun as
+  real pixel somersaults down the fall, the splash, and **three judges
+  raising score cards** — with a live scoreboard chalking the totals. The
+  winner is drawn honestly first; the score-lines are built to match, and
+  a winning ticket (on yourself or a resident) pays RTP / p.
 - **The Bog of Middling Fortune** (🫧 FL) — a walkable, fog-bound bog.
   Strike the bargain at the keeper's stone and follow the wisp **on foot**,
   tuft by tuft: each step is an honest gate (firm ground multiplies the pot

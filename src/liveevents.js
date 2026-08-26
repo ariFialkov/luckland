@@ -315,6 +315,7 @@ export function updateLive(it, dt, now, player) {
   if (A.kind === 'sumo') tickBasho(it, dt);
   if (A.kind === 'bog' && player) tickBog(it, dt, player);
   if (A.kind === 'kites' && !A.duel) newKiteDuel(it);   // kites aloft from the first visit
+  if (A.kind === 'oasis') tickOasis(it, dt, now);
 
   // ambient actor motion (also used during sims — sims steer via fields)
   for (const a of it.actors) {
@@ -477,7 +478,7 @@ export function updateLive(it, dt, now, player) {
     if (a.emote) { a.emote.t -= dt; if (a.emote.t <= 0) a.emote = null; }
   }
 
-  if (it.live) updateSim(it, dt, now);
+  if (it.live) updateSim(it, dt, now, player);
 }
 
 /* ============================================================
@@ -492,6 +493,7 @@ export function openLiveBet(it, st, provCode) {
   if (st.game === 'beastbout') return openBeastBout(it, st, provCode);
   if (st.game === 'sumobracket') return openBashoBook(it, st, provCode);
   if (st.game === 'bogwisp') return openBogGate(it, st, provCode);
+  if (st.game === 'cliffdive') return openDiveBoard(it, st, provCode);
   const A = it.arena;
   let title, ico, choices, eventKind, sub = '';
   const fightChoices = (names, ps) => {
@@ -908,6 +910,46 @@ function startSim(it, kind, choice, bet, rtp) {
     losers.forEach((s, i) => { sinkTimes[s.faction] = 5 + i * (7 / Math.max(1, losers.length)) + roll() * 1.5; });
     live.naval = { winner, ships, sinkTimes, shots: [], shotT: 0, swimmers: [] };
     ships.forEach((s) => { s.hp = 100; });
+  } else if (kind === 'dive') {
+    // the meet: winner drawn honestly by form, then three score-lines are
+    // built (tricks + judge cards + exact displayed totals) and the BEST
+    // line is handed to the drawn winner — the diving merely acts it out
+    const meet = it.arena.meet;
+    let r = roll(), winner = 0;
+    for (let i = 0; i < meet.ps.length; i++) { r -= meet.ps[i]; if (r <= 0) { winner = i; break; } }
+    live.win = winner === choice.idx;
+    const mkLine = () => {
+      const rounds = [];
+      let total = 0;
+      for (let rd = 0; rd < 2; rd++) {
+        const s = 6.2 + roll() * 3.4;
+        const opts = DIVE_TRICKS.filter((tk) => tk.d >= s / 5 && tk.d <= s * 0.4);
+        const trick = opts.length ? opts[(roll() * opts.length) | 0] : DIVE_TRICKS[4];
+        const jm = (2 * s) / trick.d;
+        const judges = [0, 1, 2].map(() => Math.round(Math.min(10, Math.max(4.5, jm + (roll() - 0.5) * 0.9)) * 10) / 10);
+        const score = Math.round(((judges[0] + judges[1] + judges[2]) / 3) * trick.d * 5) / 10;
+        rounds.push({ trick, judges, score });
+        total += score;
+      }
+      return { rounds, total: Math.round(total * 10) / 10 };
+    };
+    const lines = [mkLine(), mkLine(), mkLine()].sort((a, b) => b.total - a.total);
+    if (lines[0].total === lines[1].total) { lines[0].rounds[1].score += 0.3; lines[0].total += 0.3; }
+    const assign = new Array(3);
+    assign[winner] = lines[0];
+    const rest = [0, 1, 2].filter((i) => i !== winner).sort(() => roll() - 0.5);
+    assign[rest[0]] = lines[1]; assign[rest[1]] = lines[2];
+    live.lockPlayer = true;
+    live.dive = {
+      meet, winner, lines: assign,
+      order: [1, 2, 0],            // the residents dive first; the challenger closes each round
+      round: 0, slot: 0,
+      phase: 'gather', pt: 0,
+      run: null, shown: [0, 0, 0], cards: null, cardT: 0,
+      player: null,
+    };
+    for (const d of it.arena.divers) d.run = null;   // practice is over — this counts
+    live.focus = { x: it.arena.cliff.pool.x, y: (it.arena.cliff.ledge.y + it.arena.cliff.pool.y) / 2 };
   }
 
   it.live = live;
@@ -928,7 +970,7 @@ function endSim(it, bannerText) {
   renderBalance();
 }
 
-function updateSim(it, dt, now) {
+function updateSim(it, dt, now, player) {
   const live = it.live;
   live.t += dt;
   if (live.phase === 'done') {
@@ -967,6 +1009,12 @@ function updateSim(it, dt, now) {
         newKiteDuel(it);
         it.arena.wind = null;
       }
+      if (live.kind === 'dive') {
+        // meet's over: everyone climbs out and dries off
+        for (const d of it.arena.divers) { d.run = null; d.sink = 0; d.dir = 2; d.frame = 0; }
+        if (live.dive?.player) live.dive.player.sink = 0;
+        it.arena.meet = null;
+      }
       if (it.arena.kind === 'coliseum') it.arena.programT = 20; // move the card along soon
     }
     return;
@@ -983,6 +1031,7 @@ function updateSim(it, dt, now) {
   else if (live.kind === 'bbout') updateBeastBout(it, live, dt);
   else if (live.kind === 'kites') updateKitesSim(it, live, dt);
   else if (live.kind === 'sumo') updateSumoSim(it, live, dt);
+  else if (live.kind === 'dive') updateDiveSim(it, live, dt, player);
 }
 
 function updateFight(it, live, dt) {
@@ -1646,6 +1695,129 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw, vh) {
     }
   }
 
+  /* the oasis: living waterfalls, drifting spray, and on meet days
+     the judges' cards and a running scoreboard */
+  if (A.kind === 'oasis') {
+    // the falls — streaked curtains of water, always moving
+    for (const f of A.falls) {
+      const fw = f.w * zoom, fh = (f.y1 - f.y0) * zoom;
+      const fx2 = S(f.x), fy2 = Sy(f.y0);
+      ctx.fillStyle = 'rgba(110,180,230,0.42)';
+      ctx.fillRect(fx2, fy2, fw, fh);
+      const cols = f.big ? 7 : 3;
+      for (let i = 0; i < cols; i++) {
+        const cx2 = fx2 + ((i + 0.5) / cols) * fw - zoom / 2;
+        for (let seg = 0; seg < 3; seg++) {
+          const off = ((now / (4.2 + (i % 3) * 0.9)) + i * 137 + seg * ((f.y1 - f.y0) * zoom) / 3) % fh;
+          ctx.fillStyle = seg % 2 ? 'rgba(230,246,255,0.75)' : 'rgba(170,215,245,0.6)';
+          ctx.fillRect(cx2, fy2 + off, zoom, Math.min(9 * zoom, fh - off));
+        }
+      }
+      // foam boiling at the plunge line
+      ctx.fillStyle = 'rgba(240,250,255,0.8)';
+      for (let i = 0; i < cols + 2; i++) {
+        const bx2 = fx2 + (i / (cols + 1)) * fw;
+        const bob = Math.sin(now / 130 + i * 1.9) * 1.6 * zoom;
+        ctx.fillRect(bx2, fy2 + fh - 2 * zoom + bob / 2, 3 * zoom, 2 * zoom);
+      }
+      // mist climbing off the base
+      for (let i = 0; i < (f.big ? 5 : 2); i++) {
+        const mt = ((now / 900) + i / 5) % 1;
+        ctx.globalAlpha = 0.35 * (1 - mt);
+        ctx.fillStyle = '#dceefc';
+        ctx.fillRect(fx2 + hash2(i, 3, 77) * fw, fy2 + fh - mt * 26 * zoom / 2, 4 * zoom, 2 * zoom);
+        ctx.globalAlpha = 1;
+      }
+    }
+    // sun-sparkle drifting along every stretch of water
+    if (!A.waterPts) {
+      A.waterPts = [];
+      for (let ty2 = 0; ty2 < it.H; ty2++) for (let tx2 = 0; tx2 < it.W; tx2++) {
+        if (it.tiles[ty2 * it.W + tx2] === T.WATER) A.waterPts.push([tx2, ty2]);
+      }
+    }
+    ctx.fillStyle = 'rgba(210,240,255,0.55)';
+    for (let i = 0; i < 22; i++) {
+      const [tx2, ty2] = A.waterPts[(i * 37) % A.waterPts.length];
+      const wx = tx2 * TILE + ((now / 320 + i * 5) % TILE);
+      const wy = ty2 * TILE + hash2(i, ty2, 12) * 12;
+      ctx.fillRect(S(wx), Sy(wy), 3 * zoom / 2, zoom / 2);
+    }
+    // spray droplets + entry rings
+    for (const s of A.splashes) {
+      if (s.ring) {
+        ctx.strokeStyle = `rgba(230,246,255,${(0.8 * (1 - s.t / 0.9)).toFixed(2)})`;
+        ctx.lineWidth = zoom / 2;
+        ctx.beginPath();
+        ctx.ellipse(S(s.x), Sy(s.y), s.t * 26 * zoom / 2 + 2, (s.t * 26 * zoom / 2 + 2) * 0.45, 0, 0, Math.PI * 2);
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = `rgba(220,240,255,${(0.9 * (1 - s.t / 0.7)).toFixed(2)})`;
+        ctx.fillRect(S(s.x), Sy(s.y), zoom, zoom);
+      }
+    }
+    // rising announcements (trick names, scores) — the oasis's own floaters
+    for (const f of A.fx) {
+      ctx.globalAlpha = Math.max(0, 1 - f.t / 1.4);
+      ctx.font = font(9 * zoom / 2);
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 3;
+      ctx.strokeText(f.text, S(f.x), Sy(f.y - f.t * 12));
+      ctx.fillStyle = f.color || '#ffd75e';
+      ctx.fillText(f.text, S(f.x), Sy(f.y - f.t * 12));
+      ctx.globalAlpha = 1;
+    }
+
+    if (live?.kind === 'dive' && live.dive && A.meet) {
+      const D = live.dive;
+      // the scoreboard, chalked up dive by dive
+      const k = Math.max(1, Math.min(1.5, (vw || 800) / 460));
+      const pw = 142 * k, rowH = 11 * k, ph2 = rowH * 4 + 14 * k;
+      const px2 = 10, py2 = Math.max(96, ((vh || 600) - ph2) / 2 - 60);
+      panel(ctx, px2, py2, pw, ph2);
+      ctx.font = font(7.5 * k);
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffd75e';
+      ctx.fillText('CASCADE CLASSIC', px2 + 6 * k, py2 + 10 * k);
+      const diveNo = Math.min(6, D.round * 3 + D.slot + 1);
+      ctx.textAlign = 'right';
+      ctx.font = font(6.5 * k, false);
+      ctx.fillStyle = '#b8b4c0';
+      ctx.fillText(live.phase === 'done' ? 'FINAL' : `DIVE ${diveNo}/6`, px2 + pw - 6 * k, py2 + 10 * k);
+      for (let i = 0; i < 3; i++) {
+        const y2 = py2 + 12 * k + rowH * (i + 1) - 2 * k;
+        const isUp = D.phase === 'dive' && D.order[D.slot] === i && live.phase !== 'done';
+        const backed = live.choice.idx === i;
+        ctx.textAlign = 'left';
+        ctx.font = font(7 * k, backed);
+        ctx.fillStyle = backed ? '#ffd75e' : '#e8e2d4';
+        ctx.fillText(`${isUp ? '▶ ' : ''}${i === 0 ? 'YOU' : A.meet.names[i].slice(0, 13)}`, px2 + 6 * k, y2);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = live.phase === 'done' && D.winner === i ? '#8fdc9a' : backed ? '#ffd75e' : '#e8e2d4';
+        ctx.fillText(D.shown[i].toFixed(1), px2 + pw - 6 * k, y2);
+      }
+      // the judges raise their cards
+      if (D.cards) {
+        const pop = Math.min(1, D.cardT / 0.25);
+        D.cards.judges.forEach((jv, ji) => {
+          const j = A.judges[ji];
+          const jx = S(j.x), jy = Sy(j.y - 36) - pop * 5 * zoom / 2;
+          const cw = 16 * zoom / 2, chh = 13 * zoom / 2;
+          ctx.globalAlpha = pop;
+          ctx.fillStyle = '#f4ecd8';
+          ctx.fillRect(jx - cw / 2, jy - chh, cw, chh);
+          ctx.strokeStyle = '#8a5a06'; ctx.lineWidth = 1;
+          ctx.strokeRect(jx - cw / 2 + 0.5, jy - chh + 0.5, cw - 1, chh - 1);
+          ctx.font = font(8 * zoom / 2);
+          ctx.textAlign = 'center';
+          ctx.fillStyle = jv >= 9 ? '#1f6a2f' : '#3a2a18';
+          ctx.fillText(jv.toFixed(1), jx, jy - 4 * zoom / 2);
+          ctx.globalAlpha = 1;
+        });
+      }
+    }
+  }
+
   /* kite duels: strings from the flyers, and the wind on a chip */
   if (A.kind === 'kites' && A.duel) {
     for (let i = 0; i < 2; i++) {
@@ -1835,6 +2007,12 @@ export function drawLiveOverlay(ctx, it, camX, camY, zoom, now, vw, vh) {
     else if (live.kind === 'bbout') line1 = live.phase === 'done' ? 'THE SAND SETTLES' : '🐆 ON THE SAND';
     else if (live.kind === 'sumo') line1 = live.phase === 'done' ? 'THE DOHYŌ IS SWEPT' : '🤼 THE BOUT IS ON';
     else if (live.kind === 'kites') line1 = live.phase === 'done' ? 'THE SKY SETTLES' : (live.kite.cutDone ? '✂️ A STRING PARTS!' : '🪁 CIRCLING FOR THE CUT');
+    else if (live.kind === 'dive') {
+      const D = live.dive;
+      line1 = live.phase === 'done' ? 'THE WATER STILLS'
+        : D.phase === 'gather' ? '🤸 THE DIVERS TAKE THEIR MARKS'
+        : `🤸 ${D.round === 0 ? 'ROUND ONE' : 'FINAL ROUND'} · ${D.order[D.slot] === 0 ? 'YOU ARE UP' : (it.arena.meet.names[D.order[D.slot]] || '').toUpperCase() + ' DIVES'}`;
+    }
     ctx.font = font(11 * zoom / 2);
     const w = Math.max(ctx.measureText(line1).width, ctx.measureText(line2).width) + 20;
     panel(ctx, cx - w / 2, topY, w, 26 * zoom / 2);
@@ -2751,5 +2929,239 @@ export function drawMigration(ctx, world, camX, camY, zoom, now) {
     ctx.fillStyle = 'rgba(0,0,0,0.2)';
     ctx.fillRect(sx - 5 * zoom, sy + 6 * zoom, 10 * zoom, 2 * zoom);
     ctx.drawImage(spr, Math.round(sx - (spr.width / 2) * zoom), Math.round(sy - spr.height * zoom * 0.75 + bob * zoom), spr.width * zoom, spr.height * zoom);
+  }
+}
+
+/* ============================================================
+   THE CASCADE CLASSIC — cliff diving off the tall fall at
+   Waterfall Park. Three contestants (you and two residents),
+   two dives each, judged at the bench. The winner is drawn
+   honestly by hidden form up front; the score-lines are built
+   to match and the diving merely acts them out — every trick,
+   card and total you see is the one that was booked.
+   ============================================================ */
+const DIVE_TRICKS = [
+  { name: 'Swan of Elephantium', d: 1.4, flips: 1 },
+  { name: 'Kingfisher Dart', d: 1.6, flips: 1 },
+  { name: 'Cannonball of the Ancients', d: 1.8, flips: 1 },
+  { name: 'Temple-Bell Tuck', d: 2.0, flips: 2 },
+  { name: 'Double Gainer', d: 2.2, flips: 2 },
+  { name: 'Monsoon Pike', d: 2.4, flips: 2 },
+  { name: 'Twisting Cyclone', d: 2.7, flips: 3 },
+  { name: 'Triple Cascade', d: 3.0, flips: 3 },
+  { name: 'The Falling Star', d: 3.3, flips: 4 },
+  { name: 'The Impossible Teardrop', d: 3.6, flips: 4 },
+];
+const DIVER_NAMES = ['Splashless Somchai', 'Anong the Arrow', 'Gibbon-Grip Gan', 'Lady Plunge',
+  'The Human Teardrop', 'Whitewater Wan', 'Old Man Cascade', 'Nok the Needle'];
+const DIVE_SPIN = [0, 2, 3, 1];   // dir cycle that reads as a pixel-art somersault
+
+function newDiveMeet(it) {
+  const A = it.arena;
+  const names = pickN(DIVER_NAMES, 2);
+  const forms = [0.7 + roll() * 0.6, 0.7 + roll() * 0.6, 0.7 + roll() * 0.6];  // [you, res1, res2]
+  const tot = forms[0] + forms[1] + forms[2];
+  A.meet = { names: ['You', ...names], ps: forms.map((f) => f / tot) };
+  A.divers.forEach((d, i) => { d.name = names[i]; });
+  return A.meet;
+}
+
+function splashBurst(A, p, big = true) {
+  for (let i = 0; i < (big ? 11 : 6); i++) {
+    const ang = roll() * Math.PI * 2, sp = 26 + roll() * 46;
+    A.splashes.push({ x: p.x, y: p.y, vx: Math.cos(ang) * sp, vy: -Math.abs(Math.sin(ang)) * sp - 24, t: 0 });
+  }
+  A.splashes.push({ x: p.x, y: p.y, ring: true, t: 0 });
+}
+
+/* one complete dive: walk to the ledge, set the toes, fly, splash,
+   swim to the haul-out. Shared by practice runs and the meet. */
+function stepDiveRun(it, a, run, dt) {
+  const A = it.arena, C = A.cliff;
+  run.t += dt;
+  if (run.phase === 'walk') {
+    a.dir = a.y > C.ledge.y + 8 ? 3 : 2;
+    a.frame = ((run.t * 7) | 0) % 2;
+    if (glideTo(a, C.ledge.x, C.ledge.y, 64, dt) || run.t > 4) {
+      a.x = C.ledge.x; a.y = C.ledge.y;
+      run.phase = 'pose'; run.t = 0; a.dir = 0; a.frame = 0;
+    }
+  } else if (run.phase === 'pose') {
+    if (run.t > 0.85) {
+      run.phase = 'air'; run.t = 0;
+      A.fx.push({ text: run.trick.name.toUpperCase(), x: C.launch.x + 20, y: C.ledge.y + 38, t: 0, color: '#ffd75e' });
+    }
+  } else if (run.phase === 'air') {
+    const T2 = 1.3;
+    const k = Math.min(1, run.t / T2);
+    a.x = C.launch.x + (C.pool.x - C.launch.x) * k;
+    a.y = C.launch.y - 20 * Math.sin(Math.PI * Math.min(1, k * 1.7)) * (1 - k) + (C.pool.y - C.launch.y) * k * k;
+    a.dir = DIVE_SPIN[Math.floor(k * run.trick.flips * 4) % 4];
+    a.frame = 1;
+    if (roll() < dt * 20) A.splashes.push({ x: a.x + (roll() - 0.5) * 6, y: a.y + 6, vx: 0, vy: 30, t: 0.3 });
+    if (k >= 1) {
+      run.phase = 'splash'; run.t = 0; run.justSplashed = true;
+      a.x = C.pool.x; a.y = C.pool.y; a.dir = 0; a.frame = 0; a.sink = 0.8;
+      splashBurst(A, C.pool);
+    }
+  } else if (run.phase === 'splash') {
+    if (run.t > 0.55) { run.phase = 'swim'; run.t = 0; }
+  } else if (run.phase === 'swim') {
+    a.sink = Math.max(0.35, 0.8 - run.t * 0.25);
+    a.frame = ((run.t * 4) | 0) % 2;
+    if (glideTo(a, C.out.x, C.out.y, 36, dt) || run.t > 5) {
+      a.x = C.out.x; a.y = C.out.y;
+      a.sink = 0; a.dir = 2; a.frame = 0;
+      run.phase = 'done';
+    }
+  } else if (run.phase === 'done') return true;
+  return false;
+}
+
+/* the oasis breathes: swimmers loop the lazy river, spray settles,
+   and between meets the residents put in practice dives */
+function tickOasis(it, dt, now) {
+  const A = it.arena;
+  const C = A.cliff;
+
+  for (const a of it.actors) {
+    if (a.type !== 'swimmer') continue;
+    const wp = A.riverLoop[a.wp];
+    const dx = wp.x - a.x, dy = wp.y - a.y;
+    if (Math.hypot(dx, dy) < 4) a.wp = (a.wp + 1) % A.riverLoop.length;
+    else { const d = Math.hypot(dx, dy); a.x += (dx / d) * 13 * dt; a.y += (dy / d) * 13 * dt; faceFromVel(a, dx, dy); }
+    // duck under the footbridge rather than swim over it
+    const underBridge = Math.abs(a.x - 21 * TILE) < 26 && a.y > 15 * TILE;
+    a.sink = underBridge ? 0.85 : 0.45 + Math.sin(now / 520 + a.ph) * 0.08;
+    a.frame = ((now / 420 + a.ph) | 0) % 2;
+    if (!a.emote && roll() < dt * 0.06) a.emote = { ico: '💦', t: 1 };
+  }
+
+  for (const s of A.splashes) {
+    s.t += dt;
+    if (!s.ring) { s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 150 * dt; }
+  }
+  A.splashes = A.splashes.filter((s) => s.t < (s.ring ? 0.9 : 0.7));
+  for (const f of A.fx) f.t += dt;
+  A.fx = A.fx.filter((f) => f.t < 1.4);
+
+  if (!it.live) {
+    A.practT = (A.practT ?? 5) - dt;
+    const busy = A.divers.some((d) => d.run);
+    if (A.practT <= 0 && !busy) {
+      A.practT = 8 + roll() * 8;
+      const d = A.divers[(roll() * A.divers.length) | 0];
+      d.run = { phase: 'walk', t: 0, trick: DIVE_TRICKS[(roll() * DIVE_TRICKS.length) | 0], practice: true };
+    }
+    for (const d of A.divers) {
+      if (d.run) {
+        if (stepDiveRun(it, d, d.run, dt)) {
+          d.run = null;
+          for (const j of A.judges) if (!j.emote && roll() < 0.7) j.emote = { ico: roll() < 0.5 ? '🤙' : '👏', t: 1.4 };
+        }
+      } else {
+        // waiting their turn on the mat, watching the water
+        if (glideTo(d, C.marshal.x + (d.dnum || 0) * 15, C.marshal.y, 28, dt)) { d.dir = 2; d.frame = 0; }
+        else { d.frame = ((now / 240) | 0) % 2; }
+      }
+    }
+  }
+}
+
+function openDiveBoard(it, st, provCode) {
+  if (it.live) { toast('🤸 A meet is under way — watch the water!'); return; }
+  const A = it.arena;
+  const meet = newDiveMeet(it);
+  const rtp = effectiveRTP('cliffdive', provCode);
+  let bet = state.lastBet;
+  const m = showModal(`
+    <h2>🤸 The Cascade Classic</h2>
+    <div class="subtitle">Two dives each off the tall fall · three judges, no appeals · RTP ${(rtp * 100).toFixed(1)}%<br>
+    Back yourself and take the plunge — or put your coins on a resident and dive for the glory anyway.</div>
+    <div id="dv-list"></div>
+    <div id="dv-bet"></div>
+  `);
+  buildBetRow(m.querySelector('#dv-bet'), (v) => { bet = v; });
+  const box = m.querySelector('#dv-list');
+  meet.names.forEach((name, i) => {
+    const p = meet.ps[i];
+    const row = document.createElement('div');
+    row.className = 'race-lane race-pick-btn';
+    row.innerHTML = `<span style="flex:1;text-align:left">${i === 0 ? '🫵' : '🤸'} <b>${escapeHtml(i === 0 ? 'You — enter the meet' : name)}</b>
+      <br><span style="font-size:10.5px;opacity:.75">${i === 0 ? 'the challenger closes out every round' : 'resident cliff diver, knows every eddy'}</span></span>
+      <span class="odds">${fmtMult(rtp / p)}x</span>`;
+    row.addEventListener('click', () => {
+      if (state.balance < bet) { toast('Not enough coins!'); return; }
+      spend(bet); state.stats.gamesPlayed++; renderBalance(); closeModal();
+      startSim(it, 'dive', { label: i === 0 ? 'You win the Classic' : `${name} wins the Classic`, p, idx: i }, bet, rtp);
+    });
+    box.appendChild(row);
+  });
+}
+
+function updateDiveSim(it, live, dt, player) {
+  const D = live.dive, A = it.arena, C = A.cliff;
+  if (player && !D.player) D.player = player;
+  if (!D.player) return;
+  const actorFor = (i) => (i === 0 ? D.player : A.divers[i - 1]);
+  // (spray and floaters are ticked by tickOasis, which runs every frame)
+
+  if (live.t > 90 && live.phase !== 'done') {   // never trap a punter
+    live.win = true; live.mult = 1;
+    endSim(it, 'The meet is rained off — stake returned.');
+    return;
+  }
+
+  const current = D.phase === 'dive' ? D.order[D.slot] : -1;
+  // everyone not diving waits on the mat, eyes on the fall
+  for (let i = 0; i < 3; i++) {
+    if (i === current) continue;
+    const a = actorFor(i);
+    if (a.sink > 0) continue;   // still hauling out from their own dive
+    if (glideTo(a, C.marshal.x + i * 15, C.marshal.y + 6, 46, dt)) { a.dir = 3; a.frame = 0; }
+    else a.frame = ((live.t * 6) | 0) % 2;
+  }
+
+  if (D.phase === 'gather') {
+    D.pt += dt;
+    live.focus = { x: A.center.x, y: 8 * TILE };
+    if (D.pt > 1.6) {
+      D.phase = 'dive';
+      D.run = { phase: 'walk', t: 0, trick: D.lines[D.order[D.slot]].rounds[D.round].trick };
+      A.fx.push({ text: D.round === 0 ? 'ROUND ONE' : 'FINAL ROUND', x: A.center.x, y: 6 * TILE, t: 0, color: '#ffd75e' });
+    }
+  } else if (D.phase === 'dive') {
+    const who = D.order[D.slot];
+    const a = actorFor(who);
+    const line = D.lines[who].rounds[D.round];
+    const done = stepDiveRun(it, a, D.run, dt);
+    if (D.run.phase === 'air' || D.run.phase === 'splash') live.focus = { x: C.pool.x, y: (a.y + C.pool.y) / 2 };
+    else live.focus = { x: C.pool.x, y: 8 * TILE };
+    if (D.run.justSplashed) {
+      D.run.justSplashed = false;
+      D.cards = { who, judges: line.judges, trick: line.trick, score: line.score };
+      D.cardT = 0;
+      D.shown[who] = Math.round((D.shown[who] + line.score) * 10) / 10;
+      A.fx.push({ text: `${line.score.toFixed(1)}`, x: C.pool.x + 18, y: C.pool.y - 12, t: 0, color: '#8fdc9a' });
+      for (const j of A.judges) j.emote = { ico: line.score >= 8.6 ? '🤩' : line.score >= 7.2 ? '👏' : '🤔', t: 1.6 };
+    }
+    if (D.cards) D.cardT += dt;
+    if (done && D.cardT > 1.7) {
+      D.cards = null;
+      D.slot++;
+      if (D.slot >= 3) { D.slot = 0; D.round++; }
+      if (D.round >= 2) {
+        D.phase = 'result';
+        const wName = D.winner === 0 ? 'YOU' : A.meet.names[D.winner].toUpperCase();
+        const total = D.lines[D.winner].total.toFixed(1);
+        for (const j of A.judges) j.emote = { ico: '🏆', t: 2.5 };
+        const winA = actorFor(D.winner);
+        if (winA.sink === 0) winA.emote = { ico: '🏆', t: 2.5 };
+        endSim(it, `🤸 ${wName} — ${total} TAKES THE CLASSIC`);
+      } else {
+        if (D.slot === 0) A.fx.push({ text: 'FINAL ROUND', x: A.center.x, y: 6 * TILE, t: 0, color: '#ffd75e' });
+        D.run = { phase: 'walk', t: 0, trick: D.lines[D.order[D.slot]].rounds[D.round].trick };
+      }
+    }
   }
 }

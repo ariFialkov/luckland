@@ -638,6 +638,11 @@ export const GAME_DEFS = {
     desc: 'Glass string against glass string over Kite City. The wind decides the odds.',
     mech: 'live',
   },
+  cliffdive: {
+    name: 'The Cascade Classic', ico: '🤸',
+    desc: 'Enter the diving meet off the tall fall — trick for trick against the residents, judged live.',
+    mech: 'live',
+  },
   bogwisp: {
     name: "The Wisp's Bargain", ico: '🫧',
     desc: 'Tuft by tuft behind the wisp. Bank at the stone, or wade deeper.',

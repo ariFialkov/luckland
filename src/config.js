@@ -172,6 +172,7 @@ export const GAME_RTP = {
   sumobracket:    0.93,  // MN — the basho book (bouts & the Emperor's Cup)
   kiteduel:       0.93,  // DG — string-cutting duels over Kite City
   bogwisp:        0.94,  // FL — the wisp's bargain, tuft by tuft
+  cliffdive:      0.94,  // EP — the Cascade Classic diving meet
   regattabets:    0.93,  // DG — dragon-boat lanes on the bay
   ownersrace:     0.93,  // HV — enter your own Lucklian at the Downs
   beastbout:      0.93,  // TF — your beast on the Coliseum sand
