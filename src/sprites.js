@@ -2626,20 +2626,31 @@ function shade2(hex, amt) {
    ------------------------------------------------------------ */
 export const CHAR_W = 16, CHAR_H = 18;
 
-export function makeCharSprite(pal) {
-  const { skin = '#f0c8a0', body = '#3a6ea5', legs = '#40354a', hat = null, hatColor = '#333', hair = '#4a3222' } = pal;
+/* pal takes the classic keys (skin/body/legs/hat/hatColor/hair) plus the
+   wardrobe layers: topStyle ('stripe'|'vest'|'robe'|'armor'|'sequin'|'mawashi'),
+   trim, boots, shoe ('sandal'|'geta'|'winged'), acc + accColor.
+   pad adds headroom above every cell for tall hats and floating accessories —
+   the canvas carries cellW/cellH so drawSprite handles the taller frame. */
+export function makeCharSprite(pal, pad = 0) {
+  const { skin = '#f0c8a0', body = '#3a6ea5', legs = '#40354a', hat = null, hatColor = '#333', hair = '#4a3222',
+    topStyle = null, trim = '#ffd75e', boots = null, shoe = null, acc = null, accColor = '#c8402e' } = pal;
+  const CH = CHAR_H + pad;
   const cv = document.createElement('canvas');
-  cv.width = CHAR_W * 4; cv.height = CHAR_H * 2;
+  cv.width = CHAR_W * 4; cv.height = CH * 2;
+  cv.cellW = CHAR_W; cv.cellH = CH;
   const ctx = cv.getContext('2d');
-  const armC = shade(body, -25);
-  const bodyD = shade(body, -35);
+  const mawashi = topStyle === 'mawashi';
+  const torsoC = mawashi ? skin : body;
+  const armC = shade(torsoC, -25);
+  const bodyD = shade(torsoC, -35);
   const legHi = shade(legs, 25);
+  const bootC = boots || legHi;
 
   /* frame 0 = neutral stance (also the idle pose)
      frame 1 = mid-stride: legs split, arms swung, body bobs up 1px */
   for (let dir = 0; dir < 4; dir++) {
     for (let f = 0; f < 2; f++) {
-      const ox = dir * CHAR_W, oy = f * CHAR_H;
+      const ox = dir * CHAR_W, oy = f * CH + pad;
       const side = dir === 1 || dir === 2;
       const face = dir === 1 ? -1 : 1;           // which way a side profile points
       const bob = f === 1 ? 1 : 0;               // stride lifts the figure 1px
@@ -2647,49 +2658,82 @@ export function makeCharSprite(pal) {
       // mirror helper for left-facing: reflect x inside the 16px cell
       const X = (x, w = 1) => (dir === 1 ? ox + 16 - x - w : ox + x);
       const P = (x, y, w, h, c) => px(ctx, X(x, w), y, w, h, c);
+      // boots come in kinds: plain colour, strappy sandals, dark-soled geta,
+      // and winged (a white feather pixel off the heel)
+      const bootPx = (x, y, w, h) => {
+        if (shoe === 'sandal') { px(ctx, x, y, w, h, shade(skin, -20)); px(ctx, x, y, w, 1, bootC); }
+        else if (shoe === 'geta') { px(ctx, x, y, w, h, bootC); px(ctx, x, y + h - 1, w, 1, '#26202c'); }
+        else px(ctx, x, y, w, h, bootC);
+        if (shoe === 'winged') px(ctx, x - 1, y, 1, 1, '#f4f0ff');
+      };
 
       // shadow
       ctx.fillStyle = 'rgba(0,0,0,0.25)';
       ctx.fillRect(ox + 4, oy + 16, 8, 2);
+
+      // a cape hangs behind the body on profile views — under everything else
+      if (acc === 'cape' && side) P(3, yb + 6, 2, 8, accColor);
 
       /* ---- legs (y 13..16) ---- */
       if (!side) {
         if (f === 0) {
           // standing square
           px(ctx, ox + 5, oy + 13, 2, 3, legs); px(ctx, ox + 9, oy + 13, 2, 3, legs);
-          px(ctx, ox + 5, oy + 15, 2, 1, legHi); px(ctx, ox + 9, oy + 15, 2, 1, legHi); // boots
+          bootPx(ox + 5, oy + 15, 2, 1); bootPx(ox + 9, oy + 15, 2, 1); // boots
         } else {
           // stride: left leg planted long, right leg lifted with foot kicked out
-          px(ctx, ox + 4, oy + 12, 2, 4, legs); px(ctx, ox + 4, oy + 15, 2, 1, legHi);
+          px(ctx, ox + 4, oy + 12, 2, 4, legs); bootPx(ox + 4, oy + 15, 2, 1);
           px(ctx, ox + 9, oy + 12, 2, 2, legs);
-          px(ctx, ox + 10, oy + 13, 2, 2, legHi); // raised boot
+          bootPx(ox + 10, oy + 13, 2, 2); // raised boot
         }
       } else {
         if (f === 0) {
           // profile standing: legs slightly offset front/back
           P(6, oy + 13, 2, 3, legs); P(9, oy + 13, 2, 3, legs);
-          P(6, oy + 15, 2, 1, legHi); P(9, oy + 15, 2, 1, legHi);
+          bootPx(X(6, 2), oy + 15, 2, 1); bootPx(X(9, 2), oy + 15, 2, 1);
         } else {
           // profile stride: front leg reaching, back leg trailing off the ground
-          P(9, oy + 12, 2, 3, legs); P(10, oy + 14, 2, 2, legHi);   // front leg + boot forward
-          P(4, oy + 12, 2, 2, legs); P(3, oy + 13, 2, 2, legHi);    // back leg kicked up behind
+          P(9, oy + 12, 2, 3, legs); bootPx(X(10, 2), oy + 14, 2, 2);   // front leg + boot forward
+          P(4, oy + 12, 2, 2, legs); bootPx(X(3, 2), oy + 13, 2, 2);    // back leg kicked up behind
         }
       }
 
       /* ---- torso (below the head, y ~8..13) ---- */
       if (!side) {
-        px(ctx, ox + 4, yb + 6, 8, 6, body);
+        px(ctx, ox + 4, yb + 6, 8, 6, torsoC);
         px(ctx, ox + 4, yb + 11, 8, 1, bodyD);
         // arms swing opposite each other
         const s = f === 1 ? 2 : 0;
         px(ctx, ox + 3, yb + 7 + s, 2, 4, armC);
         px(ctx, ox + 11, yb + 9 - s, 2, 4, armC);
       } else {
-        P(5, yb + 6, 6, 6, body);
+        P(5, yb + 6, 6, 6, torsoC);
         P(5, yb + 11, 6, 1, bodyD);
         // one visible arm, swinging fore/aft
         if (f === 0) P(7, yb + 8, 2, 4, armC);
         else P(9, yb + 8, 3, 3, armC); // reaching forward
+      }
+
+      /* ---- garment cuts over the base torso ---- */
+      if (topStyle === 'stripe') {
+        if (!side) px(ctx, ox + 4, yb + 8, 8, 1, trim); else P(5, yb + 8, 6, 1, trim);
+      } else if (topStyle === 'vest') {
+        if (!side) { px(ctx, ox + 7, yb + 6, 2, 6, trim); } else P(7, yb + 6, 2, 6, trim);
+      } else if (topStyle === 'robe') {
+        // skirts fall over the top of the legs, cinched with a sash
+        if (!side) { px(ctx, ox + 4, yb + 11, 8, 3, torsoC); px(ctx, ox + 4, yb + 10, 8, 1, trim); }
+        else { P(5, yb + 11, 6, 3, torsoC); P(5, yb + 10, 6, 1, trim); }
+      } else if (topStyle === 'armor') {
+        if (!side) {
+          px(ctx, ox + 3, yb + 6, 2, 2, trim); px(ctx, ox + 11, yb + 6, 2, 2, trim);  // pauldrons
+          px(ctx, ox + 7, yb + 8, 2, 1, trim);                                        // chest boss
+        } else { P(5, yb + 6, 2, 2, trim); P(9, yb + 6, 2, 2, trim); }
+      } else if (topStyle === 'sequin') {
+        const gl = [[5, 7], [9, 9], [7, 10], [10, 7]];
+        for (const [gx, gy] of gl) (side ? P(gx, yb + gy, 1, 1, trim) : px(ctx, ox + gx, yb + gy, 1, 1, trim));
+      } else if (mawashi) {
+        // the loincloth belt over bare skin
+        if (!side) px(ctx, ox + 4, yb + 10, 8, 2, body); else P(5, yb + 10, 6, 2, body);
       }
 
       /* ---- head ---- */
@@ -2706,12 +2750,54 @@ export function makeCharSprite(pal) {
       else if (hat === 'ears') { px(ctx, HX(3), yb - 1, 3, 3, hatColor); px(ctx, HX(10), yb - 1, 3, 3, hatColor); px(ctx, HX(4), yb, 8, 2, hatColor); }
       else if (hat === 'crown') { px(ctx, HX(4), yb, 8, 2, '#ffd75e'); px(ctx, HX(4), yb - 1, 2, 1, '#ffd75e'); px(ctx, HX(10), yb - 1, 2, 1, '#ffd75e'); px(ctx, HX(7), yb - 1, 2, 1, '#ffd75e'); }
       else if (hat === 'topknot') { px(ctx, HX(6), yb - 1, 4, 2, hair); px(ctx, HX(4), yb, 8, 2, hair); }
-      else {
+      else if (hat === 'straw') {
+        px(ctx, HX(2), yb + 1, 12, 1, hatColor); px(ctx, HX(4), yb - 1, 8, 2, hatColor);
+        px(ctx, HX(4), yb, 8, 1, shade(hatColor, -50));
+      } else if (hat === 'conical') {
+        px(ctx, HX(6), yb - 2, 4, 1, hatColor); px(ctx, HX(4), yb - 1, 8, 1, hatColor);
+        px(ctx, HX(2), yb, 12, 1, hatColor);
+      } else if (hat === 'laurel') {
+        px(ctx, HX(3), yb, 10, 1, hatColor); px(ctx, HX(7), yb - 1, 2, 1, '#ffd75e');
+      } else if (hat === 'bandana') {
+        px(ctx, HX(3), yb - 1, 10, 2, hatColor); px(ctx, HX(4), yb + 1, 1, 1, shade(hatColor, -40));
+      } else if (hat === 'miner') {
+        px(ctx, HX(4), yb - 1, 8, 3, hatColor);
+        if (dir !== 3) px(ctx, X(7, 2), yb, 2, 1, '#ffe066');   // the lamp
+      } else if (hat === 'flowercrown') {
+        px(ctx, HX(3), yb, 10, 1, '#2f7a3a');
+        px(ctx, HX(4), yb - 1, 1, 1, hatColor); px(ctx, HX(7), yb - 1, 1, 1, '#ffe066'); px(ctx, HX(10), yb - 1, 1, 1, hatColor);
+      } else if (hat === 'wizard') {
+        px(ctx, HX(7), yb - 5, 2, 1, hatColor); px(ctx, HX(6), yb - 4, 4, 2, hatColor);
+        px(ctx, HX(5), yb - 2, 6, 1, hatColor); px(ctx, HX(3), yb - 1, 10, 1, hatColor);
+        px(ctx, HX(6), yb - 3, 1, 1, '#ffe066');
+      } else if (hat === 'tophat') {
+        px(ctx, HX(4), yb - 4, 8, 4, hatColor); px(ctx, HX(4), yb - 1, 8, 1, '#8a2030');
+        px(ctx, HX(2), yb, 12, 1, hatColor);
+      } else if (hat === 'jester') {
+        px(ctx, HX(3), yb - 3, 2, 3, hatColor); px(ctx, HX(7), yb - 4, 2, 4, shade(hatColor, 70));
+        px(ctx, HX(11), yb - 3, 2, 3, hatColor); px(ctx, HX(3), yb, 10, 2, shade(hatColor, 35));
+        px(ctx, HX(3), yb - 4, 1, 1, '#ffe066'); px(ctx, HX(8), yb - 5, 1, 1, '#ffe066'); px(ctx, HX(12), yb - 4, 1, 1, '#ffe066');
+      } else if (hat === 'antlers') {
+        px(ctx, HX(3), yb - 3, 1, 3, hatColor); px(ctx, HX(2), yb - 3, 2, 1, hatColor);
+        px(ctx, HX(12), yb - 3, 1, 3, hatColor); px(ctx, HX(12), yb - 3, 2, 1, hatColor);
+        px(ctx, HX(4), yb, 8, 1, shade(hatColor, -30));
+      } else if (hat === 'dragonhelm') {
+        px(ctx, HX(3), yb - 1, 10, 4, hatColor);
+        px(ctx, HX(2), yb - 3, 2, 3, '#ffd75e'); px(ctx, HX(12), yb - 3, 2, 3, '#ffd75e');
+        px(ctx, HX(7), yb - 3, 2, 2, '#e05a40');
+      } else if (hat === 'oni' || hat === 'foxmask') {
+        // masks sit on the face (painted after it, below); hair stays
+        px(ctx, HX(4), yb - 1, 8, 3, hair);
+        if (!side) { px(ctx, ox + 4, yb + 2, 1, 2, hair); px(ctx, ox + 11, yb + 2, 1, 2, hair); }
+        else P(4, yb + 1, 2, 4, hair);
+      } else {
         px(ctx, HX(4), yb - 1, 8, 3, hair);
         if (!side) { px(ctx, ox + 4, yb + 2, 1, 2, hair); px(ctx, ox + 11, yb + 2, 1, 2, hair); }
         else P(4, yb + 1, 2, 4, hair); // hair sweeps down the back of the head
       }
-      if (dir === 3) px(ctx, ox + 4, yb + 1, 8, 5, hair); // back of the head is all hair
+      // back of the head is all hair — unless the hat wraps right around it
+      const WRAPS = ['straw', 'conical', 'wizard', 'tophat', 'jester', 'bandana', 'miner', 'dragonhelm'];
+      if (dir === 3 && !WRAPS.includes(hat)) px(ctx, ox + 4, yb + 1, 8, 5, hair);
 
       /* ---- face ---- */
       ctx.fillStyle = '#26202c';
@@ -2722,6 +2808,72 @@ export function makeCharSprite(pal) {
         ctx.fillRect(X(9), yb + 3, 1, 2);
         ctx.fillStyle = shade(skin, -30);
         ctx.fillRect(X(11), yb + 4, 1, 1);
+      }
+
+      /* ---- masks, worn over the face ---- */
+      if ((hat === 'oni' || hat === 'foxmask') && dir !== 3) {
+        const base = hat === 'oni' ? hatColor : '#f4f0e6';
+        const mark = hat === 'oni' ? '#ffd75e' : '#c8402e';
+        if (!side) px(ctx, ox + 4, yb + 1, 8, 6, base); else P(4, yb + 1, 7, 6, base);
+        if (hat === 'oni') {   // horns, scowling eyes, fangs
+          P(side ? 6 : 5, yb - 1, 1, 2, mark); if (!side) px(ctx, ox + 10, yb - 1, 1, 2, mark);
+          ctx.fillStyle = '#26202c';
+          if (!side) { ctx.fillRect(ox + 6, yb + 3, 1, 1); ctx.fillRect(ox + 9, yb + 3, 1, 1); }
+          else ctx.fillRect(X(9), yb + 3, 1, 1);
+          if (!side) { px(ctx, ox + 6, yb + 6, 1, 1, '#ffffff'); px(ctx, ox + 9, yb + 6, 1, 1, '#ffffff'); }
+          else P(9, yb + 6, 1, 1, '#ffffff');
+        } else {               // fox: ears, cheek marks, slit eyes
+          P(4, yb - 1, 2, 2, base); if (!side) px(ctx, ox + 10, yb - 1, 2, 2, base);
+          if (!side) { px(ctx, ox + 5, yb + 4, 2, 1, mark); px(ctx, ox + 9, yb + 4, 2, 1, mark); }
+          else P(8, yb + 4, 2, 1, mark);
+          ctx.fillStyle = '#26202c';
+          if (!side) { ctx.fillRect(ox + 6, yb + 3, 1, 1); ctx.fillRect(ox + 9, yb + 3, 1, 1); }
+          else ctx.fillRect(X(9), yb + 3, 1, 1);
+          if (!side) px(ctx, ox + 7, yb + 5, 2, 1, '#26202c'); else P(10, yb + 5, 1, 1, '#26202c');
+        }
+      }
+
+      /* ---- accessories, over everything ---- */
+      if (acc === 'scarf') {
+        if (!side) { px(ctx, ox + 4, yb + 6, 8, 1, accColor); px(ctx, ox + 10, yb + 7, 2, 2, accColor); }
+        else { P(5, yb + 6, 6, 1, accColor); P(4, yb + 7, 2, 2, accColor); }
+      } else if (acc === 'cape') {
+        if (dir === 3) { px(ctx, ox + 3, yb + 6, 10, 8, accColor); px(ctx, ox + 3, yb + 13, 10, 1, shade(accColor, -40)); }
+        else if (!side) { px(ctx, ox + 3, yb + 6, 2, 1, accColor); px(ctx, ox + 11, yb + 6, 2, 1, accColor); }
+      } else if (acc === 'shades' && dir !== 3) {
+        if (!side) { px(ctx, ox + 5, yb + 3, 3, 2, accColor); px(ctx, ox + 8, yb + 3, 3, 2, accColor); px(ctx, ox + 8, yb + 3, 1, 1, shade(accColor, 60)); }
+        else P(8, yb + 3, 3, 2, accColor);
+      } else if (acc === 'monocle' && dir !== 3) {
+        const mx = side ? X(8, 3) : ox + 8;   // a ring boxed around one eye
+        px(ctx, mx, yb + 2, 3, 1, accColor); px(ctx, mx, yb + 5, 3, 1, accColor);
+        px(ctx, mx, yb + 3, 1, 2, accColor); px(ctx, mx + 2, yb + 3, 1, 2, accColor);
+      } else if (acc === 'wings') {
+        if (dir === 3) {
+          px(ctx, ox + 1, yb + 5, 3, 5, accColor); px(ctx, ox + 12, yb + 5, 3, 5, accColor);
+          px(ctx, ox + 1, yb + 5, 1, 3, shade(accColor, -30)); px(ctx, ox + 14, yb + 5, 1, 3, shade(accColor, -30));
+        } else if (side) P(2, yb + 5, 3, 4, accColor);
+        else { px(ctx, ox + 2, yb + 6, 2, 2, accColor); px(ctx, ox + 12, yb + 6, 2, 2, accColor); }
+      } else if (acc === 'halo') {
+        px(ctx, ox + 5, yb - 3 - bob, 6, 1, '#ffe066');
+      } else if (acc === 'balloon') {
+        const bx2 = ox + 12, by2 = yb - 5 + bob;
+        px(ctx, bx2, by2, 3, 3, accColor); px(ctx, bx2, by2, 1, 1, shade(accColor, 60));
+        px(ctx, bx2 + 1, by2 + 3, 1, 5, '#c8c4d4');
+      } else if (acc === 'wisp') {
+        const wy2 = yb + 2 + bob * 2;
+        px(ctx, ox + 13, wy2, 2, 2, accColor); px(ctx, ox + 13, wy2 - 1, 1, 1, shade(accColor, 70));
+      } else if (acc === 'lantern') {
+        const lx = side ? X(12, 3) : ox + 12;
+        px(ctx, lx, yb + 10, 3, 3, accColor); px(ctx, lx + 1, yb + 11, 1, 1, '#ffe066');
+        px(ctx, lx + 1, yb + 9, 1, 1, '#5a3a1e');
+      } else if (acc === 'clover' && dir === 0) {
+        px(ctx, ox + 7, yb + 7, 2, 2, accColor); px(ctx, ox + 8, yb + 9, 1, 1, shade(accColor, -40));
+      } else if (acc === 'pendant' && dir === 0) {
+        px(ctx, ox + 5, yb + 6, 6, 1, '#8a6a2a'); px(ctx, ox + 7, yb + 7, 2, 2, accColor);
+      } else if (acc === 'umbrella') {
+        px(ctx, ox + 3, yb - 4, 10, 1, accColor); px(ctx, ox + 4, yb - 5, 8, 1, accColor);
+        px(ctx, ox + 4, yb - 3, 2, 1, shade(accColor, -35)); px(ctx, ox + 10, yb - 3, 2, 1, shade(accColor, -35));
+        px(ctx, ox + 7, yb - 3, 1, 6, '#5a3a1e');
       }
     }
   }

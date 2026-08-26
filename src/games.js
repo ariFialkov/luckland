@@ -24,6 +24,7 @@ import { getLucklianSprite } from './sprites.js';
 import { openHuntLobby } from './hunts.js';
 import { openConcealer } from './concealers.js';
 import { makeDrama, stepRacer } from './racing.js';
+import { nightRackItem, buyItem, ensureWardrobe, RARITY as FIT_RARITY } from './wardrobe.js';
 
 /* the overworld, registered by main at boot (map races, loft lookups) */
 let worldRef = null;
@@ -1862,9 +1863,13 @@ async function runMarket(def, provCode) {
   const bought = state.nmBought || (state.nmBought = {});
   const contraKey = `${night.idx}:${provCode}`;
 
+  const rack = nightRackItem(night.idx, provCode);
+
   function board() {
     const owned = state.lk?.caught[demand.id] || 0;
     const tier = rarityTier(contra.rare);
+    const rackOwned = ensureWardrobe().owned.includes(rack.item.id);
+    const rackR = FIT_RARITY[rack.item.rarity];
     showModal(`
       <h2>🏮 ${escapeHtml(def.name)}</h2>
       <div class="subtitle">Lanterns lit · the market closes in ${Math.floor(night.until / 60)}m — tonight's spread:</div>
@@ -1888,8 +1893,16 @@ async function runMarket(def, provCode) {
             <span>WANTED: ${escapeHtml(demand.name)}<br>
             <span style="font-size:10.5px;opacity:.75">${owned > 0 ? `you have ${owned} — pays over face, off the books` : 'bring one after dark and name your price'}</span></span></span>
           <span class="odds">pays ${fmtCoins(demandPay)} 🪙</span></div>
+        <div class="race-lane ${rackOwned ? '' : 'race-pick-btn'}" id="nm-rack" ${rackOwned ? 'style="opacity:.5"' : ''}>
+          <span style="flex:1;text-align:left">${rack.item.ico} ${escapeHtml(rack.item.name)}
+            <span style="color:${rackR.ink};font-weight:bold">· ${rackR.name}</span><br>
+            <span style="font-size:10.5px;opacity:.75">${rackOwned ? 'already in your wardrobe' : 'off the back of the rack — night price, no haggling'}</span></span>
+          <span class="odds">${rackOwned ? 'owned' : `${fmtCoins(rack.price)} 🪙`}</span></div>
       </div>
     `);
+    if (!rackOwned) document.getElementById('nm-rack')?.addEventListener('click', () => {
+      if (buyItem(rack.item, rack.price)) board();
+    });
     document.querySelectorAll('[data-crate]').forEach((el) => el.addEventListener('click', () => {
       const c = def.crates[+el.dataset.crate];
       openConcealer({ x: 0, y: 0, type: { id: 'nm-' + el.dataset.crate, name: c.name, ico: c.ico, price: c.price || specialPrice, rtp: c.rtp } }, provCode, () => {});

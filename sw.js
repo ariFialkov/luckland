@@ -1,7 +1,7 @@
 /* Luckland service worker — offline-first app shell.
    Bump CACHE_VERSION whenever files change to push an update. */
 
-const CACHE_VERSION = 'luckland-v26';
+const CACHE_VERSION = 'luckland-v27';
 
 const SHELL = [
   '.',
@@ -23,6 +23,7 @@ const SHELL = [
   'src/liveevents.js',
   'src/hunts.js',
   'src/racing.js',
+  'src/wardrobe.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',

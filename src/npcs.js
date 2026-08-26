@@ -14,6 +14,7 @@ import { makeCharSprite, makeDragonSprite } from './sprites.js';
 import { state, meetNpc, grantLuck } from './state.js';
 import { showModal, closeModal, escapeHtml, toast } from './ui.js';
 import { openGame } from './games.js';
+import { VENDOR_DEFS } from './wardrobe.js';
 
 /* ------------------------------------------------------------
    Named NPCs
@@ -191,7 +192,9 @@ function snapToWalkable(world, tx, ty) {
 }
 
 export function createNpcs(world) {
-  return NPC_DEFS.map((def) => {
+  // the outfit vendors walk the same streets as the named characters —
+  // same wander loop, same draw path, but bumping them opens a shop
+  return [...NPC_DEFS, ...VENDOR_DEFS].map((def) => {
     const sprite = def.special === 'dragon' ? makeDragonSprite() : makeCharSprite(def.pal || {});
     const home = snapToWalkable(world, def.home.x, def.home.y);
     return {

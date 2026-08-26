@@ -273,6 +273,35 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   circle and trade named moves (POUNCE, GORE, DEATH ROLL) with health bars
   on the sand; your beast walks away whatever happens.
 
+## The Wardrobe (👕)
+
+Purely cosmetic player customization — coins out, style back, RTP untouched
+(clothing spend never counts into the wagered/won stats):
+
+- **~60 pieces across five slots** — hat, top, bottom, shoes, accessory —
+  in five rarities from thrift-rack Commons to Legendaries like the
+  **Dragonspine Warhelm**, **Loftrunner's Winged Sandals** and the
+  **House-Always-Wins Halo**. Everything is painted straight into the
+  character sprite sheet (all four directions, both walk frames): robes,
+  armor plates, sequins, masks that cover your face, capes that billow
+  behind you, a balloon that bobs along, a bottled bog wisp on your hip.
+- **Province lines**: laurels & togas (TF), knotwork & wellies (FL),
+  ten-gallons & dusters (HV), changshans & jade slippers (DG), straw hats
+  & khakis (EP), neon jackets, oni masks & geta (MN) — plus pieces that
+  nod to the bog, the migration, the auction house, the basho and the
+  lantern races.
+- **The Threadbare Trunk** — a daily thrift shop inside the wardrobe
+  screen (👕 button or `C`): six pieces re-drawn at every dawn, one always
+  a **DEAL**. Every row shows a fitting-mirror preview of *you* wearing it.
+- **Six wandering vendors**, one per province (Lucius Drip, Bramble Betty,
+  Rag-and-Bone Rufus, Madame Xiu, Kesorn, Sable) — walk up and browse
+  their rack: three staples plus one showpiece, restocked at dawn, only
+  ever their province's gear or general stock.
+- **The night-market rack** — after dark the market stalls hang one
+  seeded wardrobe piece at 15% off.
+- Purchases go straight on your back; the closet equips per-slot with an
+  animated fitting mirror, and the whole outfit persists in your save.
+
 ## Tuning the economy (RTP)
 
 Everything lives in **`src/config.js`**:
@@ -330,6 +359,7 @@ src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker
 src/racing.js               shared race choreography: smooth, monotone drama
 src/npcs.js                 named characters, dialogue, bot crowd
+src/wardrobe.js             outfits: catalog, thrift shop, vendors, equip UI
 src/ui.js                   HUD, modals, toasts, joystick, map/stats screens
 src/state.js                wallet, stats, buffs, localStorage saves
 src/main.js                 game loop, input, camera, rendering, interactions

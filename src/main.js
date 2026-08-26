@@ -19,6 +19,7 @@ import { getLucklianSprite, getStationSprite, getDecorSprite, makeFerrySprite } 
 import { getInterior, updatePatrons } from './interiors.js';
 import { openLiveBet, stationIsLive, updateLive, drawLiveOverlay, openLanternFestival, updateLanternRace, drawLanternRace, getLanternRace, migrationTick, migrationNear, drawMigration } from './liveevents.js';
 import { tickHunt } from './hunts.js';
+import { initWardrobe, openWardrobe, openVendorShop, applyLook } from './wardrobe.js';
 
 /* ---------------- boot ---------------- */
 const canvas = document.getElementById('game');
@@ -38,6 +39,7 @@ const player = {
 
 const hadSave = loadGame();
 if (hadSave && state.px) { player.x = state.px; player.y = state.py; }
+initWardrobe(player);   // dress the player from the saved wardrobe
 
 const npcs = createNpcs(world);
 const bots = createBots(world);
@@ -76,6 +78,7 @@ window.addEventListener('keydown', (e) => {
   if (e.key.toLowerCase() === 'm' && !UI.isModalOpen()) UI.openMapModal(world, playerTilePos());
   if (e.key.toLowerCase() === 'p' && !UI.isModalOpen()) UI.openStatsModal();
   if (e.key.toLowerCase() === 'l' && !UI.isModalOpen()) openLucklipedia();
+  if (e.key.toLowerCase() === 'c' && !UI.isModalOpen()) openWardrobe();
 });
 window.addEventListener('keyup', (e) => keys.delete(e.key.toLowerCase()));
 window.addEventListener('blur', () => keys.clear());
@@ -86,6 +89,7 @@ UI.els.statsBtn.addEventListener('click', () => { if (!UI.isModalOpen()) UI.open
 UI.els.mapBtn.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openMapModal(world, playerTilePos()); });
 UI.els.migChip.addEventListener('click', () => { if (!UI.isModalOpen()) UI.openMapModal(world, playerTilePos()); });
 document.getElementById('btn-dex').addEventListener('click', () => { if (!UI.isModalOpen()) openLucklipedia(); });
+document.getElementById('btn-fit').addEventListener('click', () => { if (!UI.isModalOpen()) openWardrobe(); });
 
 function playerTilePos() {
   return { tx: Math.floor(player.x / TILE), ty: Math.floor(player.y / TILE) };
@@ -240,10 +244,11 @@ function findTarget() {
       return { kind: 'landmark', obj: lm, label: `Enter ${lm.name}`, ico: lm.ico };
     }
   }
-  // npcs
+  // npcs (outfit vendors open their rack instead of chatting)
   for (const n of npcs) {
     if (near(n.x, n.y, 24)) {
-      return { kind: 'npc', obj: n, label: `Talk to ${n.def.name}`, ico: n.def.portrait };
+      const label = n.def.vendor ? `Browse ${n.def.name}'s wares` : `Talk to ${n.def.name}`;
+      return { kind: 'npc', obj: n, label, ico: n.def.portrait };
     }
   }
   // concealers
@@ -287,7 +292,7 @@ function doInteract() {
     if (scene?.it.live) UI.toast('🏟️ The event is still running — see it out!');
     else exitInterior();
   }
-  else if (t.kind === 'npc') talkTo(t.obj, prov);
+  else if (t.kind === 'npc') { if (t.obj.def.vendor) openVendorShop(t.obj); else talkTo(t.obj, prov); }
   else if (t.kind === 'concealer') openConcealer(t.obj, prov, () => {});
   else if (t.kind === 'hoard') openHoard(prov);
   else if (t.kind === 'event') launchGame(t.obj.game, prov, t.obj);
@@ -937,7 +942,7 @@ requestAnimationFrame(frame);
 window.LUCKLAND = {
   world, player, state, concealers, npcs, bots, citizens,
   enterLandmark, exitInterior, getScene: () => scene, openGame,
-  doInteract, getCrossing: () => crossing,
+  doInteract, getCrossing: () => crossing, openWardrobe, applyLook,
 };
 
 /* ---------------- PWA service worker ---------------- */

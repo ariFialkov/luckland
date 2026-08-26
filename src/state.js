@@ -26,6 +26,7 @@ export const state = {
   gear: { rod: false },      // one-time equipment (fishing rod)
   hunt: null,                // active scavenger hunt, local or national (see hunts.js)
   tmap: { frags: 0, hoard: null },   // tide-treasure map progress
+  wardrobe: null,            // owned outfit pieces + what's worn (see wardrobe.js)
   tide: 0,                   // live tide level (written by main each frame, not saved)
   buffs: {
     luckUntil: 0,            // epoch ms; while active, +rtp bonus
@@ -108,6 +109,7 @@ export function saveGame() {
       gear: state.gear,
       hunt: state.hunt,
       tmap: state.tmap,
+      wardrobe: state.wardrobe ? { owned: state.wardrobe.owned, eq: state.wardrobe.eq } : null,
     }));
   } catch { /* storage full / private mode — play on without saving */ }
 }
@@ -130,6 +132,7 @@ export function loadGame() {
     if (d.gear && typeof d.gear === 'object') state.gear = { rod: !!d.gear.rod };
     if (d.hunt && typeof d.hunt === 'object' && Array.isArray(d.hunt.list)) state.hunt = d.hunt;
     if (d.tmap && typeof d.tmap === 'object') state.tmap = { frags: d.tmap.frags || 0, hoard: d.tmap.hoard || null };
+    if (d.wardrobe && typeof d.wardrobe === 'object') state.wardrobe = d.wardrobe;  // sanitized by ensureWardrobe
     return true;
   } catch { return false; }
 }
