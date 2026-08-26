@@ -197,7 +197,12 @@ honest ladder, same contribute-or-keep mechanic, same tracker.
   ones. Each stage pays `RTP / p`; cash out at any camp, and the summit
   itself grants the mountain's blessing (+3% RTP for 120s).
 - **Night Markets** (🏮 MN/DG streets) — Luckland now has a **day/night
-  cycle**: dusk visibly falls, and the shuttered stalls open. Each night
+  cycle**: night genuinely *falls* — the world cools into blue via a
+  multiply-darkened wash while **every building's windows light up warm**
+  (a few stay dark; someone's asleep), lamplight spills from doorways,
+  stone and paper lanterns throw halos, vending machines hum, market
+  stalls and festival docks glow, and the neon districts shimmer with
+  drifting sign-light. Then the shuttered stalls open. Each night
   rolls a fresh spread: three crates at posted honest odds (one a genuine
   98.5% "special"), a black-market Lucklian at a collector's markup — no
   questions asked, straight into your Lucklipedia — and one species in

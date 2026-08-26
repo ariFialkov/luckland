@@ -335,7 +335,19 @@ function drawBuilding(b) {
   const ctx = cv.getContext('2d');
   const doorCx = b.doorPx ?? (W16 >> 1);
 
-  if (b.kind === 'prop') { drawProp(ctx, b.prov, b.v); return cv; }
+  if (b.kind === 'prop') {
+    drawProp(ctx, b.prov, b.v);
+    // the luminous props carry a night light: lantern posts, vending machines
+    const pk = b.v % 3;
+    if (b.prov === 'DG' && pk === 0) cv.lights = [{ x: 8, y: 5, r: 7, c: '#ffd75e', halo: true }];
+    else if (b.prov === 'DG' && pk === 1) cv.lights = [{ x: 8, y: 5, r: 8, c: '#ff6b50', halo: true }];
+    else if (b.prov === 'MN' && pk === 0) cv.lights = [{ x: 8, y: 6, r: 7, c: '#bfeaff', halo: true }];
+    else if (b.prov === 'MN' && pk === 1) cv.lights = [{ x: 8, y: 5, r: 8, c: '#ff6be0', halo: true }];
+    return cv;
+  }
+
+  /* every window painted below is recorded so the night pass can light it */
+  const lights = [];
 
   const defaults = { TF: 'temple', FL: 'cottage', HV: 'saloon', DG: 'hall', EP: 'hut', MN: 'tower4' };
   const style = lm ? (b.sub || defaults[b.prov] || 'villa') : b.kind;
@@ -387,7 +399,9 @@ function drawBuilding(b) {
       for (let wx = IN + 2; wx + wW <= W16 - IN - 2; wx += wW + 4) {
         if (overDoorRow && wx + wW >= doorCx - (doorW >> 1) - 2 && wx <= doorCx + (doorW >> 1) + 2) continue;
         if (frame) px(ctx, wx - 1, yTop - 1, wW + 2, wH + 2, frame);
-        px(ctx, wx, yTop, wW, wH, colFn(i++));
+        const wc = colFn(i++);
+        px(ctx, wx, yTop, wW, wH, wc);
+        lights.push({ x: wx, y: yTop, w: wW, h: wH, c: wc });
       }
     }
   };
@@ -757,6 +771,63 @@ function drawBuilding(b) {
   }
 
   outline();
+  cv.lights = lights;
+  cv.doorGlow = { x: doorCx, y: BH - 1 };
+  return cv;
+}
+
+/* ------------------------------------------------------------
+   Night glow overlays: a companion sprite per building that
+   lights its recorded windows, lantern props and doorway. Baked
+   once, drawn over the night wash by main with alpha ∝ darkness.
+   ------------------------------------------------------------ */
+const glowCache = new Map();
+
+function lum(hex) {
+  if (!hex || hex[0] !== '#') return 255;
+  const n = parseInt(hex.slice(1), 16);
+  return ((n >> 16) * 0.4 + ((n >> 8) & 255) * 0.45 + (n & 255) * 0.15);
+}
+const glowRGBA = (hex, a) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`;
+};
+
+export function getBuildingGlow(b) {
+  const key = `${b.kind}:${b.prov}:${b.w}x${b.h}:${b.v}:${b.doorPx ?? ''}:glow`;
+  if (glowCache.has(key)) return glowCache.get(key);
+  const base = getBuildingSprite(b);
+  const lights = base.lights || [];
+  const door = base.doorGlow;
+  let cv = null;
+  if (lights.length || door) {
+    const pad = 14;
+    cv = document.createElement('canvas');
+    cv.width = base.width + pad * 2; cv.height = base.height + pad * 2;
+    cv.pad = pad;
+    const ctx = cv.getContext('2d');
+    const halo = (cx2, cy2, r, hex, a) => {
+      const g = ctx.createRadialGradient(cx2, cy2, 1, cx2, cy2, r);
+      g.addColorStop(0, glowRGBA(hex, a));
+      g.addColorStop(1, glowRGBA(hex, 0));
+      ctx.fillStyle = g;
+      ctx.fillRect(cx2 - r, cy2 - r, r * 2, r * 2);
+    };
+    lights.forEach((L2, i) => {
+      // dark daytime glass turns warm lamplight; already-bright glass keeps its colour
+      const c = L2.halo || lum(L2.c) > 150 ? (L2.c || '#ffcf6e') : '#ffcf6e';
+      if (L2.halo) { halo(L2.x + pad, L2.y + pad, L2.r * 2.4, c, 0.55); return; }
+      if (hash2(b.v, i * 13 + 1, 314) < 0.25) return;   // a few windows stay dark — someone's asleep
+      const cx2 = L2.x + L2.w / 2 + pad, cy2 = L2.y + L2.h / 2 + pad;
+      halo(cx2, cy2, Math.max(L2.w, L2.h) * 2.6, c, 0.5);
+      ctx.fillStyle = c;
+      ctx.fillRect(L2.x + pad, L2.y + pad, L2.w, L2.h);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)';
+      ctx.fillRect(L2.x + pad, L2.y + pad, L2.w, 1);
+    });
+    if (door) halo(door.x + pad, door.y + pad, 10, '#ffb060', 0.4);   // lamplight spilling under the door
+  }
+  glowCache.set(key, cv);
   return cv;
 }
 

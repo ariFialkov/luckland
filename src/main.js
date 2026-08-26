@@ -8,7 +8,7 @@
 import { CONFIG } from './config.js';
 import { hash2, roll } from './rng.js';
 import { generateWorld, T, TILE, isSolidTile, PROVINCES } from './world.js';
-import { buildTileAtlas, makeCharSprite, getBuildingSprite, getEventSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
+import { buildTileAtlas, makeCharSprite, getBuildingSprite, getBuildingGlow, getEventSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
 import { state, spend, loadGame, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
 import { openGame, openHub, GAME_DEFS, setWorld, nightNow, openCrossingDen } from './games.js';
@@ -52,6 +52,12 @@ function launchGame(gid, prov, ev) {
   if (gid === 'lanternfest') openLanternFestival(world, prov, ev);
   else openGame(gid, prov);
 }
+
+/* attraction props that throw light after dark */
+const NIGHT_GLOW = {
+  nightmarket: '#ffb060', lanternfest: '#ff9a50', spiritlanterns: '#ffd75e',
+  neonneko: '#5eeaff', catparade: '#ffd75e', faeriering: '#a0ffc0', dragonhoard: '#ffd75e',
+};
 
 const floaters = []; // {x, y, text, color, t}
 function addFloater(x, y, text, color = '#ffd75e') {
@@ -907,12 +913,65 @@ function frame(now) {
     }
   }
 
-  /* night falls: a blue-dark wash over the overworld */
+  /* night falls: a deep blue wash — and then Luckland lights up.
+     Windows glow warm, lantern posts and market stalls throw halos,
+     neon streets shimmer: unmistakably night, not just dimmed day. */
   {
     const nk = nightNow().k;
     if (nk > 0) {
-      ctx.fillStyle = `rgba(12,14,48,${(0.30 * nk).toFixed(3)})`;
+      // multiply darkens proportionally (pale plazas cool down too),
+      // then a thin flat layer adds the blue night atmosphere
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = `rgba(108,118,190,${(0.85 * nk).toFixed(3)})`;
       ctx.fillRect(0, 0, vw, vh);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(9,11,42,${(0.16 * nk).toFixed(3)})`;
+      ctx.fillRect(0, 0, vw, vh);
+
+      const halo = (sx, sy, r, hex, a) => {
+        const n = parseInt(hex.slice(1), 16);
+        const g = ctx.createRadialGradient(sx, sy, 1, sx, sy, r);
+        g.addColorStop(0, `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${a})`);
+        g.addColorStop(1, `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},0)`);
+        ctx.fillStyle = g;
+        ctx.fillRect(sx - r, sy - r, r * 2, r * 2);
+      };
+
+      // lit windows, lantern props and doorway spill on every building in view
+      for (const b of world.buildings) {
+        if (b.x > x1 + 1 || b.x + b.w < x0 - 1 || b.y > y1 + 1 || b.y + b.h < y0 - 1) continue;
+        const g = getBuildingGlow(b);
+        if (!g) continue;
+        ctx.globalAlpha = nk * (0.82 + 0.18 * Math.sin(now / 640 + (b.v % 97)));
+        ctx.drawImage(g,
+          Math.round((b.x * TILE - camX) * zoom) - g.pad * zoom,
+          Math.round((b.y * TILE - camY) * zoom) - g.pad * zoom,
+          g.width * zoom, g.height * zoom);
+      }
+      ctx.globalAlpha = 1;
+
+      // luminous roadside attractions: markets, shrines, festival docks
+      for (const ev of world.events) {
+        const c = NIGHT_GLOW[ev.game];
+        if (!c) continue;
+        if (ev.x > x1 + 2 || ev.x + ev.w < x0 - 2 || ev.y > y1 + 2 || ev.y + ev.h < y0 - 2) continue;
+        const cx2 = ((ev.x + ev.w / 2) * TILE - camX) * zoom;
+        const cy2 = ((ev.y + ev.h / 2) * TILE - camY) * zoom;
+        const pulse = 0.55 + 0.15 * Math.sin(now / 480 + ev.x * 3);
+        halo(cx2, cy2, Math.max(ev.w, ev.h) * TILE * zoom * 0.85, c, nk * pulse);
+      }
+
+      // the neon districts hum: scattered sign-glow on lit streets
+      for (let ty = y0; ty <= y1; ty++) {
+        for (let tx = x0; tx <= x1; tx++) {
+          if (world.tiles[ty * world.W + tx] !== T.NEON) continue;
+          const h = hash2(tx, ty, 51);
+          if (h > 0.09) continue;
+          const c = h > 0.045 ? '#ff6be0' : '#5eeaff';
+          const flick = 0.35 + 0.2 * Math.sin(now / 300 + tx * 7 + ty * 3);
+          halo((tx * TILE + 8 - camX) * zoom, (ty * TILE + 8 - camY) * zoom, 13 * zoom, c, nk * flick);
+        }
+      }
     }
   }
 
