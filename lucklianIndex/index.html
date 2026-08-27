@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Lucklian Index — Luckland</title>
+<meta name="description" content="Every Lucklian in Luckland: sprite, province, habitat, rarity, value, catch odds and lore — generated live from the game's own species table.">
+<link rel="icon" href="../icons/icon.svg">
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<header id="top">
+  <div class="head-row">
+    <h1>🧿 The Lucklian Index</h1>
+    <a class="back" href="../">← back to Luckland</a>
+  </div>
+  <p class="sub">
+    The complete field guide, read straight out of the game's own species table
+    (<code>src/lucklians.js</code>) every time this page loads — add, edit or remove a
+    Lucklian and it shows up here on refresh.
+  </p>
+  <div id="summary" class="summary"></div>
+</header>
+
+<div id="controls" class="controls">
+  <div class="ctl-row">
+    <input id="q" type="search" placeholder="Search name, description, habitat, archetype…" autocomplete="off">
+    <select id="sort">
+      <option value="id">Sort: dex order</option>
+      <option value="name">Sort: name A→Z</option>
+      <option value="rare-asc">Sort: rarest first</option>
+      <option value="rare-desc">Sort: commonest first</option>
+      <option value="value-desc">Sort: most valuable</option>
+      <option value="value-asc">Sort: least valuable</option>
+      <option value="rtp-desc">Sort: best catch RTP</option>
+      <option value="prov">Sort: province</option>
+      <option value="type">Sort: habitat</option>
+    </select>
+    <button id="csv" class="btn" type="button">⬇ CSV</button>
+    <button id="json" class="btn" type="button">⬇ JSON</button>
+  </div>
+  <div class="ctl-row filters">
+    <span class="flabel">Province</span><span id="f-prov" class="chips"></span>
+  </div>
+  <div class="ctl-row filters">
+    <span class="flabel">Habitat</span><span id="f-type" class="chips"></span>
+  </div>
+  <div class="ctl-row filters">
+    <span class="flabel">Rarity</span><span id="f-tier" class="chips"></span>
+  </div>
+  <div id="count" class="count"></div>
+</div>
+
+<main>
+  <div class="table-wrap">
+    <table id="dex">
+      <thead>
+        <tr>
+          <th class="c-spr"></th>
+          <th class="c-id">#</th>
+          <th class="c-name">Name</th>
+          <th class="c-prov">Province</th>
+          <th class="c-type">Habitat</th>
+          <th class="c-rare">Rarity</th>
+          <th class="c-num" title="Weight inside its province + habitat pool — not a flat encounter chance">Encounter<br><span class="th-sub">pool weight</span></th>
+          <th class="c-num">Value<br><span class="th-sub">🪙 face</span></th>
+          <th class="c-num">Catch RTP</th>
+          <th class="c-snare">Catch odds by snare</th>
+          <th class="c-traits">Traits</th>
+          <th class="c-desc">Field notes</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+  <p id="empty" class="empty hidden">No Lucklian matches those filters.</p>
+</main>
+
+<footer>
+  <div id="legend" class="legend"></div>
+  <p class="foot-note">
+    Every number here is computed by the live game code, not copied by hand:
+    values from <code>speciesValue(rarity)</code>, per-species catch RTP from
+    <code>speciesRtp(id)</code>, snare odds from <code>catchChance()</code>, and the
+    habitat/terrain mapping is probed out of <code>habitatTypes()</code> itself.
+  </p>
+</footer>
+
+<script type="module" src="index.js"></script>
+</body>
+</html>

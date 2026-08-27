@@ -96,7 +96,15 @@ export function meetNpc(id) {
 }
 
 /* ---------------- persistence ---------------- */
+/* Saving stays disarmed until the game itself boots and calls
+   armSave(). Reference pages (the Lucklian Index) import this module
+   for its data without ever loading a save — without the guard their
+   autosave would overwrite a real player's progress with defaults. */
+let saveArmed = false;
+export function armSave() { saveArmed = true; }
+
 export function saveGame() {
+  if (!saveArmed) return;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       balance: state.balance,

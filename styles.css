@@ -657,3 +657,6 @@ html, body {
 }
 .wd-deal { background: #c8402e; color: #fff; border: 1px solid #8a2030; }
 .wd-mini { display: flex; align-items: flex-end; }
+
+/* link out to the standalone Lucklian Index reference page */
+.lk-index-link { color: var(--gold-ink); font-weight: bold; text-decoration: underline; }

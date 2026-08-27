@@ -25,6 +25,7 @@ mkdir -p "$OUT"
 cp index.html styles.css manifest.json sw.js "$OUT/"
 cp -R src "$OUT/src"
 cp -R icons "$OUT/icons"
+cp -R lucklianIndex "$OUT/lucklianIndex"   # the Lucklian Index reference page
 
 # Every path the service worker pre-caches must exist, or the PWA will
 # fail to install offline on first load.

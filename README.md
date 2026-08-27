@@ -135,6 +135,23 @@ tunable in `src/config.js` → `LUCKLIAN`), so a throw's expected return is
 always `snare cost × species RTP`; rarer species are worth more and are
 proportionally harder to hold. Failed throws risk the creature bolting.
 
+### The Lucklian Index
+
+A standalone reference page at **`/lucklianIndex/`** (linked from the
+Lucklipedia) lists **every** species in one sortable, filterable table —
+sprite, province, habitat *and the terrain it spawns on*, rarity tier,
+pool weight, face value, per-species catch RTP, catch odds for all five
+snares, traits (archetype, glow, migration-eligible, black-market pool,
+which hunt themes it qualifies for) and its full field note. Search,
+filter by province/habitat/rarity, sort by any stat, and export the
+current view as **CSV or JSON**.
+
+Nothing on that page is transcribed: it imports the game's own species
+table and helpers at load, so editing `src/lucklians.js` — adding,
+removing or retuning a creature — is reflected on the next refresh with
+no separate upkeep. Even the terrain column is probed out of the real
+`habitatTypes()` spawn rules rather than written down.
+
 Captures live in the **Lucklipedia** (🧿 / L key): an encyclopedia of all 176
 species — unknown, seen (silhouette), or caught — where creatures can be sold
 at face value, capped at **8 open-market sales a day**. Wandering traders
@@ -372,6 +389,7 @@ src/sprites.js              procedural pixel-art tiles & character sprites
 src/games.js                wager engine (paytable/pick/race/hi-lo) + 18 games
 src/concealers.js           chest spawning, loot rolls, opening ceremonies
 src/lucklians.js            176 creatures: encounters, snares, Lucklipedia, traders
+lucklianIndex/              standalone field-guide page (reads the live species table)
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker

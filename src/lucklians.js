@@ -467,7 +467,8 @@ export function openLucklipedia(scrollTop = 0) {
   const m = showModal(`
     <h2>🧿 Lucklipedia</h2>
     <div class="subtitle">${discovered}/${LUCKLIANS.length} species discovered · ${owned} in your care (worth ${worth.toLocaleString('en-US')} 🪙)
-      · <b>${salesLeft()}</b> of ${LK.DAILY_SALES} market sales left today</div>
+      · <b>${salesLeft()}</b> of ${LK.DAILY_SALES} market sales left today<br>
+      <a class="lk-index-link" href="lucklianIndex/" target="_blank" rel="noopener">📖 open the full Lucklian Index</a> — every species, spoilers and all</div>
     <div class="lk-book">${sections}</div>
   `);
   const book = m.querySelector('.lk-book');

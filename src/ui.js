@@ -152,7 +152,9 @@ export function closeModal() {
   if (cb) cb();
 }
 
-els.modalLayer.addEventListener('pointerdown', (e) => {
+/* optional: pages that reuse these modules for reference tools (the
+   Lucklian Index) have no HUD, and importing must not throw */
+els.modalLayer?.addEventListener('pointerdown', (e) => {
   if (e.target === els.modalLayer) closeModal();
 });
 

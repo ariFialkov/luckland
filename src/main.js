@@ -9,7 +9,7 @@ import { CONFIG } from './config.js';
 import { hash2, roll } from './rng.js';
 import { generateWorld, T, TILE, isSolidTile, PROVINCES } from './world.js';
 import { buildTileAtlas, makeCharSprite, getBuildingSprite, getBuildingGlow, getEventSprite, CELL, CHAR_W, CHAR_H } from './sprites.js';
-import { state, spend, loadGame, onBalanceChange } from './state.js';
+import { state, spend, loadGame, armSave, onBalanceChange } from './state.js';
 import * as UI from './ui.js';
 import { openGame, openHub, GAME_DEFS, setWorld, nightNow, openCrossingDen } from './games.js';
 import { concealers, seedConcealers, updateConcealerSpawns, openConcealer, openHoard } from './concealers.js';
@@ -38,6 +38,7 @@ const player = {
 };
 
 const hadSave = loadGame();
+armSave();   // only the game itself may write the save
 if (hadSave && state.px) { player.x = state.px; player.y = state.py; }
 initWardrobe(player);   // dress the player from the saved wardrobe
 
