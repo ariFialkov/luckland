@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Tile Atlas — Luckland</title>
+<meta name="description" content="Every terrain tile in Luckland: name, atlas row, size, all four variants, movement rules and the habitats it hosts — generated live from the game's own tile painter.">
+<link rel="icon" href="../icons/icon.svg">
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <h1>🗺️ The Tile Atlas</h1>
+    <nav>
+      <a href="../lucklianIndex/">🧿 Lucklian Index</a>
+      <a href="../">← back to Luckland</a>
+    </nav>
+  </div>
+  <p class="sub">
+    Every terrain tile in the game, painted live by <code>buildTileAtlas()</code> in
+    <code>src/sprites.js</code> each time this page loads. Edit a tile's paint code and it
+    changes here on refresh — this is the same canvas the world renderer draws from.
+  </p>
+  <div id="summary" class="summary"></div>
+  <div class="ctl-row">
+    <span id="filters" class="chips"></span>
+    <span class="spacer"></span>
+    <label class="zoomctl">Preview
+      <select id="zoom">
+        <option value="3">3×</option>
+        <option value="4" selected>4×</option>
+        <option value="6">6×</option>
+        <option value="8">8×</option>
+      </select>
+    </label>
+    <button id="dl-atlas" class="btn" type="button">⬇ atlas PNG</button>
+    <button id="dl-sheet" class="btn" type="button">⬇ labelled sheet</button>
+    <button id="dl-json" class="btn" type="button">⬇ JSON</button>
+  </div>
+</header>
+
+<main>
+  <div id="grid" class="grid"></div>
+
+  <section class="atlas-section">
+    <h2>The atlas as the game builds it</h2>
+    <p class="note">
+      One canvas, <b id="atlas-dims"></b> — four variant columns across, one row per tile
+      type. The renderer picks a column with <code>hash2(tx, ty, 7)</code> so terrain never
+      visibly repeats, except for water and tide flats, where the column doubles as an
+      animation frame.
+    </p>
+    <div class="atlas-wrap"><canvas id="atlas-view"></canvas></div>
+  </section>
+
+  <section class="swap">
+    <h2>Replacing these with your own art</h2>
+    <p class="note">
+      Everything downstream — the world renderer, minimap, interiors, collision — reads
+      tiles <em>only</em> through this atlas, and reads them by
+      <code>(column, row)</code>. So a texture pack never has to touch worldgen: paint into
+      the same grid and the rest of the game cannot tell the difference.
+    </p>
+    <ul class="rules" id="swap-rules"></ul>
+  </section>
+</main>
+
+<footer>
+  <p class="foot-note">
+    Sizes, flags and habitat mappings on this page are read from the live code
+    (<code>CELL</code>, <code>T</code>, <code>isSolidTile()</code>,
+    <code>isWaterTile()</code>, <code>habitatTypes()</code>), never transcribed.
+  </p>
+</footer>
+
+<script type="module" src="index.js"></script>
+</body>
+</html>

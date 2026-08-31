@@ -1,7 +1,7 @@
 /* Luckland service worker — offline-first app shell.
    Bump CACHE_VERSION whenever files change to push an update. */
 
-const CACHE_VERSION = 'luckland-v31';
+const CACHE_VERSION = 'luckland-v32';
 
 const SHELL = [
   '.',
@@ -27,6 +27,9 @@ const SHELL = [
   'lucklianIndex/index.html',
   'lucklianIndex/index.css',
   'lucklianIndex/index.js',
+  'tileAtlas/index.html',
+  'tileAtlas/index.css',
+  'tileAtlas/index.js',
   'icons/icon.svg',
   'icons/icon-192.png',
   'icons/icon-512.png',

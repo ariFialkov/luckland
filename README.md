@@ -135,6 +135,17 @@ tunable in `src/config.js` → `LUCKLIAN`), so a throw's expected return is
 always `snare cost × species RTP`; rarer species are worth more and are
 proportionally harder to hold. Failed throws risk the creature bolting.
 
+### The Tile Atlas
+
+A companion reference at **`/tileAtlas/`** shows all **35 terrain tiles** —
+each one rendered from the game's real atlas at your choice of zoom, with
+all four variant columns, its `T` row number and atlas Y offset, its
+`16 × 16` size, whether it's walkable/solid/water/animated/tide-dependent,
+and which Lucklian habitats it hosts (on it, or as a neighbour). Filter by
+those flags, and export the **atlas PNG** (64 × 560, exactly what the game
+builds), a **labelled contact sheet**, or a **JSON manifest** — the three
+things you need to author a replacement texture pack.
+
 ### The Lucklian Index
 
 A standalone reference page at **`/lucklianIndex/`** (linked from the
@@ -390,6 +401,7 @@ src/games.js                wager engine (paytable/pick/race/hi-lo) + 18 games
 src/concealers.js           chest spawning, loot rolls, opening ceremonies
 src/lucklians.js            176 creatures: encounters, snares, Lucklipedia, traders
 lucklianIndex/              standalone field-guide page (reads the live species table)
+tileAtlas/                  standalone tile reference (reads the live tile painter)
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker
