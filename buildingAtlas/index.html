@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Building Atlas — Luckland</title>
+<meta name="description" content="Every building and roadside prop in Luckland: sprite, kind, province, footprint and pixel size — generated live from the game's own painters, with the deduplicated art-slot list an artist actually needs to draw.">
+<link rel="icon" href="../icons/icon.svg">
+<link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+<header>
+  <div class="head-row">
+    <h1>🏛️ The Building Atlas</h1>
+    <nav>
+      <a href="../tileAtlas/">🗺️ Tile Atlas</a>
+      <a href="../lucklianIndex/">🧿 Lucklian Index</a>
+      <a href="../">← back to Luckland</a>
+    </nav>
+  </div>
+  <p class="sub">
+    Every building and roadside prop standing in the world, painted live by
+    <code>drawBuilding()</code> and <code>drawEventProp()</code> in <code>src/sprites.js</code>.
+    The world is generated from the real seed on load, so this is exactly what is out there.
+  </p>
+  <div id="summary" class="summary"></div>
+
+  <div class="ctl-row">
+    <span class="chips" id="dataset"></span>
+    <span class="spacer"></span>
+    <span class="chips" id="viewmode"></span>
+  </div>
+  <div class="ctl-row">
+    <input id="q" type="search" placeholder="Search kind, province, footprint…" autocomplete="off">
+    <label class="zoomctl">Zoom
+      <select id="zoom">
+        <option value="1">1×</option>
+        <option value="2" selected>2×</option>
+        <option value="3">3×</option>
+        <option value="4">4×</option>
+      </select>
+    </label>
+    <button id="dl-sheet" class="btn" type="button">⬇ contact sheet</button>
+    <button id="dl-json" class="btn" type="button">⬇ JSON</button>
+  </div>
+  <div class="ctl-row filters"><span class="flabel">Kind</span><span id="f-kind" class="chips"></span></div>
+  <div class="ctl-row filters"><span class="flabel">Province</span><span id="f-prov" class="chips"></span></div>
+  <div id="count" class="count"></div>
+</header>
+
+<main>
+  <p id="loading" class="loading">Generating the world…</p>
+  <div id="grid" class="grid"></div>
+  <p id="empty" class="empty hidden">Nothing matches those filters.</p>
+</main>
+
+<footer>
+  <section class="swap">
+    <h2>What an artist actually has to draw</h2>
+    <ul class="rules" id="swap-rules"></ul>
+  </section>
+  <p class="foot-note">
+    Counts, footprints and pixel sizes are read from the generated world and the live
+    sprite painters — nothing on this page is transcribed by hand.
+  </p>
+</footer>
+
+<script type="module" src="index.js"></script>
+</body>
+</html>

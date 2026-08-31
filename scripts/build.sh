@@ -27,6 +27,7 @@ cp -R src "$OUT/src"
 cp -R icons "$OUT/icons"
 cp -R lucklianIndex "$OUT/lucklianIndex"   # the Lucklian Index reference page
 cp -R tileAtlas "$OUT/tileAtlas"           # the Tile Atlas reference page
+cp -R buildingAtlas "$OUT/buildingAtlas"   # the Building Atlas reference page
 
 # Every path the service worker pre-caches must exist, or the PWA will
 # fail to install offline on first load.

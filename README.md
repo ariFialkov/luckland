@@ -146,6 +146,20 @@ those flags, and export the **atlas PNG** (64 × 560, exactly what the game
 builds), a **labelled contact sheet**, or a **JSON manifest** — the three
 things you need to author a replacement texture pack.
 
+### The Building Atlas
+
+A third reference at **`/buildingAtlas/`** generates the real world on load
+and paints every structure standing in it: **502 buildings** and **126
+roadside props**, each with its kind, province, footprint in tiles and exact
+pixel size. Browse *every instance*, or switch to **Art slots** — the
+deduplicated list of what actually has to be drawn. The 502 buildings
+collapse to **77** slots and the props to **27**, because each placed
+building only differs by procedural detail noise that hand-drawn art
+replaces anyway. Filter by kind or province, search, zoom 1×–4×, and export
+a **labelled contact sheet** or a **JSON manifest** of every slot with its
+pixel dimensions and instance count. Sprites render lazily as cards scroll
+into view, so hundreds of canvases never land in one frame.
+
 ### The Lucklian Index
 
 A standalone reference page at **`/lucklianIndex/`** (linked from the
@@ -402,6 +416,7 @@ src/concealers.js           chest spawning, loot rolls, opening ceremonies
 src/lucklians.js            176 creatures: encounters, snares, Lucklipedia, traders
 lucklianIndex/              standalone field-guide page (reads the live species table)
 tileAtlas/                  standalone tile reference (reads the live tile painter)
+buildingAtlas/              standalone building/prop reference + art-slot list
 src/interiors.js            walkable landmark halls: layouts, stations, patrons
 src/liveevents.js           in-scene arena betting: fight/race/hunt/naval sims
 src/hunts.js                the Grand Scavenger Hunt: cards, rivals, tracker
